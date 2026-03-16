@@ -3,7 +3,7 @@ import { Search, SlidersHorizontal, Plus, Tag } from "lucide-react";
 
 export const StockFilterControlsSection = (): JSX.Element => {
   return (
-    <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0">
+    <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in" style={{ animationDelay: "150ms" }}>
       <Button
         className="h-9 px-4 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg font-semibold text-sm gap-2 transition-colors"
         variant="ghost"

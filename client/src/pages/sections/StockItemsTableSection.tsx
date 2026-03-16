@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon, Pencil, Trash2, Eye, Package } from "lucide-react";
+import { ChevronRightIcon, Pencil, Trash2, Eye, Package } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -110,7 +110,7 @@ export const StockItemsTableSection = (): JSX.Element => {
   };
 
   return (
-    <section className="w-full bg-[#0f0f0f] rounded-xl border border-white/10 overflow-hidden">
+    <section className="w-full bg-[#0f0f0f] rounded-xl border border-white/10 overflow-hidden animate-fade-in">
       <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
         <Package className="w-5 h-5 text-yellow-400" />
         <h2 className="font-bold text-yellow-400 text-base tracking-widest uppercase">
@@ -167,15 +167,10 @@ export const StockItemsTableSection = (): JSX.Element => {
                 >
                   <TableCell className="py-3 pl-6">
                     <div className="flex items-center gap-2.5">
-                      {isExpanded ? (
-                        <ChevronDownIcon className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronRightIcon className="w-4 h-4 text-white/40 flex-shrink-0" />
-                      )}
-                      <img
-                        className="w-5 h-5 object-contain flex-shrink-0 opacity-80"
-                        alt=""
-                        src="/figmaAssets/image-4--colorized---colorized--1.png"
+                      <ChevronRightIcon
+                        className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ease-in-out ${
+                          isExpanded ? "rotate-90 text-yellow-400" : "text-white/40"
+                        }`}
                       />
                       <span className="font-semibold text-white text-sm truncate">
                         {item.name}
@@ -205,7 +200,7 @@ export const StockItemsTableSection = (): JSX.Element => {
 
               if (isExpanded && item.subItems.length > 0) {
                 rows.push(
-                  <TableRow key={`subhead-${item.id}`} className="bg-[#111111] border-white/5 hover:bg-[#111111]">
+                  <TableRow key={`subhead-${item.id}`} className="animate-slide-down bg-[#111111] border-white/5 hover:bg-[#111111]">
                     <TableCell className="py-2 pl-12 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider">
                       Unit Name
                     </TableCell>
@@ -227,11 +222,12 @@ export const StockItemsTableSection = (): JSX.Element => {
                   </TableRow>,
                 );
 
-                item.subItems.forEach((subItem) => {
+                item.subItems.forEach((subItem, subIdx) => {
                   rows.push(
                     <TableRow
                       key={`sub-${item.id}-${subItem.id}`}
-                      className="bg-[#131313] border-white/5 hover:bg-white/5 transition-colors"
+                      className="animate-slide-down bg-[#131313] border-white/5 hover:bg-white/5 transition-colors"
+                      style={{ animationDelay: `${subIdx * 40}ms` }}
                     >
                       <TableCell className="py-2.5 pl-12 text-white/80 text-sm truncate align-middle">
                         {subItem.name}
