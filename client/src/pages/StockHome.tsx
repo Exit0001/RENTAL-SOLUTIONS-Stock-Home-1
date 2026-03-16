@@ -31,19 +31,19 @@ export const StockHome = (): JSX.Element => {
                   onClick={() => setActive(label)}
                   className={`group/item relative flex items-center gap-3 px-3 py-2.5 rounded-lg w-full text-left
                     opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200
-                    focus:outline-none focus:ring-1 focus:ring-yellow-400/40
+                    focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40
                     ${isActive
-                      ? "bg-yellow-400/10 text-yellow-400"
+                      ? "bg-[#FFFF00]/10 text-[#FFFF00]"
                       : "text-white/40 hover:text-white hover:bg-white/5"
                     }`}
                   title={label}
                 >
                   {/* Active left bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-yellow-400 rounded-r-full" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#FFFF00] rounded-r-full" />
                   )}
 
-                  <Icon className={`w-4 h-4 flex-shrink-0 transition-colors ${isActive ? "text-yellow-400" : ""}`} />
+                  <Icon className={`w-4 h-4 flex-shrink-0 transition-colors ${isActive ? "text-[#FFFF00]" : ""}`} />
 
                   <span className="text-sm font-medium whitespace-nowrap overflow-hidden">
                     {label}

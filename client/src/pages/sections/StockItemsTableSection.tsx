@@ -72,14 +72,14 @@ const StatusBadge = ({ status }: { status: string }) => {
     <span
       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
         isAvailable
-          ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/50"
-          : "bg-yellow-950/60 border border-yellow-400/30"
+          ? "bg-white/10 text-white border border-white/20"
+          : "bg-red-950/60 text-red-400 border border-red-800/50"
       }`}
-      style={!isAvailable ? { color: "#FFFF00" } : {}}
     >
       <span
-        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isAvailable ? "bg-emerald-400" : ""}`}
-        style={!isAvailable ? { backgroundColor: "#FFFF00" } : {}}
+        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+          isAvailable ? "bg-white" : "bg-red-400"
+        }`}
       />
       {status}
     </span>
@@ -91,7 +91,11 @@ const ActionIcons = () => (
     <button className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="View">
       <Eye className="w-4 h-4" />
     </button>
-    <button className="p-1.5 rounded-md text-white/40 hover:text-blue-400 hover:bg-blue-400/10 transition-colors" title="Edit">
+    <button className="p-1.5 rounded-md text-white/40 hover:bg-white/10 transition-colors" title="Edit"
+      style={{ color: "inherit" }}
+      onMouseEnter={e => (e.currentTarget.style.color = "#FFFF00")}
+      onMouseLeave={e => (e.currentTarget.style.color = "")}
+    >
       <Pencil className="w-4 h-4" />
     </button>
     <button className="p-1.5 rounded-md text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors" title="Delete">
@@ -114,8 +118,8 @@ export const StockItemsTableSection = (): JSX.Element => {
   return (
     <section className="w-full bg-[#0f0f0f] rounded-xl border border-white/10 overflow-hidden animate-fade-in">
       <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
-        <Package className="w-5 h-5 text-yellow-400" />
-        <h2 className="font-bold text-yellow-400 text-base tracking-widest uppercase">
+        <Package className="w-5 h-5 text-[#FFFF00]" />
+        <h2 className="font-bold text-[#FFFF00] text-base tracking-widest uppercase">
           Stock Items
         </h2>
         <span className="ml-auto text-xs text-white/30 font-medium">
@@ -137,22 +141,22 @@ export const StockItemsTableSection = (): JSX.Element => {
 
           <TableHeader>
             <TableRow className="border-white/10 hover:bg-transparent">
-              <TableHead className="py-3 pl-6 font-bold text-yellow-400 text-xs uppercase tracking-wider">
+              <TableHead className="py-3 pl-6 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">
                 Name
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider">
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">
                 Brand
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider">
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">
                 Category
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider">
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">
                 Sub-Category
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider">
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">
                 Qty
               </TableHead>
-              <TableHead className="py-3 pr-6 text-right font-bold text-yellow-400 text-xs uppercase tracking-wider">
+              <TableHead className="py-3 pr-6 text-right font-bold text-[#FFFF00] text-xs uppercase tracking-wider">
                 Actions
               </TableHead>
             </TableRow>
@@ -171,7 +175,7 @@ export const StockItemsTableSection = (): JSX.Element => {
                     <div className="flex items-center gap-2.5">
                       <ChevronRightIcon
                         className={`w-4 h-4 flex-shrink-0 transition-all duration-300 ease-in-out ${
-                          isExpanded ? "rotate-90 text-yellow-400" : "text-white/40"
+                          isExpanded ? "rotate-90 text-[#FFFF00]" : "text-white/40"
                         }`}
                       />
                       <span className="font-semibold text-white text-sm truncate">
@@ -193,7 +197,7 @@ export const StockItemsTableSection = (): JSX.Element => {
                     <span className="text-white/30 text-xs ml-1">units</span>
                   </TableCell>
                   <TableCell className="py-3 pr-6 text-right align-middle">
-                    <span className="text-xs text-yellow-400/60 italic">
+                    <span className="text-xs text-[#FFFF00]/60 italic">
                       {isExpanded ? "Collapse" : "More details"}
                     </span>
                   </TableCell>

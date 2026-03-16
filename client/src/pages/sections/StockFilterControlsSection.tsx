@@ -12,8 +12,8 @@ export const StockFilterControlsSection = (): JSX.Element => {
         Filter
       </Button>
 
-      <div className="relative flex items-center h-9 flex-1 max-w-xs bg-yellow-400/10 border border-yellow-400/20 rounded-lg">
-        <Search className="absolute left-3 w-4 h-4 text-yellow-400/60" />
+      <div className="relative flex items-center h-9 flex-1 max-w-xs bg-[#FFFF00]/10 border border-[#FFFF00]/20 rounded-lg">
+        <Search className="absolute left-3 w-4 h-4 text-[#FFFF00]/60" />
         <input
           type="text"
           placeholder="Search for items..."
@@ -31,7 +31,8 @@ export const StockFilterControlsSection = (): JSX.Element => {
         </Button>
 
         <Button
-          className="h-9 px-4 bg-yellow-400 hover:bg-yellow-300 text-black rounded-lg font-bold text-sm gap-2 transition-colors"
+          className="h-9 px-4 hover:opacity-90 text-black rounded-lg font-bold text-sm gap-2 transition-opacity"
+          style={{ backgroundColor: "#FFFF00" }}
           variant="ghost"
         >
           <Plus className="w-4 h-4" />
