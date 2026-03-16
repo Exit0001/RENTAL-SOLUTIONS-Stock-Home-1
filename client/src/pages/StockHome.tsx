@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Home, Boxes, BarChart2, Briefcase, ClockIcon } from "lucide-react";
+import { BrandCategoryModal } from "./sections/BrandCategoryModal";
 import { StockFilterControlsSection } from "./sections/StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./sections/StockFilterSidebarSection";
 import { StockItemsTableSection } from "./sections/StockItemsTableSection";
@@ -16,6 +17,7 @@ const sidebarNavItems = [
 export const StockHome = (): JSX.Element => {
   const [active, setActive] = useState("Stock");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [brandCategoryOpen, setBrandCategoryOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +40,10 @@ export const StockHome = (): JSX.Element => {
   return (
     <div className="min-h-screen w-full bg-[#0a0a0a] flex flex-col">
       <StockManagementHeaderSection />
+
+      {brandCategoryOpen && (
+        <BrandCategoryModal onClose={() => setBrandCategoryOpen(false)} />
+      )}
 
       <div className="flex flex-row flex-1 overflow-hidden">
         {/* Nav sidebar: slim strip, expands on hover */}
@@ -97,6 +103,7 @@ export const StockHome = (): JSX.Element => {
           <StockFilterControlsSection
             filterOpen={filterOpen}
             onToggleFilter={() => setFilterOpen((v) => !v)}
+            onOpenBrandCategory={() => setBrandCategoryOpen(true)}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
           />

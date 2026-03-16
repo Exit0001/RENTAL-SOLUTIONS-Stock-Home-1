@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, Plus, Tag } from "lucide-react";
 interface StockFilterControlsProps {
   filterOpen: boolean;
   onToggleFilter: () => void;
+  onOpenBrandCategory: () => void;
   searchQuery: string;
   onSearchChange: (val: string) => void;
 }
@@ -11,6 +12,7 @@ interface StockFilterControlsProps {
 export const StockFilterControlsSection = ({
   filterOpen,
   onToggleFilter,
+  onOpenBrandCategory,
   searchQuery,
   onSearchChange,
 }: StockFilterControlsProps): JSX.Element => {
@@ -51,6 +53,7 @@ export const StockFilterControlsSection = ({
 
       <div className="flex items-center gap-2 ml-auto">
         <Button
+          onClick={onOpenBrandCategory}
           className="h-9 px-4 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg font-semibold text-sm gap-2 transition-colors"
           variant="ghost"
         >
