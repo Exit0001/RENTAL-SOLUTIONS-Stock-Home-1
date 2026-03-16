@@ -1,5 +1,5 @@
+import React, { useState } from "react";
 import { ChevronDownIcon, ChevronRightIcon, Pencil, Trash2, Eye, Package } from "lucide-react";
-import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -122,22 +122,23 @@ export const StockItemsTableSection = (): JSX.Element => {
       </div>
 
       <div className="overflow-x-auto">
+        {/* Single unified table so header columns always align with body */}
         <Table>
           <TableHeader>
             <TableRow className="border-white/10 hover:bg-transparent">
-              <TableHead className="py-3 pl-6 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+              <TableHead className="py-3 pl-6 w-56 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
                 Name
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+              <TableHead className="py-3 w-44 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
                 Brand
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+              <TableHead className="py-3 w-32 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
                 Category
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+              <TableHead className="py-3 w-36 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
                 Sub-Category
               </TableHead>
-              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+              <TableHead className="py-3 w-24 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
                 Qty
               </TableHead>
               <TableHead className="py-3 pr-6 text-right font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
@@ -145,117 +146,111 @@ export const StockItemsTableSection = (): JSX.Element => {
               </TableHead>
             </TableRow>
           </TableHeader>
+
+          <TableBody>
+            {stockItems.flatMap((item) => {
+              const isExpanded = expandedRows.includes(item.id);
+              const rows: JSX.Element[] = [
+                <TableRow
+                  key={`row-${item.id}`}
+                  className="bg-[#1e1e1e] hover:bg-[#252525] cursor-pointer border-white/5 transition-colors"
+                  onClick={() => toggleRow(item.id)}
+                >
+                  <TableCell className="py-3 pl-6 w-56">
+                    <div className="flex items-center gap-2.5">
+                      {isExpanded ? (
+                        <ChevronDownIcon className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                      ) : (
+                        <ChevronRightIcon className="w-4 h-4 text-white/40 flex-shrink-0" />
+                      )}
+                      <img
+                        className="w-5 h-5 object-contain flex-shrink-0 opacity-80"
+                        alt=""
+                        src="/figmaAssets/image-4--colorized---colorized--1.png"
+                      />
+                      <span className="font-semibold text-white text-sm whitespace-nowrap">
+                        {item.name}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3 w-44 text-white/70 text-sm whitespace-nowrap align-middle">
+                    {item.brand}
+                  </TableCell>
+                  <TableCell className="py-3 w-32 text-white/70 text-sm whitespace-nowrap align-middle">
+                    {item.category}
+                  </TableCell>
+                  <TableCell className="py-3 w-36 text-white/70 text-sm whitespace-nowrap align-middle">
+                    {item.subCategory}
+                  </TableCell>
+                  <TableCell className="py-3 w-24 text-sm align-middle">
+                    <span className="font-bold text-white">{item.quantity}</span>
+                    <span className="text-white/30 text-xs ml-1">units</span>
+                  </TableCell>
+                  <TableCell className="py-3 pr-6 text-right align-middle">
+                    <span className="text-xs text-yellow-400/60 italic">
+                      {isExpanded ? "Collapse" : "More details"}
+                    </span>
+                  </TableCell>
+                </TableRow>,
+              ];
+
+              if (isExpanded && item.subItems.length > 0) {
+                rows.push(
+                  <TableRow key={`subhead-${item.id}`} className="bg-[#111111] border-white/5 hover:bg-[#111111]">
+                    <TableCell className="py-2 pl-12 w-56 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
+                      Unit Name
+                    </TableCell>
+                    <TableCell className="py-2 w-44 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
+                      Serial No.
+                    </TableCell>
+                    <TableCell className="py-2 w-32 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
+                      Barcode
+                    </TableCell>
+                    <TableCell className="py-2 w-36 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
+                      Location
+                    </TableCell>
+                    <TableCell className="py-2 w-24 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
+                      Status
+                    </TableCell>
+                    <TableCell className="py-2 pr-6 text-right font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
+                      Actions
+                    </TableCell>
+                  </TableRow>,
+                );
+
+                item.subItems.forEach((subItem) => {
+                  rows.push(
+                    <TableRow
+                      key={`sub-${item.id}-${subItem.id}`}
+                      className="bg-[#131313] border-white/5 hover:bg-white/5 transition-colors"
+                    >
+                      <TableCell className="py-2.5 pl-12 w-56 text-white/80 text-sm whitespace-nowrap align-middle">
+                        {subItem.name}
+                      </TableCell>
+                      <TableCell className="py-2.5 w-44 text-white/60 text-sm font-mono whitespace-nowrap align-middle">
+                        {subItem.serialNumber}
+                      </TableCell>
+                      <TableCell className="py-2.5 w-32 text-white/60 text-sm font-mono whitespace-nowrap align-middle">
+                        {subItem.barcodeNumber}
+                      </TableCell>
+                      <TableCell className="py-2.5 w-36 text-white/60 text-sm whitespace-nowrap align-middle">
+                        {subItem.location}
+                      </TableCell>
+                      <TableCell className="py-2.5 w-24 align-middle">
+                        <StatusBadge status={subItem.status} />
+                      </TableCell>
+                      <TableCell className="py-2.5 pr-4 text-right align-middle">
+                        <ActionIcons />
+                      </TableCell>
+                    </TableRow>,
+                  );
+                });
+              }
+
+              return rows;
+            })}
+          </TableBody>
         </Table>
-
-        {stockItems.map((item) => {
-          const isExpanded = expandedRows.includes(item.id);
-          return (
-            <div key={item.id} className="border-t border-white/5">
-              <div
-                className="bg-[#1e1e1e] hover:bg-[#252525] cursor-pointer transition-colors"
-                onClick={() => toggleRow(item.id)}
-              >
-                <Table>
-                  <TableBody>
-                    <TableRow className="border-0 hover:bg-transparent">
-                      <TableCell className="py-3 pl-6">
-                        <div className="flex items-center gap-2.5">
-                          {isExpanded ? (
-                            <ChevronDownIcon className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                          ) : (
-                            <ChevronRightIcon className="w-4 h-4 text-white/40 flex-shrink-0" />
-                          )}
-                          <img
-                            className="w-5 h-5 object-contain flex-shrink-0 opacity-80"
-                            alt=""
-                            src="/figmaAssets/image-4--colorized---colorized--1.png"
-                          />
-                          <span className="font-semibold text-white text-sm whitespace-nowrap">
-                            {item.name}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-3 text-white/70 text-sm whitespace-nowrap">
-                        {item.brand}
-                      </TableCell>
-                      <TableCell className="py-3 text-white/70 text-sm whitespace-nowrap">
-                        {item.category}
-                      </TableCell>
-                      <TableCell className="py-3 text-white/70 text-sm whitespace-nowrap">
-                        {item.subCategory}
-                      </TableCell>
-                      <TableCell className="py-3 text-sm">
-                        <span className="font-bold text-white">{item.quantity}</span>
-                        <span className="text-white/30 text-xs ml-1">units</span>
-                      </TableCell>
-                      <TableCell className="py-3 pr-6 text-right">
-                        <span className="text-xs text-yellow-400/60 italic">
-                          {isExpanded ? "Collapse" : "More details"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-
-              {isExpanded && item.subItems.length > 0 && (
-                <div className="bg-[#121212]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/5 hover:bg-transparent">
-                        <TableHead className="py-2 pl-12 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
-                          Unit Name
-                        </TableHead>
-                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
-                          Serial No.
-                        </TableHead>
-                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
-                          Barcode
-                        </TableHead>
-                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
-                          Location
-                        </TableHead>
-                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
-                          Status
-                        </TableHead>
-                        <TableHead className="py-2 pr-6 text-right font-semibold text-yellow-200/60 text-xs uppercase tracking-wider">
-                          Actions
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {item.subItems.map((subItem) => (
-                        <TableRow
-                          key={subItem.id}
-                          className="border-white/5 hover:bg-white/5 transition-colors"
-                        >
-                          <TableCell className="py-2.5 pl-12 text-white/80 text-sm whitespace-nowrap">
-                            {subItem.name}
-                          </TableCell>
-                          <TableCell className="py-2.5 text-white/60 text-sm font-mono whitespace-nowrap">
-                            {subItem.serialNumber}
-                          </TableCell>
-                          <TableCell className="py-2.5 text-white/60 text-sm font-mono whitespace-nowrap">
-                            {subItem.barcodeNumber}
-                          </TableCell>
-                          <TableCell className="py-2.5 text-white/60 text-sm whitespace-nowrap">
-                            {subItem.location}
-                          </TableCell>
-                          <TableCell className="py-2.5">
-                            <StatusBadge status={subItem.status} />
-                          </TableCell>
-                          <TableCell className="py-2.5 pr-4 text-right">
-                            <ActionIcons />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          );
-        })}
       </div>
     </section>
   );
