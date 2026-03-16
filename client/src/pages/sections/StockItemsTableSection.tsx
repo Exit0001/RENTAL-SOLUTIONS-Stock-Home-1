@@ -73,11 +73,13 @@ const StatusBadge = ({ status }: { status: string }) => {
       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
         isAvailable
           ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/50"
-          : "bg-orange-950/60 text-orange-400 border border-orange-800/50"
+          : "bg-yellow-950/60 border border-yellow-400/30"
       }`}
+      style={!isAvailable ? { color: "#FFFF00" } : {}}
     >
       <span
-        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isAvailable ? "bg-emerald-400" : "bg-orange-400"}`}
+        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isAvailable ? "bg-emerald-400" : ""}`}
+        style={!isAvailable ? { backgroundColor: "#FFFF00" } : {}}
       />
       {status}
     </span>
