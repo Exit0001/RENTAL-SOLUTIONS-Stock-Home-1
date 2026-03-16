@@ -15,6 +15,7 @@ const sidebarNavItems = [
 
 export const StockHome = (): JSX.Element => {
   const [active, setActive] = useState("Stock");
+  const [filterOpen, setFilterOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,18 +77,26 @@ export const StockHome = (): JSX.Element => {
           </div>
         </aside>
 
-        {/* Filter sidebar */}
-        <StockFilterSidebarSection
-          selectedBrands={selectedBrands}
-          selectedCategories={selectedCategories}
-          onBrandChange={toggleBrand}
-          onCategoryChange={toggleCategory}
-          onClearAll={clearAll}
-        />
+        {/* Filter sidebar — slides in when filterOpen */}
+        <div
+          className={`flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${
+            filterOpen ? "w-52" : "w-0"
+          }`}
+        >
+          <StockFilterSidebarSection
+            selectedBrands={selectedBrands}
+            selectedCategories={selectedCategories}
+            onBrandChange={toggleBrand}
+            onCategoryChange={toggleCategory}
+            onClearAll={clearAll}
+          />
+        </div>
 
         {/* Main content */}
         <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <StockFilterControlsSection
+            filterOpen={filterOpen}
+            onToggleFilter={() => setFilterOpen((v) => !v)}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
           />

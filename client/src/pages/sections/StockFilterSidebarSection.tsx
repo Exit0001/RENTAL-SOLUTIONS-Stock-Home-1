@@ -57,7 +57,7 @@ export const StockFilterSidebarSection = ({
   const totalSelected = selectedBrands.length + selectedCategories.length;
 
   return (
-    <aside className="flex-shrink-0 w-52 bg-[#0d0d0d] border-r border-white/10 flex flex-col overflow-y-auto animate-fade-in">
+    <aside className="w-52 min-w-[208px] h-full bg-[#0d0d0d] border-r border-white/10 flex flex-col overflow-y-auto">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-white/10">
         <div className="flex items-center gap-2 mb-1">
