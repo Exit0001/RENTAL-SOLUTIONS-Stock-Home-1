@@ -21,11 +21,7 @@ export const StockHome = (): JSX.Element => {
 
       <div className="flex flex-row flex-1 overflow-hidden">
         {/* Sidebar: slim strip, expands to show labels on hover */}
-        <aside className="group/sidebar relative flex-shrink-0 w-[3px] hover:w-56 overflow-hidden bg-[#0d0d0d] border-r border-white/10 flex flex-col pt-4 pb-6 transition-all duration-300 ease-in-out">
-
-          {/* Yellow accent line at top */}
-          <div className="mx-auto mb-6 w-[2px] h-6 bg-yellow-400/40 rounded-full opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300" />
-
+        <aside className="group/sidebar relative flex-shrink-0 w-[3px] hover:w-56 overflow-hidden bg-[#0d0d0d] border-r border-white/10 flex flex-col pt-2 pb-6 transition-all duration-300 ease-in-out">
           <nav className="flex flex-col gap-1 px-2">
             {sidebarNavItems.map(({ label, Icon }) => {
               const isActive = active === label;
