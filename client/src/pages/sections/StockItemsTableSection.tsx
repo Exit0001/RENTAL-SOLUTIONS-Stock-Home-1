@@ -72,13 +72,13 @@ const StatusBadge = ({ status }: { status: string }) => {
     <span
       className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
         isAvailable
-          ? "bg-white/10 text-white border border-white/20"
+          ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/50"
           : "bg-red-950/60 text-red-400 border border-red-800/50"
       }`}
     >
       <span
         className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-          isAvailable ? "bg-white" : "bg-red-400"
+          isAvailable ? "bg-emerald-400" : "bg-red-400"
         }`}
       />
       {status}
