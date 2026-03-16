@@ -104,7 +104,17 @@ const ActionIcons = () => (
   </div>
 );
 
-export const StockItemsTableSection = (): JSX.Element => {
+interface StockItemsTableProps {
+  selectedBrands?: string[];
+  selectedCategories?: string[];
+  searchQuery?: string;
+}
+
+export const StockItemsTableSection = ({
+  selectedBrands = [],
+  selectedCategories = [],
+  searchQuery = "",
+}: StockItemsTableProps): JSX.Element => {
   const [expandedRows, setExpandedRows] = useState<number[]>(
     stockItems.filter((item) => item.expanded).map((item) => item.id),
   );
@@ -115,6 +125,19 @@ export const StockItemsTableSection = (): JSX.Element => {
     );
   };
 
+  const filteredItems = stockItems.filter((item) => {
+    const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(item.brand);
+    const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(item.category);
+    const q = searchQuery.toLowerCase();
+    const searchMatch =
+      !q ||
+      item.name.toLowerCase().includes(q) ||
+      item.brand.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      item.subCategory.toLowerCase().includes(q);
+    return brandMatch && categoryMatch && searchMatch;
+  });
+
   return (
     <section className="w-full bg-[#0f0f0f] rounded-xl border border-white/10 overflow-hidden animate-fade-in">
       <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
@@ -123,7 +146,10 @@ export const StockItemsTableSection = (): JSX.Element => {
           Stock Items
         </h2>
         <span className="ml-auto text-xs text-white/30 font-medium">
-          {stockItems.length} categories
+          {filteredItems.length} {filteredItems.length === 1 ? "category" : "categories"}
+          {(selectedBrands.length > 0 || selectedCategories.length > 0 || searchQuery) && (
+            <span className="ml-1 text-[#FFFF00]/50">· filtered</span>
+          )}
         </span>
       </div>
 
@@ -163,7 +189,17 @@ export const StockItemsTableSection = (): JSX.Element => {
           </TableHeader>
 
           <TableBody>
-            {stockItems.flatMap((item) => {
+            {filteredItems.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="py-16 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <Package className="w-8 h-8 text-white/10" />
+                    <p className="text-white/30 text-sm">No items match your filters</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {filteredItems.flatMap((item) => {
               const isExpanded = expandedRows.includes(item.id);
               const rows: JSX.Element[] = [
                 <TableRow
@@ -207,22 +243,22 @@ export const StockItemsTableSection = (): JSX.Element => {
               if (isExpanded && item.subItems.length > 0) {
                 rows.push(
                   <TableRow key={`subhead-${item.id}`} className="animate-slide-down bg-[#111111] border-white/5 hover:bg-[#111111]">
-                    <TableCell className="py-2 pl-12 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider">
+                    <TableCell className="py-2 pl-12 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
                       Unit Name
                     </TableCell>
-                    <TableCell className="py-2 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider">
+                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
                       Serial No.
                     </TableCell>
-                    <TableCell className="py-2 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider">
+                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
                       Barcode
                     </TableCell>
-                    <TableCell className="py-2 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider">
+                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
                       Location
                     </TableCell>
-                    <TableCell className="py-2 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider">
+                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
                       Status
                     </TableCell>
-                    <TableCell className="py-2 pr-6 text-right font-semibold text-yellow-200/50 text-xs uppercase tracking-wider">
+                    <TableCell className="py-2 pr-6 text-right font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
                       Actions
                     </TableCell>
                   </TableRow>,

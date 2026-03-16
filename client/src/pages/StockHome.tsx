@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Home, Boxes, BarChart2, Briefcase, ClockIcon } from "lucide-react";
 import { StockFilterControlsSection } from "./sections/StockFilterControlsSection";
+import { StockFilterSidebarSection } from "./sections/StockFilterSidebarSection";
 import { StockItemsTableSection } from "./sections/StockItemsTableSection";
 import { StockManagementHeaderSection } from "./sections/StockManagementHeaderSection";
 
@@ -14,14 +15,32 @@ const sidebarNavItems = [
 
 export const StockHome = (): JSX.Element => {
   const [active, setActive] = useState("Stock");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const toggleBrand = (brand: string) =>
+    setSelectedBrands((prev) =>
+      prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand]
+    );
+
+  const toggleCategory = (cat: string) =>
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+
+  const clearAll = () => {
+    setSelectedBrands([]);
+    setSelectedCategories([]);
+  };
 
   return (
     <div className="min-h-screen w-full bg-[#0a0a0a] flex flex-col">
       <StockManagementHeaderSection />
 
       <div className="flex flex-row flex-1 overflow-hidden">
-        {/* Sidebar: slim strip, expands to show labels on hover */}
-        <aside className="group/sidebar relative flex-shrink-0 w-[3px] hover:w-56 overflow-hidden bg-[#0d0d0d] border-r border-white/10 flex flex-col pt-2 pb-6 transition-all duration-300 ease-in-out">
+        {/* Nav sidebar: slim strip, expands on hover */}
+        <aside className="group/sidebar relative flex-shrink-0 w-[3px] hover:w-56 overflow-hidden bg-[#0d0d0d] border-r border-white/10 flex flex-col pt-2 pb-6 transition-all duration-300 ease-in-out z-10">
           <nav className="flex flex-col gap-1 px-2">
             {sidebarNavItems.map(({ label, Icon }) => {
               const isActive = active === label;
@@ -38,13 +57,10 @@ export const StockHome = (): JSX.Element => {
                     }`}
                   title={label}
                 >
-                  {/* Active left bar */}
                   {isActive && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#FFFF00] rounded-r-full" />
                   )}
-
                   <Icon className={`w-4 h-4 flex-shrink-0 transition-colors ${isActive ? "text-[#FFFF00]" : ""}`} />
-
                   <span className="text-sm font-medium whitespace-nowrap overflow-hidden">
                     {label}
                   </span>
@@ -53,7 +69,6 @@ export const StockHome = (): JSX.Element => {
             })}
           </nav>
 
-          {/* Bottom divider + version hint */}
           <div className="mt-auto px-4 opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
             <div className="border-t border-white/5 pt-4">
               <p className="text-[10px] text-white/20 tracking-widest uppercase">v1.0.0</p>
@@ -61,10 +76,27 @@ export const StockHome = (): JSX.Element => {
           </div>
         </aside>
 
+        {/* Filter sidebar */}
+        <StockFilterSidebarSection
+          selectedBrands={selectedBrands}
+          selectedCategories={selectedCategories}
+          onBrandChange={toggleBrand}
+          onCategoryChange={toggleCategory}
+          onClearAll={clearAll}
+        />
+
+        {/* Main content */}
         <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <StockFilterControlsSection />
+          <StockFilterControlsSection
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
           <div className="flex-1 overflow-auto p-4">
-            <StockItemsTableSection />
+            <StockItemsTableSection
+              selectedBrands={selectedBrands}
+              selectedCategories={selectedCategories}
+              searchQuery={searchQuery}
+            />
           </div>
         </main>
       </div>
