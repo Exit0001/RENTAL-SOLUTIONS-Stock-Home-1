@@ -141,7 +141,7 @@ export const StockItemsTableSection = (): JSX.Element => {
               <TableHead className="py-3 w-24 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
                 Qty
               </TableHead>
-              <TableHead className="py-3 pr-6 text-right font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+              <TableHead className="py-3 pr-6 w-full text-right font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
                 Actions
               </TableHead>
             </TableRow>
@@ -186,7 +186,7 @@ export const StockItemsTableSection = (): JSX.Element => {
                     <span className="font-bold text-white">{item.quantity}</span>
                     <span className="text-white/30 text-xs ml-1">units</span>
                   </TableCell>
-                  <TableCell className="py-3 pr-6 text-right align-middle">
+                  <TableCell className="py-3 pr-6 w-full text-right align-middle">
                     <span className="text-xs text-yellow-400/60 italic">
                       {isExpanded ? "Collapse" : "More details"}
                     </span>
@@ -212,7 +212,7 @@ export const StockItemsTableSection = (): JSX.Element => {
                     <TableCell className="py-2 w-24 font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
                       Status
                     </TableCell>
-                    <TableCell className="py-2 pr-6 text-right font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
+                    <TableCell className="py-2 pr-6 w-full text-right font-semibold text-yellow-200/50 text-xs uppercase tracking-wider whitespace-nowrap">
                       Actions
                     </TableCell>
                   </TableRow>,
@@ -239,7 +239,7 @@ export const StockItemsTableSection = (): JSX.Element => {
                       <TableCell className="py-2.5 w-24 align-middle">
                         <StatusBadge status={subItem.status} />
                       </TableCell>
-                      <TableCell className="py-2.5 pr-4 text-right align-middle">
+                      <TableCell className="py-2.5 pr-4 w-full text-right align-middle">
                         <ActionIcons />
                       </TableCell>
                     </TableRow>,
