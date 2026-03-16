@@ -1,24 +1,21 @@
 export const StockManagementHeaderSection = (): JSX.Element => {
   return (
-    <header className="w-full h-[92px] bg-[#0f0f0f] border border-solid border-[#ffffff80] flex items-center justify-between px-6">
-      {/* Logo on the left */}
-      <div className="[font-family:'Inter',Helvetica] font-bold text-[#ffff00] text-[40px] tracking-[0] leading-[normal] whitespace-nowrap">
+    <header className="w-full h-16 bg-[#0f0f0f] border-b border-white/10 flex items-center justify-between px-6 flex-shrink-0">
+      <div className="font-bold text-yellow-400 text-2xl tracking-widest">
         LOGO
       </div>
 
-      {/* Title in the center */}
-      <div className="[font-family:'Inter',Helvetica] font-bold text-white text-[32px] tracking-[0] leading-[normal]">
-        STOCK MANAGEMENT
+      <div className="font-bold text-white text-lg tracking-widest uppercase">
+        Stock Management
       </div>
 
-      {/* User greeting and avatar on the right */}
-      <div className="flex items-center gap-1.5">
-        <span className="[font-family:'Inter',Helvetica] font-bold text-[#ffff00] text-xl tracking-[0] leading-[normal]">
+      <div className="flex items-center gap-3">
+        <span className="font-semibold text-yellow-400 text-sm">
           Hello, Yossapon
         </span>
         <img
-          className="w-[60px] h-[61px]"
-          alt="Icon"
+          className="w-9 h-9 rounded-full object-cover"
+          alt="User avatar"
           src="/figmaAssets/icon.svg"
         />
       </div>

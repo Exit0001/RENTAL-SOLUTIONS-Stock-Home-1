@@ -191,8 +191,12 @@
     @apply border-border;
   }
 
+  html, body, #root {
+    @apply h-full;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[#0a0a0a] text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }

@@ -1,4 +1,4 @@
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, Pencil, Trash2, Eye, Package } from "lucide-react";
 import { useState } from "react";
 import {
   Table,
@@ -66,30 +66,35 @@ const stockItems = [
   },
 ];
 
-// Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
-  if (status === "Available") {
-    return (
-      <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#1a3431] text-[#558e88] text-sm [font-family:'Inter',Helvetica] font-normal whitespace-nowrap">
-        {status}
-      </span>
-    );
-  }
+  const isAvailable = status === "Available";
   return (
-    <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#422523] text-[#c8a29f] text-sm [font-family:'Inter',Helvetica] font-normal whitespace-nowrap">
+    <span
+      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+        isAvailable
+          ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/50"
+          : "bg-orange-950/60 text-orange-400 border border-orange-800/50"
+      }`}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isAvailable ? "bg-emerald-400" : "bg-orange-400"}`}
+      />
       {status}
     </span>
   );
 };
 
-// Action icons for sub-rows
 const ActionIcons = () => (
-  <div className="flex items-center gap-3">
-    <img
-      className="w-[93px] h-[34px] object-cover"
-      alt="Actions"
-      src="/figmaAssets/image-6-3.png"
-    />
+  <div className="flex items-center gap-1">
+    <button className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="View">
+      <Eye className="w-4 h-4" />
+    </button>
+    <button className="p-1.5 rounded-md text-white/40 hover:text-blue-400 hover:bg-blue-400/10 transition-colors" title="Edit">
+      <Pencil className="w-4 h-4" />
+    </button>
+    <button className="p-1.5 rounded-md text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors" title="Delete">
+      <Trash2 className="w-4 h-4" />
+    </button>
   </div>
 );
 
@@ -105,87 +110,87 @@ export const StockItemsTableSection = (): JSX.Element => {
   };
 
   return (
-    <section className="relative w-full bg-[#0f0f0f] rounded-[29px] border border-solid border-[#ffffff80] p-0 overflow-hidden">
-      {/* Section Title */}
-      <div className="px-8 pt-7 pb-5">
-        <h2 className="[font-family:'Inter',Helvetica] font-bold text-[#ffff00] text-[32px] tracking-[0] leading-[normal]">
-          STOCK ITEMS
+    <section className="w-full bg-[#0f0f0f] rounded-xl border border-white/10 overflow-hidden">
+      <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
+        <Package className="w-5 h-5 text-yellow-400" />
+        <h2 className="font-bold text-yellow-400 text-base tracking-widest uppercase">
+          Stock Items
         </h2>
+        <span className="ml-auto text-xs text-white/30 font-medium">
+          {stockItems.length} categories
+        </span>
       </div>
 
-      {/* Inner table container */}
-      <div className="mx-8 mb-8 bg-neutral-900 rounded-[29px] border-b border-solid border-[#ffffff80] overflow-hidden">
-        {/* Outer table header */}
-        <div className="bg-neutral-800 rounded-t-[29px]">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-0 hover:bg-transparent">
-                <TableHead className="w-[400px] py-6 pl-8 [font-family:'Inter',Helvetica] font-extrabold text-[#ffff00] text-2xl tracking-[0] leading-[normal] whitespace-nowrap">
-                  Name
-                </TableHead>
-                <TableHead className="py-6 [font-family:'Inter',Helvetica] font-bold text-[#ffff00] text-2xl tracking-[0] leading-[normal] whitespace-nowrap">
-                  Brand
-                </TableHead>
-                <TableHead className="py-6 [font-family:'Inter',Helvetica] font-bold text-[#ffff00] text-2xl tracking-[0] leading-[normal] whitespace-nowrap">
-                  Category
-                </TableHead>
-                <TableHead className="py-6 [font-family:'Inter',Helvetica] font-bold text-[#ffff00] text-2xl tracking-[0] leading-[normal] whitespace-nowrap">
-                  Sub-Category
-                </TableHead>
-                <TableHead className="py-6 [font-family:'Inter',Helvetica] font-bold text-[#ffff00] text-2xl tracking-[0] leading-[normal] whitespace-nowrap">
-                  Quantity
-                </TableHead>
-                <TableHead className="py-6" />
-              </TableRow>
-            </TableHeader>
-          </Table>
-        </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10 hover:bg-transparent">
+              <TableHead className="py-3 pl-6 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                Name
+              </TableHead>
+              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                Brand
+              </TableHead>
+              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                Category
+              </TableHead>
+              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                Sub-Category
+              </TableHead>
+              <TableHead className="py-3 font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                Qty
+              </TableHead>
+              <TableHead className="py-3 pr-6 text-right font-bold text-yellow-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+        </Table>
 
-        {/* Stock items rows */}
         {stockItems.map((item) => {
           const isExpanded = expandedRows.includes(item.id);
           return (
-            <div key={item.id}>
-              {/* Main row - dark gray background */}
+            <div key={item.id} className="border-t border-white/5">
               <div
-                className="bg-[#323232] cursor-pointer"
+                className="bg-[#1e1e1e] hover:bg-[#252525] cursor-pointer transition-colors"
                 onClick={() => toggleRow(item.id)}
               >
                 <Table>
                   <TableBody>
-                    <TableRow className="border-0 hover:bg-[#3a3a3a]">
-                      <TableCell className="w-[400px] py-4 pl-8">
-                        <div className="flex items-center gap-3">
+                    <TableRow className="border-0 hover:bg-transparent">
+                      <TableCell className="py-3 pl-6">
+                        <div className="flex items-center gap-2.5">
                           {isExpanded ? (
-                            <ChevronDownIcon className="w-5 h-5 text-white flex-shrink-0" />
+                            <ChevronDownIcon className="w-4 h-4 text-yellow-400 flex-shrink-0" />
                           ) : (
-                            <ChevronRightIcon className="w-5 h-5 text-white flex-shrink-0" />
+                            <ChevronRightIcon className="w-4 h-4 text-white/40 flex-shrink-0" />
                           )}
                           <img
-                            className="w-[25px] h-[25px] object-cover flex-shrink-0"
-                            alt="Image colorized"
+                            className="w-5 h-5 object-contain flex-shrink-0 opacity-80"
+                            alt=""
                             src="/figmaAssets/image-4--colorized---colorized--1.png"
                           />
-                          <span className="[font-family:'Inter',Helvetica] font-semibold text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                          <span className="font-semibold text-white text-sm whitespace-nowrap">
                             {item.name}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="py-4 [font-family:'Inter',Helvetica] font-semibold text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                      <TableCell className="py-3 text-white/70 text-sm whitespace-nowrap">
                         {item.brand}
                       </TableCell>
-                      <TableCell className="py-4 [font-family:'Inter',Helvetica] font-semibold text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                      <TableCell className="py-3 text-white/70 text-sm whitespace-nowrap">
                         {item.category}
                       </TableCell>
-                      <TableCell className="py-4 [font-family:'Inter',Helvetica] font-semibold text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                      <TableCell className="py-3 text-white/70 text-sm whitespace-nowrap">
                         {item.subCategory}
                       </TableCell>
-                      <TableCell className="py-4 [font-family:'Inter',Helvetica] font-semibold text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                        {item.quantity}
+                      <TableCell className="py-3 text-sm">
+                        <span className="font-bold text-white">{item.quantity}</span>
+                        <span className="text-white/30 text-xs ml-1">units</span>
                       </TableCell>
-                      <TableCell className="py-4 text-right pr-8">
-                        <span className="[font-family:'Inter',Helvetica] font-light italic text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                          More Details
+                      <TableCell className="py-3 pr-6 text-right">
+                        <span className="text-xs text-yellow-400/60 italic">
+                          {isExpanded ? "Collapse" : "More details"}
                         </span>
                       </TableCell>
                     </TableRow>
@@ -193,59 +198,53 @@ export const StockItemsTableSection = (): JSX.Element => {
                 </Table>
               </div>
 
-              {/* Expanded sub-table */}
               {isExpanded && item.subItems.length > 0 && (
-                <div className="bg-[#0f0f0f]">
-                  {/* Sub-table header */}
-                  <div className="border-b border-solid border-white/50">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-0 hover:bg-transparent">
-                          <TableHead className="w-[400px] py-4 pl-8 [font-family:'Inter',Helvetica] font-extrabold text-[#ffffa6] text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                            Name
-                          </TableHead>
-                          <TableHead className="py-4 [font-family:'Inter',Helvetica] font-bold text-[#ffffa6] text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                            Serial Number
-                          </TableHead>
-                          <TableHead className="py-4 [font-family:'Inter',Helvetica] font-bold text-[#ffffa6] text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                            Barcode Number
-                          </TableHead>
-                          <TableHead className="py-4 [font-family:'Inter',Helvetica] font-bold text-[#ffffa6] text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                            Location
-                          </TableHead>
-                          <TableHead className="py-4 [font-family:'Inter',Helvetica] font-bold text-[#ffffa6] text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                            Status
-                          </TableHead>
-                          <TableHead className="py-4" />
-                        </TableRow>
-                      </TableHeader>
-                    </Table>
-                  </div>
-
-                  {/* Sub-table rows */}
+                <div className="bg-[#121212]">
                   <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/5 hover:bg-transparent">
+                        <TableHead className="py-2 pl-12 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
+                          Unit Name
+                        </TableHead>
+                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
+                          Serial No.
+                        </TableHead>
+                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
+                          Barcode
+                        </TableHead>
+                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
+                          Location
+                        </TableHead>
+                        <TableHead className="py-2 font-semibold text-yellow-200/60 text-xs uppercase tracking-wider whitespace-nowrap">
+                          Status
+                        </TableHead>
+                        <TableHead className="py-2 pr-6 text-right font-semibold text-yellow-200/60 text-xs uppercase tracking-wider">
+                          Actions
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
                     <TableBody>
                       {item.subItems.map((subItem) => (
                         <TableRow
                           key={subItem.id}
-                          className="border-0 hover:bg-[#1a1a1a]"
+                          className="border-white/5 hover:bg-white/5 transition-colors"
                         >
-                          <TableCell className="w-[400px] py-4 pl-8 [font-family:'Inter',Helvetica] font-normal text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                          <TableCell className="py-2.5 pl-12 text-white/80 text-sm whitespace-nowrap">
                             {subItem.name}
                           </TableCell>
-                          <TableCell className="py-4 [font-family:'Inter',Helvetica] font-normal text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                          <TableCell className="py-2.5 text-white/60 text-sm font-mono whitespace-nowrap">
                             {subItem.serialNumber}
                           </TableCell>
-                          <TableCell className="py-4 [font-family:'Inter',Helvetica] font-normal text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                          <TableCell className="py-2.5 text-white/60 text-sm font-mono whitespace-nowrap">
                             {subItem.barcodeNumber}
                           </TableCell>
-                          <TableCell className="py-4 [font-family:'Inter',Helvetica] font-normal text-white text-xl tracking-[0] leading-[normal] whitespace-nowrap">
+                          <TableCell className="py-2.5 text-white/60 text-sm whitespace-nowrap">
                             {subItem.location}
                           </TableCell>
-                          <TableCell className="py-4">
+                          <TableCell className="py-2.5">
                             <StatusBadge status={subItem.status} />
                           </TableCell>
-                          <TableCell className="py-4 pr-8 text-right">
+                          <TableCell className="py-2.5 pr-4 text-right">
                             <ActionIcons />
                           </TableCell>
                         </TableRow>

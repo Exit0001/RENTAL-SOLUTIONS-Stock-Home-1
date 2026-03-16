@@ -2,73 +2,42 @@ import { StockFilterControlsSection } from "./sections/StockFilterControlsSectio
 import { StockItemsTableSection } from "./sections/StockItemsTableSection";
 import { StockManagementHeaderSection } from "./sections/StockManagementHeaderSection";
 
-// Navigation sidebar icon items data
 const sidebarNavItems = [
-  {
-    alt: "Home",
-    src: "/figmaAssets/home.png",
-    className: "w-[53px] h-[53px]",
-  },
-  {
-    alt: "Stock",
-    src: "/figmaAssets/stock.png",
-    className: "w-[35px] h-[35px]",
-  },
-  {
-    alt: "Finace",
-    src: "/figmaAssets/finace.png",
-    className: "w-[55px] h-[55px]",
-  },
-  {
-    alt: "Job",
-    src: "/figmaAssets/job.png",
-    className: "w-10 h-10",
-  },
-  {
-    alt: "History",
-    src: "/figmaAssets/history.png",
-    className: "w-10 h-10",
-  },
+  { alt: "Home", src: "/figmaAssets/home.png" },
+  { alt: "Stock", src: "/figmaAssets/stock.png" },
+  { alt: "Finance", src: "/figmaAssets/finace.png" },
+  { alt: "Job", src: "/figmaAssets/job.png" },
+  { alt: "History", src: "/figmaAssets/history.png" },
 ];
 
 export const StockHome = (): JSX.Element => {
   return (
-    <div className="relative w-[1920px] h-[1080px] bg-black rounded-[40px] overflow-hidden flex flex-col">
-      {/* Top header section - full width */}
+    <div className="min-h-screen w-full bg-[#0a0a0a] flex flex-col">
       <StockManagementHeaderSection />
 
-      {/* Body: sidebar + main content */}
       <div className="flex flex-row flex-1 overflow-hidden">
-        {/* Left sidebar navigation */}
-        <aside className="relative flex-shrink-0 w-[92px] h-full shadow-[0px_4px_4px_#00000040]">
-          {/* Sidebar background */}
-          <div className="absolute inset-0 w-[94px] bg-[#0f0f0f] border border-solid border-[#6a6a6a]" />
-
-          {/* Sidebar icons stacked vertically */}
-          <nav className="relative flex flex-col items-center pt-[35px] gap-[30px] z-10">
-            {sidebarNavItems.map((item) => (
-              <button
-                key={item.alt}
-                className="flex items-center justify-center focus:outline-none"
-                aria-label={item.alt}
-              >
-                <img
-                  className={`${item.className} object-cover`}
-                  alt={item.alt}
-                  src={item.src}
-                />
-              </button>
-            ))}
-          </nav>
+        <aside className="flex-shrink-0 w-20 bg-[#0f0f0f] border-r border-white/10 flex flex-col items-center py-6 gap-5">
+          {sidebarNavItems.map((item) => (
+            <button
+              key={item.alt}
+              className="w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400/50"
+              aria-label={item.alt}
+              title={item.alt}
+            >
+              <img
+                className="w-7 h-7 object-contain"
+                alt={item.alt}
+                src={item.src}
+              />
+            </button>
+          ))}
         </aside>
 
-        {/* Main content area */}
-        <main className="flex flex-col flex-1 overflow-hidden">
-          {/* Filter controls row */}
+        <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <StockFilterControlsSection />
-
-          {/* Stock items table */}
-          <StockItemsTableSection />
+          <div className="flex-1 overflow-auto p-4">
+            <StockItemsTableSection />
+          </div>
         </main>
       </div>
     </div>
