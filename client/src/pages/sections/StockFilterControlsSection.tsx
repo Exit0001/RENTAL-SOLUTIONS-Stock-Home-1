@@ -5,6 +5,7 @@ interface StockFilterControlsProps {
   filterOpen: boolean;
   onToggleFilter: () => void;
   onOpenBrandCategory: () => void;
+  onOpenAddNewItem: () => void;
   searchQuery: string;
   onSearchChange: (val: string) => void;
 }
@@ -13,6 +14,7 @@ export const StockFilterControlsSection = ({
   filterOpen,
   onToggleFilter,
   onOpenBrandCategory,
+  onOpenAddNewItem,
   searchQuery,
   onSearchChange,
 }: StockFilterControlsProps): JSX.Element => {
@@ -62,6 +64,7 @@ export const StockFilterControlsSection = ({
         </Button>
 
         <Button
+          onClick={onOpenAddNewItem}
           className="h-9 px-4 hover:opacity-90 text-black rounded-lg font-bold text-sm gap-2 transition-opacity"
           style={{ backgroundColor: "#FFFF00" }}
           variant="ghost"

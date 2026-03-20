@@ -13,6 +13,7 @@ import {
   Layers,
 } from "lucide-react";
 import { BrandCategoryModal } from "./BrandCategoryModal";
+import { AddNewItemModal } from "./AddNewItemModal";
 import { StockFilterControlsSection } from "./StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./StockFilterSidebarSection";
 import { StockItemsTableSection } from "./StockItemsTableSection";
@@ -94,6 +95,7 @@ export const StockPage = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState<StockTab>("inventory");
   const [filterOpen, setFilterOpen] = useState(false);
   const [brandCategoryOpen, setBrandCategoryOpen] = useState(false);
+  const [addNewItemOpen, setAddNewItemOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,6 +124,9 @@ export const StockPage = (): JSX.Element => {
       {brandCategoryOpen && (
         <BrandCategoryModal onClose={() => setBrandCategoryOpen(false)} />
       )}
+      {addNewItemOpen && (
+        <AddNewItemModal onClose={() => setAddNewItemOpen(false)} />
+      )}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
         {stockTabs.map((t) => (
@@ -147,6 +152,7 @@ export const StockPage = (): JSX.Element => {
               filterOpen={filterOpen}
               onToggleFilter={() => setFilterOpen((v) => !v)}
               onOpenBrandCategory={() => setBrandCategoryOpen(true)}
+              onOpenAddNewItem={() => setAddNewItemOpen(true)}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
