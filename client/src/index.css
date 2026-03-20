@@ -11,6 +11,15 @@
   --animate-spin: spin 1s linear infinite;
 }
 
+/* Hide all scrollbars globally while keeping scroll functionality */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 .animate-fade-in {
   animation: fade-in 0.5s var(--animation-delay, 0s) ease both;
 }
