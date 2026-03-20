@@ -12,6 +12,7 @@ type TabKey = "general" | "units" | "pricing" | "specs" | "documents";
 interface Unit {
   id: number;
   unitName: string;
+  parentItem: string;
   serialNumber: string;
   barcodeNumber: string;
   storageLocation: string;
@@ -198,6 +199,7 @@ const UnitsTab = ({ itemName, units, onUnitsChange }: {
       return {
         id: Date.now() + i,
         unitName: `${baseName} - Unit ${num}`,
+        parentItem: baseName,
         serialNumber: `${prefix}-${num}`,
         barcodeNumber: `BC-${Date.now().toString().slice(-6)}${num}`,
         storageLocation: "Warehouse A, Zone 1",
@@ -237,22 +239,26 @@ const UnitsTab = ({ itemName, units, onUnitsChange }: {
       {units.length > 0 ? (
         <div className="border border-white/[0.06] rounded-xl overflow-hidden">
           <div className="grid text-[10px] text-[#FFFF00]/40 uppercase tracking-wider font-semibold bg-black/20 px-3 py-2"
-            style={{ gridTemplateColumns: "2fr 1.5fr 1.5fr 1.8fr 1.4fr 32px" }}>
+            style={{ gridTemplateColumns: "1.8fr 1.4fr 1.2fr 1.2fr 1.6fr 1.2fr 32px" }}>
             <span>Unit Name</span>
-            <span>Serial Number</span>
+            <span>Parent Item</span>
+            <span>Serial No.</span>
             <span>Barcode</span>
             <span>Storage Location</span>
-            <span>Initial Status</span>
+            <span>Status</span>
             <span />
           </div>
           <div className="max-h-64 overflow-y-auto">
             {units.map((u, i) => (
               <div key={u.id}
                 className="grid items-center gap-2 px-3 py-1.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] animate-slide-down"
-                style={{ gridTemplateColumns: "2fr 1.5fr 1.5fr 1.8fr 1.4fr 32px", animationDelay: `${i * 20}ms` }}
+                style={{ gridTemplateColumns: "1.8fr 1.4fr 1.2fr 1.2fr 1.6fr 1.2fr 32px", animationDelay: `${i * 20}ms` }}
               >
                 <input value={u.unitName} onChange={(e) => updateUnit(u.id, "unitName", e.target.value)}
                   className="h-7 bg-transparent border-b border-white/10 text-sm text-white/80 px-1 focus:outline-none focus:border-[#FFFF00]/40 transition-colors" />
+                <input value={u.parentItem} onChange={(e) => updateUnit(u.id, "parentItem", e.target.value)}
+                  placeholder="Parent item…"
+                  className="h-7 bg-transparent border-b border-white/10 text-xs text-[#FFFF00]/60 px-1 focus:outline-none focus:border-[#FFFF00]/40 transition-colors placeholder:text-white/15" />
                 <input value={u.serialNumber} onChange={(e) => updateUnit(u.id, "serialNumber", e.target.value)}
                   className="h-7 bg-transparent border-b border-white/10 text-xs font-mono text-white/60 px-1 focus:outline-none focus:border-[#FFFF00]/40 transition-colors" />
                 <input value={u.barcodeNumber} onChange={(e) => updateUnit(u.id, "barcodeNumber", e.target.value)}
@@ -319,15 +325,18 @@ interface SpecsData {
   fields: Record<string, string>;
   customFields: { key: string; label: string; value: string }[];
   protocolTags: string[];
+  customProtocolOptions: string[];
   weight: string; dimensions: string;
 }
 const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData) => void }) => {
   const [newCustomLabel, setNewCustomLabel] = useState("");
+  const [newTagInput, setNewTagInput] = useState("");
   const tpl = SPEC_TEMPLATES[data.template] ?? SPEC_TEMPLATES.sound;
-  const TplIcon = tpl.icon;
 
   const setField = (key: string, val: string) =>
     onChange({ ...data, fields: { ...data.fields, [key]: val } });
+
+  const allProtocolOptions = [...PROTOCOL_OPTIONS, ...(data.customProtocolOptions ?? [])];
 
   const toggleTag = (tag: string) =>
     onChange({
@@ -336,6 +345,17 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
         ? data.protocolTags.filter((t) => t !== tag)
         : [...data.protocolTags, tag],
     });
+
+  const addProtocolTag = () => {
+    const tag = newTagInput.trim();
+    if (!tag || allProtocolOptions.includes(tag)) return;
+    onChange({
+      ...data,
+      customProtocolOptions: [...(data.customProtocolOptions ?? []), tag],
+      protocolTags: [...data.protocolTags, tag],
+    });
+    setNewTagInput("");
+  };
 
   const addCustomField = () => {
     if (!newCustomLabel.trim()) return;
@@ -403,17 +423,32 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
           <div className="flex flex-col gap-2">
             <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Protocol Tags</label>
             <div className="flex flex-wrap gap-2">
-              {PROTOCOL_OPTIONS.map((tag) => {
+              {allProtocolOptions.map((tag) => {
                 const active = data.protocolTags.includes(tag);
+                const isCustom = (data.customProtocolOptions ?? []).includes(tag);
                 return (
                   <button key={tag} onClick={() => toggleTag(tag)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${
                       active ? "border-[#FFFF00]/50 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 text-white/30 hover:border-white/20 hover:text-white/50"}`}>
+                    {isCustom && <span className="text-[8px] opacity-60">★</span>}
                     {tag}
-                    {active && <span className="ml-1 text-[#FFFF00]/60">×</span>}
+                    {active && <span className="text-[#FFFF00]/60">×</span>}
                   </button>
                 );
               })}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                value={newTagInput}
+                onChange={(e) => setNewTagInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addProtocolTag()}
+                placeholder="Add custom protocol tag… (press Enter)"
+                className="flex-1 h-8 bg-black/40 border border-dashed border-white/10 rounded-lg text-xs text-white px-3 placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/30 transition-colors"
+              />
+              <button onClick={addProtocolTag}
+                className="h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/30 hover:text-[#FFFF00] text-xs flex items-center gap-1.5 transition-all flex-shrink-0">
+                <Plus className="w-3 h-3" /> Add Tag
+              </button>
             </div>
           </div>
         </div>
@@ -486,7 +521,7 @@ export const AddNewItemModal = ({ onClose }: AddNewItemModalProps): JSX.Element 
     replacementValue: "", securityDeposit: "",
   });
   const [specs, setSpecs] = useState<SpecsData>({
-    template: "sound", fields: {}, customFields: [], protocolTags: [], weight: "", dimensions: "",
+    template: "sound", fields: {}, customFields: [], protocolTags: [], customProtocolOptions: [], weight: "", dimensions: "",
   });
   const [docs, setDocs] = useState<DocsData>({
     warrantyExpiry: "", supplierName: "", supportContact: "",
