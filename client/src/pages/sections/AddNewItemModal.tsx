@@ -183,17 +183,29 @@ const GeneralTab = ({ data, onChange }: { data: GeneralData; onChange: (d: Gener
 
 // ─── Tab: Individual Units ────────────────────────────────────────────────────
 
+const EXISTING_ITEMS = [
+  "d&b J8 Loudspeaker", "d&b J12 Loudspeaker", "d&b B22 Sub",
+  "L-Acoustics K2", "L-Acoustics KS28", "Crown FP10000Q Amplifier",
+  "Shure ULXD4 Wireless Receiver", "Shure SM58 Microphone",
+];
+
 const UnitsTab = ({ itemName, units, onUnitsChange }: {
   itemName: string; units: Unit[]; onUnitsChange: (u: Unit[]) => void;
 }) => {
+  const [parentItem, setParentItem] = useState(itemName || "");
   const [qty, setQty] = useState("7");
   const [prefix, setPrefix] = useState("SN");
   const [startNum, setStartNum] = useState("1");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const suggestions = parentItem.trim()
+    ? EXISTING_ITEMS.filter((item) => item.toLowerCase().includes(parentItem.toLowerCase()))
+    : EXISTING_ITEMS;
 
   const generateUnits = () => {
     const q = parseInt(qty) || 1;
     const start = parseInt(startNum) || 1;
-    const baseName = itemName || "Unit";
+    const baseName = parentItem || itemName || "Unit";
     const newUnits: Unit[] = Array.from({ length: q }, (_, i) => {
       const num = String(start + i).padStart(2, "0");
       return {
@@ -216,6 +228,34 @@ const UnitsTab = ({ itemName, units, onUnitsChange }: {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Parent Item — above quantity row */}
+      <div className="flex flex-col gap-1.5 relative">
+        <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Parent Item</label>
+        <input
+          type="text"
+          value={parentItem}
+          onChange={(e) => { setParentItem(e.target.value); setShowSuggestions(true); }}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          placeholder="Type or select a parent item…"
+          className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-44 overflow-y-auto">
+            {suggestions.map((item) => (
+              <button
+                key={item}
+                onMouseDown={() => { setParentItem(item); setShowSuggestions(false); }}
+                className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00] transition-colors"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Generation controls */}
       <div className="flex items-end gap-3">
         <div className="w-24">
           <InputField label="Quantity" placeholder="7" value={qty} onChange={setQty} />
@@ -239,26 +279,22 @@ const UnitsTab = ({ itemName, units, onUnitsChange }: {
       {units.length > 0 ? (
         <div className="border border-white/[0.06] rounded-xl overflow-hidden">
           <div className="grid text-[10px] text-[#FFFF00]/40 uppercase tracking-wider font-semibold bg-black/20 px-3 py-2"
-            style={{ gridTemplateColumns: "1.8fr 1.4fr 1.2fr 1.2fr 1.6fr 1.2fr 32px" }}>
+            style={{ gridTemplateColumns: "2fr 1.5fr 1.5fr 1.8fr 1.3fr 32px" }}>
             <span>Unit Name</span>
-            <span>Parent Item</span>
             <span>Serial No.</span>
             <span>Barcode</span>
             <span>Storage Location</span>
             <span>Status</span>
             <span />
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-56 overflow-y-auto">
             {units.map((u, i) => (
               <div key={u.id}
                 className="grid items-center gap-2 px-3 py-1.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] animate-slide-down"
-                style={{ gridTemplateColumns: "1.8fr 1.4fr 1.2fr 1.2fr 1.6fr 1.2fr 32px", animationDelay: `${i * 20}ms` }}
+                style={{ gridTemplateColumns: "2fr 1.5fr 1.5fr 1.8fr 1.3fr 32px", animationDelay: `${i * 20}ms` }}
               >
                 <input value={u.unitName} onChange={(e) => updateUnit(u.id, "unitName", e.target.value)}
                   className="h-7 bg-transparent border-b border-white/10 text-sm text-white/80 px-1 focus:outline-none focus:border-[#FFFF00]/40 transition-colors" />
-                <input value={u.parentItem} onChange={(e) => updateUnit(u.id, "parentItem", e.target.value)}
-                  placeholder="Parent item…"
-                  className="h-7 bg-transparent border-b border-white/10 text-xs text-[#FFFF00]/60 px-1 focus:outline-none focus:border-[#FFFF00]/40 transition-colors placeholder:text-white/15" />
                 <input value={u.serialNumber} onChange={(e) => updateUnit(u.id, "serialNumber", e.target.value)}
                   className="h-7 bg-transparent border-b border-white/10 text-xs font-mono text-white/60 px-1 focus:outline-none focus:border-[#FFFF00]/40 transition-colors" />
                 <input value={u.barcodeNumber} onChange={(e) => updateUnit(u.id, "barcodeNumber", e.target.value)}
@@ -281,9 +317,9 @@ const UnitsTab = ({ itemName, units, onUnitsChange }: {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-12 text-white/15">
+        <div className="flex flex-col items-center justify-center py-10 text-white/15">
           <Package className="w-8 h-8 mb-2" />
-          <p className="text-sm">Set quantity and click "Add Units" to generate</p>
+          <p className="text-sm">Set a parent item, quantity and click "Add Units"</p>
         </div>
       )}
     </div>
