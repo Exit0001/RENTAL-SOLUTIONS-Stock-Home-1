@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Package,
-  Search,
   ChevronRightIcon,
   Box,
   Wrench,
@@ -11,9 +10,15 @@ import {
   CheckCircle2,
   Clock,
   Layers,
+  Plus,
+  LogOut,
+  LogIn,
+  PackagePlus,
 } from "lucide-react";
 import { BrandCategoryModal } from "./BrandCategoryModal";
 import { AddNewItemModal } from "./AddNewItemModal";
+import { AddContainerModal } from "./AddContainerModal";
+import { ItemDetailPanel } from "./ItemDetailPanel";
 import { StockFilterControlsSection } from "./StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./StockFilterSidebarSection";
 import { StockItemsTableSection } from "./StockItemsTableSection";
@@ -33,7 +38,10 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   Maintenance: { bg: "bg-amber-950/60", text: "text-amber-400", dot: "bg-amber-400" },
 };
 
-const containers = [
+type ContainerItem = { name: string; sn: string; status: string };
+type Container = { id: string; name: string; type: string; location: string; barcode: string; items: ContainerItem[] };
+
+const INITIAL_CONTAINERS: Container[] = [
   {
     id: "C1", name: "Rack A — Power Amp Rack", type: "Rack", location: "Zone A1", barcode: "RACK-A-001",
     items: [
@@ -96,10 +104,14 @@ export const StockPage = (): JSX.Element => {
   const [filterOpen, setFilterOpen] = useState(false);
   const [brandCategoryOpen, setBrandCategoryOpen] = useState(false);
   const [addNewItemOpen, setAddNewItemOpen] = useState(false);
+  const [addContainerOpen, setAddContainerOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [containers, setContainers] = useState<Container[]>(INITIAL_CONTAINERS);
   const [expandedContainers, setExpandedContainers] = useState<string[]>(["C1"]);
+  const [checkedOutContainers, setCheckedOutContainers] = useState<Set<string>>(new Set());
 
   const toggleBrand = (brand: string) =>
     setSelectedBrands((prev) =>
@@ -119,6 +131,38 @@ export const StockPage = (): JSX.Element => {
   const toggleContainer = (id: string) =>
     setExpandedContainers((p) => p.includes(id) ? p.filter((r) => r !== id) : [...p, id]);
 
+  const toggleCheckout = (id: string) => {
+    setCheckedOutContainers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setContainers((prev) =>
+      prev.map((c) =>
+        c.id !== id ? c : {
+          ...c,
+          items: c.items.map((item) => ({
+            ...item,
+            status: checkedOutContainers.has(id) ? "Ready" : "Out",
+          })),
+        }
+      )
+    );
+  };
+
+  const addContainer = (data: { name: string; type: string; location: string; barcode: string }) => {
+    const newContainer: Container = {
+      id: `C${Date.now()}`,
+      name: data.name,
+      type: data.type,
+      location: data.location,
+      barcode: data.barcode,
+      items: [],
+    };
+    setContainers((prev) => [...prev, newContainer]);
+    setExpandedContainers((prev) => [...prev, newContainer.id]);
+  };
+
   return (
     <>
       {brandCategoryOpen && (
@@ -126,6 +170,9 @@ export const StockPage = (): JSX.Element => {
       )}
       {addNewItemOpen && (
         <AddNewItemModal onClose={() => setAddNewItemOpen(false)} />
+      )}
+      {addContainerOpen && (
+        <AddContainerModal onClose={() => setAddContainerOpen(false)} onAdd={addContainer} />
       )}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
@@ -138,6 +185,7 @@ export const StockPage = (): JSX.Element => {
 
       {activeTab === "inventory" && (
         <div className="flex flex-row flex-1 overflow-hidden">
+          {/* Filter sidebar */}
           <div className={`flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${filterOpen ? "w-52" : "w-0"}`}>
             <StockFilterSidebarSection
               selectedBrands={selectedBrands}
@@ -147,6 +195,7 @@ export const StockPage = (): JSX.Element => {
               onClearAll={clearAll}
             />
           </div>
+          {/* Main content */}
           <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
             <StockFilterControlsSection
               filterOpen={filterOpen}
@@ -156,12 +205,24 @@ export const StockPage = (): JSX.Element => {
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
-            <div className="flex-1 overflow-auto p-4">
-              <StockItemsTableSection
-                selectedBrands={selectedBrands}
-                selectedCategories={selectedCategories}
-                searchQuery={searchQuery}
-              />
+            <div className="flex flex-row flex-1 overflow-hidden">
+              <div className="flex-1 overflow-auto p-4">
+                <StockItemsTableSection
+                  selectedBrands={selectedBrands}
+                  selectedCategories={selectedCategories}
+                  searchQuery={searchQuery}
+                  onViewItem={(item) => setSelectedItem(item as any)}
+                  selectedItemId={selectedItem?.id ?? null}
+                />
+              </div>
+              {/* Item detail panel */}
+              {selectedItem && (
+                <ItemDetailPanel
+                  item={selectedItem as any}
+                  onClose={() => setSelectedItem(null)}
+                  onEdit={() => setAddNewItemOpen(true)}
+                />
+              )}
             </div>
           </main>
         </div>
@@ -169,39 +230,89 @@ export const StockPage = (): JSX.Element => {
 
       {activeTab === "containers" && (
         <div className="flex-1 overflow-auto p-6 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-white/30">
-            <ScanLine className="w-3.5 h-3.5 text-[#FFFF00]/60" />
-            <span>Scan a container barcode to instantly view all contents</span>
+          {/* Top bar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-white/30">
+              <ScanLine className="w-3.5 h-3.5 text-[#FFFF00]/60" />
+              <span>Scan a container barcode to instantly view all contents</span>
+            </div>
+            <button
+              onClick={() => setAddContainerOpen(true)}
+              className="flex items-center gap-2 h-8 px-4 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
+              style={{ backgroundColor: "#FFFF00" }}
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Container
+            </button>
           </div>
+
+          {containers.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-white/15">
+              <Layers className="w-10 h-10 mb-3" />
+              <p className="text-sm">No containers yet — add your first one above</p>
+            </div>
+          )}
+
           {containers.map((c) => {
             const expanded = expandedContainers.includes(c.id);
+            const isOut = checkedOutContainers.has(c.id);
             const readyCount = c.items.filter((i) => i.status === "Ready").length;
             return (
-              <div key={c.id} className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden" data-testid={`container-${c.id}`}>
-                <div onClick={() => toggleContainer(c.id)} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/[0.02] transition-colors">
-                  <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${expanded ? "rotate-90 text-[#FFFF00]" : "text-white/30"}`} />
-                  <Layers className="w-4 h-4 text-[#FFFF00]/60" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-white/90 text-sm">{c.name}</span>
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[#FFFF00]/10 text-[#FFFF00]/70">{c.type}</span>
+              <div key={c.id} className={`bg-[#111] border rounded-xl overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-white/[0.06]"}`} data-testid={`container-${c.id}`}>
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div onClick={() => toggleContainer(c.id)} className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity">
+                    <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${expanded ? "rotate-90 text-[#FFFF00]" : "text-white/30"}`} />
+                    <Layers className={`w-4 h-4 ${isOut ? "text-blue-400/60" : "text-[#FFFF00]/60"}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-white/90 text-sm">{c.name}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isOut ? "bg-blue-500/15 text-blue-400" : "bg-[#FFFF00]/10 text-[#FFFF00]/70"}`}>{c.type}</span>
+                        {isOut && <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400">Out on Job</span>}
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-white/30 mt-0.5">
+                        <span>{c.location}</span>
+                        <span className="font-mono">{c.barcode}</span>
+                        {c.items.length > 0 && <span>{readyCount}/{c.items.length} ready</span>}
+                        {c.items.length === 0 && <span className="italic">Empty — assign items below</span>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-white/30 mt-0.5">
-                      <span>{c.location}</span>
-                      <span className="font-mono">{c.barcode}</span>
-                      <span>{readyCount}/{c.items.length} ready</span>
-                    </div>
+                  </div>
+                  {/* Container actions */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => {}}
+                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-white/10 text-[11px] text-white/40 hover:text-white hover:border-white/20 transition-colors"
+                      title="Assign items to this container"
+                    >
+                      <PackagePlus className="w-3 h-3" /> Assign
+                    </button>
+                    <button
+                      onClick={() => toggleCheckout(c.id)}
+                      className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-all ${
+                        isOut
+                          ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+                          : "bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20"
+                      }`}
+                    >
+                      {isOut ? <><LogIn className="w-3 h-3" /> Check In</> : <><LogOut className="w-3 h-3" /> Check Out</>}
+                    </button>
                   </div>
                 </div>
                 {expanded && (
                   <div className="border-t border-white/[0.04]">
-                    {c.items.map((item, i) => (
-                      <div key={i} className="animate-slide-down flex items-center gap-3 px-4 py-2 pl-12 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
-                        <span className="text-sm text-white/60 flex-1">{item.name}</span>
-                        <span className="text-xs font-mono text-white/30">{item.sn}</span>
-                        <StatusBadge status={item.status} />
+                    {c.items.length === 0 ? (
+                      <div className="flex items-center gap-2 px-12 py-4 text-xs text-white/20 italic">
+                        <PackagePlus className="w-3.5 h-3.5" />
+                        No items assigned — click Assign to add items from inventory
                       </div>
-                    ))}
+                    ) : (
+                      c.items.map((item, i) => (
+                        <div key={i} className="animate-slide-down flex items-center gap-3 px-4 py-2 pl-12 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
+                          <span className="text-sm text-white/60 flex-1">{item.name}</span>
+                          <span className="text-xs font-mono text-white/30">{item.sn}</span>
+                          <StatusBadge status={item.status} />
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

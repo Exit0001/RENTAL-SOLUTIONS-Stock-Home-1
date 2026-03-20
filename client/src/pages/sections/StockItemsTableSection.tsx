@@ -86,19 +86,22 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const ActionIcons = () => (
+const ActionIcons = ({ onView, onEdit }: { onView: () => void; onEdit: () => void }) => (
   <div className="flex items-center gap-1">
-    <button className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="View">
+    <button onClick={(e) => { e.stopPropagation(); onView(); }}
+      className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="View details">
       <Eye className="w-4 h-4" />
     </button>
-    <button className="p-1.5 rounded-md text-white/40 hover:bg-white/10 transition-colors" title="Edit"
+    <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
+      className="p-1.5 rounded-md text-white/40 hover:bg-white/10 transition-colors" title="Edit"
       style={{ color: "inherit" }}
       onMouseEnter={e => (e.currentTarget.style.color = "#FFFF00")}
       onMouseLeave={e => (e.currentTarget.style.color = "")}
     >
       <Pencil className="w-4 h-4" />
     </button>
-    <button className="p-1.5 rounded-md text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors" title="Delete">
+    <button onClick={(e) => e.stopPropagation()}
+      className="p-1.5 rounded-md text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors" title="Delete">
       <Trash2 className="w-4 h-4" />
     </button>
   </div>
@@ -108,12 +111,16 @@ interface StockItemsTableProps {
   selectedBrands?: string[];
   selectedCategories?: string[];
   searchQuery?: string;
+  onViewItem?: (item: (typeof stockItems)[0]) => void;
+  selectedItemId?: number | null;
 }
 
 export const StockItemsTableSection = ({
   selectedBrands = [],
   selectedCategories = [],
   searchQuery = "",
+  onViewItem,
+  selectedItemId,
 }: StockItemsTableProps): JSX.Element => {
   const [expandedRows, setExpandedRows] = useState<number[]>(
     stockItems.filter((item) => item.expanded).map((item) => item.id),
@@ -201,10 +208,15 @@ export const StockItemsTableSection = ({
             )}
             {filteredItems.flatMap((item) => {
               const isExpanded = expandedRows.includes(item.id);
+              const isSelected = selectedItemId === item.id;
               const rows: JSX.Element[] = [
                 <TableRow
                   key={`row-${item.id}`}
-                  className="bg-[#1e1e1e] hover:bg-[#252525] cursor-pointer border-white/5 transition-colors"
+                  className={`cursor-pointer border-white/5 transition-colors ${
+                    isSelected
+                      ? "bg-[#FFFF00]/[0.05] border-l-2 border-l-[#FFFF00]/50"
+                      : "bg-[#1e1e1e] hover:bg-[#252525]"
+                  }`}
                   onClick={() => toggleRow(item.id)}
                 >
                   <TableCell className="py-3 pl-6">
@@ -214,7 +226,7 @@ export const StockItemsTableSection = ({
                           isExpanded ? "rotate-90 text-[#FFFF00]" : "text-white/40"
                         }`}
                       />
-                      <span className="font-semibold text-white text-sm truncate">
+                      <span className={`font-semibold text-sm truncate ${isSelected ? "text-[#FFFF00]" : "text-white"}`}>
                         {item.name}
                       </span>
                     </div>
@@ -233,9 +245,10 @@ export const StockItemsTableSection = ({
                     <span className="text-white/30 text-xs ml-1">units</span>
                   </TableCell>
                   <TableCell className="py-3 pr-6 text-right align-middle">
-                    <span className="text-xs text-[#FFFF00]/60 italic">
-                      {isExpanded ? "Collapse" : "More details"}
-                    </span>
+                    <ActionIcons
+                      onView={() => onViewItem?.(item)}
+                      onEdit={() => onViewItem?.(item)}
+                    />
                   </TableCell>
                 </TableRow>,
               ];
