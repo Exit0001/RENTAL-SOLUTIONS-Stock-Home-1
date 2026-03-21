@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Layers, Hash, Trash2, Package, MapPin, Plus } from "lucide-react";
+import { X, Layers, Hash, Trash2, Package } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,18 +56,6 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
   const [startNum, setStartNum] = useState("1");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [units, setUnits] = useState<Unit[]>([]);
-  const [locations, setLocations] = useState<string[]>(DEFAULT_STORAGE_LOCATIONS);
-  const [newLocation, setNewLocation] = useState("");
-  const [showAddLocation, setShowAddLocation] = useState(false);
-
-  const addLocation = () => {
-    const trimmed = newLocation.trim();
-    if (trimmed && !locations.includes(trimmed)) {
-      setLocations((prev) => [...prev, trimmed]);
-    }
-    setNewLocation("");
-    setShowAddLocation(false);
-  };
 
   const suggestions = parentItem.trim()
     ? EXISTING_ITEMS.filter((item) => item.toLowerCase().includes(parentItem.toLowerCase()))
@@ -182,50 +170,6 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
             </button>
           </div>
 
-          {/* Add Location */}
-          <div className="flex items-center gap-2">
-            {showAddLocation ? (
-              <>
-                <MapPin className="w-3.5 h-3.5 text-[#FFFF00]/50 flex-shrink-0" />
-                <input
-                  autoFocus
-                  type="text"
-                  value={newLocation}
-                  onChange={(e) => setNewLocation(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addLocation(); if (e.key === "Escape") setShowAddLocation(false); }}
-                  placeholder="New location name…"
-                  className="flex-1 h-8 bg-black/40 border border-[#FFFF00]/30 rounded-lg text-sm text-white px-3 placeholder:text-white/20 focus:outline-none transition-colors"
-                />
-                <button
-                  onClick={addLocation}
-                  className="h-8 px-3 rounded-lg text-xs font-bold text-black flex-shrink-0"
-                  style={{ backgroundColor: "#FFFF00" }}
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => { setShowAddLocation(false); setNewLocation(""); }}
-                  className="h-8 px-3 rounded-lg text-xs text-white/30 border border-white/10 hover:text-white transition-colors flex-shrink-0"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setShowAddLocation(true)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/30 hover:text-[#FFFF00] text-xs transition-all"
-              >
-                <Plus className="w-3 h-3" />
-                Add Location
-              </button>
-            )}
-            {locations.length > DEFAULT_STORAGE_LOCATIONS.length && (
-              <span className="text-[10px] text-white/20 ml-1">
-                {locations.length - DEFAULT_STORAGE_LOCATIONS.length} custom
-              </span>
-            )}
-          </div>
-
           {/* Units table */}
           {units.length > 0 ? (
             <div className="border border-white/[0.06] rounded-xl overflow-hidden">
@@ -267,7 +211,7 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
                       onChange={(e) => updateUnit(u.id, "storageLocation", e.target.value)}
                       className="h-7 bg-black/40 border border-white/10 rounded text-xs text-white/70 px-1.5 focus:outline-none focus:border-[#FFFF00]/40 appearance-none cursor-pointer"
                     >
-                      {locations.map((l) => <option key={l} value={l} className="bg-[#111]">{l}</option>)}
+                      {DEFAULT_STORAGE_LOCATIONS.map((l) => <option key={l} value={l} className="bg-[#111]">{l}</option>)}
                     </select>
                     <select
                       value={u.initialStatus}

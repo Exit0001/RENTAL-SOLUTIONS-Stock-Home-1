@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Search, SlidersHorizontal, Plus, Tag, Layers } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, Tag, Layers, MapPin } from "lucide-react";
 
 interface StockFilterControlsProps {
   filterOpen: boolean;
   onToggleFilter: () => void;
   onOpenBrandCategory: () => void;
+  onOpenAddLocation: () => void;
   onOpenAddNewItem: () => void;
   onOpenAddIndividualUnit: () => void;
   searchQuery: string;
@@ -15,6 +16,7 @@ export const StockFilterControlsSection = ({
   filterOpen,
   onToggleFilter,
   onOpenBrandCategory,
+  onOpenAddLocation,
   onOpenAddNewItem,
   onOpenAddIndividualUnit,
   searchQuery,
@@ -63,6 +65,15 @@ export const StockFilterControlsSection = ({
         >
           <Tag className="w-4 h-4" />
           Add Brand &amp; Category
+        </Button>
+
+        <Button
+          onClick={onOpenAddLocation}
+          className="h-9 px-4 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg font-semibold text-sm gap-2 transition-colors"
+          variant="ghost"
+        >
+          <MapPin className="w-4 h-4" />
+          Add Location
         </Button>
 
         <Button
