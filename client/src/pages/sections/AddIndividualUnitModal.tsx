@@ -71,8 +71,8 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
         id: Date.now() + i,
         unitName: `${baseName} - Unit ${num}`,
         parentItem: baseName,
-        serialNumber: `${prefix}-${num}`,
-        barcodeNumber: `BC-${Date.now().toString().slice(-6)}${num}`,
+        serialNumber: `SN-${num}`,
+        barcodeNumber: `${prefix}-${num}`,
         storageLocation: "Warehouse A, Zone 1",
         initialStatus: "Available",
       };
