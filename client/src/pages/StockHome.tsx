@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Home,
   Boxes,
@@ -12,6 +11,7 @@ import { StockPage } from "./sections/StockPage";
 import { FinancePage } from "./sections/FinancePage";
 import { JobsPage } from "./sections/JobsPage";
 import { HistoryPage } from "./sections/HistoryPage";
+import { useAppStore } from "@/store/appStore";
 
 const sidebarNavItems = [
   { label: "Home",    Icon: Home },
@@ -22,12 +22,13 @@ const sidebarNavItems = [
 ];
 
 export const StockHome = (): JSX.Element => {
-  const [active, setActive] = useState("Home");
+  // อ่านและเขียน activePage จาก store กลาง — ไม่ต้องใช้ useState แล้ว
+  const { activePage, setActivePage } = useAppStore();
 
   const renderPage = () => {
-    switch (active) {
+    switch (activePage) {
       case "Home":
-        return <HomePage onNavigate={setActive} />;
+        return <HomePage onNavigate={setActivePage} />;
       case "Stock":
         return <StockPage />;
       case "Finance":
@@ -37,23 +38,23 @@ export const StockHome = (): JSX.Element => {
       case "History":
         return <HistoryPage />;
       default:
-        return <HomePage onNavigate={setActive} />;
+        return <HomePage onNavigate={setActivePage} />;
     }
   };
 
   return (
     <div className="min-h-screen w-full bg-[#0a0a0a] flex flex-col">
-      <StockManagementHeaderSection activeSection={active} />
+      <StockManagementHeaderSection activeSection={activePage} />
 
       <div className="flex flex-row flex-1 overflow-hidden">
         <aside className="group/sidebar relative flex-shrink-0 w-[3px] hover:w-48 overflow-hidden bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col pt-2 pb-4 transition-all duration-300 ease-in-out z-10">
           <nav className="flex flex-col gap-0.5 px-1.5">
             {sidebarNavItems.map(({ label, Icon }) => {
-              const isActive = active === label;
+              const isActive = activePage === label;
               return (
                 <button
                   key={label}
-                  onClick={() => setActive(label)}
+                  onClick={() => setActivePage(label)}
                   className={`group/item relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg w-full text-left
                     opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200
                     focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40

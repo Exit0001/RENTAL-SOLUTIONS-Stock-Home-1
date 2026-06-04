@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"f:\\\\Projects 10M\\\\RENTAL-SOLUTIONS-Stock-Home-1\\\\client\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"f:\\\\Projects 10M\\\\RENTAL-SOLUTIONS-Stock-Home-1\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem \"f:\\\\Projects 10M\\\\RENTAL-SOLUTIONS-Stock-Home-1\\\\server\" -Recurse -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"f:\\\\Projects 10M\\\\RENTAL-SOLUTIONS-Stock-Home-1\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem \"f:\\\\Projects 10M\\\\RENTAL-SOLUTIONS-Stock-Home-1\\\\shared\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"f:\\\\Projects 10M\\\\RENTAL-SOLUTIONS-Stock-Home-1\\\\\", \"\"\\) })"
+    ]
+  }
+}

@@ -1,15 +1,13 @@
 import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
+// Interface กำหนดว่า storage ต้องมี method อะไรบ้าง
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
 }
 
+// MemStorage — เก็บข้อมูลใน RAM (ใช้ระหว่าง dev ก่อนต่อ database จริง)
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
 
@@ -22,15 +20,17 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    return Array.from(this.users.values()).find((u) => u.username === username);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const user: User = {
+      ...insertUser,
+      id:        crypto.randomUUID(),
+      role:      insertUser.role ?? "crew",
+      createdAt: new Date(),
+    };
+    this.users.set(user.id, user);
     return user;
   }
 }

@@ -1,49 +1,15 @@
 import {
-  Boxes,
-  Briefcase,
-  DollarSign,
-  Wrench,
   ArrowUpRight,
   ArrowDownRight,
   ChevronRight,
   TrendingUp,
   MapPin,
   Bell,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
+  DollarSign,
+  Wrench,
   Wifi,
 } from "lucide-react";
-
-const kpiCards = [
-  { title: "Total Assets", value: "1,247", change: "+12%", trend: "up" as const, icon: Boxes, sub: "Across 8 categories" },
-  { title: "Active Jobs", value: "23", change: "+3", trend: "up" as const, icon: Briefcase, sub: "7 this week" },
-  { title: "Revenue (Month)", value: "£84,520", change: "+18.2%", trend: "up" as const, icon: DollarSign, sub: "vs £71,500 last month" },
-  { title: "In Maintenance", value: "34", change: "-5", trend: "down" as const, icon: Wrench, sub: "12 returning this week" },
-];
-
-const notifications = [
-  { id: 1, type: "alert", title: "Low Stock Alert", desc: "Only 2x Shure SM58 remaining in inventory", time: "2 min ago", icon: AlertTriangle, color: "text-amber-400" },
-  { id: 2, type: "success", title: "Job Completed", desc: "Wedding Reception — all 14 items checked back in", time: "15 min ago", icon: CheckCircle2, color: "text-emerald-400" },
-  { id: 3, type: "alert", title: "Maintenance Due", desc: "6x L-Acoustics A15 scheduled for service today", time: "30 min ago", icon: Wrench, color: "text-orange-400" },
-  { id: 4, type: "info", title: "Sub-Rental Return", desc: "Partner Audio Ltd — 4x QSC K12.2 due back tomorrow", time: "1 hr ago", icon: Clock, color: "text-blue-400" },
-  { id: 5, type: "success", title: "Invoice Paid", desc: "Festival Sound Co. paid £12,400 (INV-0042)", time: "1.5 hrs ago", icon: DollarSign, color: "text-emerald-400" },
-  { id: 6, type: "info", title: "Pull Sheet Generated", desc: "Tech Conference AV — 32 items ready for dispatch", time: "2 hrs ago", icon: Boxes, color: "text-blue-400" },
-];
-
-const sites = [
-  { name: "Main Warehouse", location: "London", assets: 892, status: "online", utilization: 78 },
-  { name: "Festival Sound 2026", location: "Victoria Park", assets: 48, status: "active", utilization: 100 },
-  { name: "Corporate Gala", location: "The Dorchester", assets: 18, status: "active", utilization: 100 },
-  { name: "Backup Storage", location: "Birmingham", assets: 289, status: "online", utilization: 34 },
-];
-
-const quickStats = [
-  { label: "Assets Out", value: "156", total: "1,247" },
-  { label: "Health Score Avg", value: "87%", total: "" },
-  { label: "Sub-Rentals Active", value: "12", total: "" },
-  { label: "Pull Sheets Pending", value: "3", total: "" },
-];
+import { kpiCards, notifications, sites, quickStats } from "@/data/home";
 
 interface HomePageProps {
   onNavigate: (page: string) => void;

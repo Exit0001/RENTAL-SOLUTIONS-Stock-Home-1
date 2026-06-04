@@ -24,72 +24,24 @@ import { ItemDetailPanel } from "./ItemDetailPanel";
 import { StockFilterControlsSection } from "./StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./StockFilterSidebarSection";
 import { StockItemsTableSection } from "./StockItemsTableSection";
+import { maintenanceLogs } from "@/data/maintenance";
+import { subRentals } from "@/data/subrentals";
+import { useAppStore } from "@/store/appStore";
 
 type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
 
 const stockTabs: { key: StockTab; label: string; icon: typeof Package }[] = [
-  { key: "inventory", label: "Inventory", icon: Package },
-  { key: "containers", label: "Containers", icon: Box },
-  { key: "maintenance", label: "Maintenance", icon: Wrench },
+  { key: "inventory",  label: "Inventory",   icon: Package },
+  { key: "containers", label: "Containers",  icon: Box },
+  { key: "maintenance",label: "Maintenance", icon: Wrench },
   { key: "subrentals", label: "Sub-Rentals", icon: ArrowRightLeft },
 ];
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
-  Ready: { bg: "bg-emerald-950/60", text: "text-emerald-400", dot: "bg-emerald-400" },
-  Out: { bg: "bg-blue-950/60", text: "text-blue-400", dot: "bg-blue-400" },
-  Maintenance: { bg: "bg-amber-950/60", text: "text-amber-400", dot: "bg-amber-400" },
+  Ready:       { bg: "bg-emerald-950/60", text: "text-emerald-400", dot: "bg-emerald-400" },
+  Out:         { bg: "bg-blue-950/60",    text: "text-blue-400",    dot: "bg-blue-400" },
+  Maintenance: { bg: "bg-amber-950/60",   text: "text-amber-400",   dot: "bg-amber-400" },
 };
-
-type ContainerItem = { name: string; sn: string; status: string };
-type Container = { id: string; name: string; type: string; location: string; barcode: string; items: ContainerItem[] };
-
-const INITIAL_CONTAINERS: Container[] = [
-  {
-    id: "C1", name: "Rack A — Power Amp Rack", type: "Rack", location: "Zone A1", barcode: "RACK-A-001",
-    items: [
-      { name: "FP10000Q #1", sn: "LG10K-001", status: "Ready" },
-      { name: "FP10000Q #2", sn: "LG10K-002", status: "Ready" },
-      { name: "FP10000Q #3", sn: "LG10K-003", status: "Ready" },
-      { name: "FP10000Q #4", sn: "LG10K-004", status: "Maintenance" },
-    ],
-  },
-  {
-    id: "C2", name: "Case B — Wireless Mic Kit", type: "Case", location: "Zone B2", barcode: "CASE-B-001",
-    items: [
-      { name: "Shure ULXD4 Receiver", sn: "SH-RX-001", status: "Ready" },
-      { name: "Shure ULXD2 Handheld #1", sn: "SH-HH-001", status: "Ready" },
-      { name: "Shure ULXD2 Handheld #2", sn: "SH-HH-002", status: "Ready" },
-      { name: "Antenna Combiner", sn: "SH-AC-001", status: "Ready" },
-    ],
-  },
-  {
-    id: "C3", name: "Case C — DI Box Set", type: "Case", location: "Zone C1", barcode: "CASE-C-001",
-    items: [
-      { name: "Radial J48 #1", sn: "RD-J48-001", status: "Ready" },
-      { name: "Radial J48 #2", sn: "RD-J48-002", status: "Ready" },
-      { name: "Radial J48 #3", sn: "RD-J48-003", status: "Out" },
-      { name: "Radial J48 #4", sn: "RD-J48-004", status: "Ready" },
-      { name: "Radial J48 #5", sn: "RD-J48-005", status: "Ready" },
-      { name: "Radial J48 #6", sn: "RD-J48-006", status: "Ready" },
-    ],
-  },
-];
-
-const maintenanceLogs = [
-  { id: 1, asset: "J8-004", type: "Repair", desc: "Replaced damaged driver cone", date: "15 Mar 2026", tech: "Mike Torres", status: "In Progress", cost: "£320" },
-  { id: 2, asset: "FP10K-004", type: "Preventive", desc: "Scheduled annual service — fan replacement", date: "14 Mar 2026", tech: "James Wilson", status: "In Progress", cost: "£85" },
-  { id: 3, asset: "GSL8-005", type: "Repair", desc: "Intermittent signal — replaced input connector", date: "12 Mar 2026", tech: "Mike Torres", status: "Completed", cost: "£45" },
-  { id: 4, asset: "SM58-008", type: "Inspection", desc: "Annual safety check and clean", date: "10 Mar 2026", tech: "Sarah Chen", status: "Completed", cost: "£15" },
-  { id: 5, asset: "XLR20-012", type: "Repair", desc: "Replaced damaged connector — pin 2 broken", date: "8 Mar 2026", tech: "Tom Baker", status: "Completed", cost: "£8" },
-  { id: 6, asset: "J8-012", type: "Preventive", desc: "Re-coned woofer — approaching cycle limit", date: "5 Mar 2026", tech: "Mike Torres", status: "Completed", cost: "£280" },
-];
-
-const subRentals = [
-  { id: 1, item: "QSC K12.2 (x4)", partner: "Partner Audio Ltd", project: "Corporate Gala", dueBack: "23 Mar 2026", status: "Active", dailyRate: "£60/unit" },
-  { id: 2, item: "Sennheiser EW 100 G4 (x6)", partner: "Sound Solutions UK", project: "Festival Sound 2026", dueBack: "21 Mar 2026", status: "Active", dailyRate: "£35/unit" },
-  { id: 3, item: "Martin MAC Aura (x8)", partner: "Lighting Direct", project: "Festival Sound 2026", dueBack: "21 Mar 2026", status: "Active", dailyRate: "£80/unit" },
-  { id: 4, item: "Allen & Heath dLive S5000 (x1)", partner: "Console Hire Pro", project: "Tech Conference", dueBack: "28 Mar 2026", status: "Pending", dailyRate: "£250/unit" },
-];
 
 const StatusBadge = ({ status }: { status: string }) => {
   const s = statusColors[status] || statusColors.Ready;
@@ -102,6 +54,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export const StockPage = (): JSX.Element => {
+  // state ที่ยังเป็น local อยู่ (เฉพาะหน้านี้ ไม่จำเป็นต้อง share)
   const [activeTab, setActiveTab] = useState<StockTab>("inventory");
   const [filterOpen, setFilterOpen] = useState(false);
   const [brandCategoryOpen, setBrandCategoryOpen] = useState(false);
@@ -113,9 +66,9 @@ export const StockPage = (): JSX.Element => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [containers, setContainers] = useState<Container[]>(INITIAL_CONTAINERS);
-  const [expandedContainers, setExpandedContainers] = useState<string[]>(["C1"]);
-  const [checkedOutContainers, setCheckedOutContainers] = useState<Set<string>>(new Set());
+
+  // containers ย้ายมาจาก store กลาง — พร้อม actions ทุกอย่าง
+  const { containers, expandedContainers, checkedOutContainers, addContainer, toggleContainer, toggleCheckout } = useAppStore();
 
   const toggleBrand = (brand: string) =>
     setSelectedBrands((prev) =>
@@ -132,39 +85,14 @@ export const StockPage = (): JSX.Element => {
     setSelectedCategories([]);
   };
 
-  const toggleContainer = (id: string) =>
-    setExpandedContainers((p) => p.includes(id) ? p.filter((r) => r !== id) : [...p, id]);
-
-  const toggleCheckout = (id: string) => {
-    setCheckedOutContainers((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-    setContainers((prev) =>
-      prev.map((c) =>
-        c.id !== id ? c : {
-          ...c,
-          items: c.items.map((item) => ({
-            ...item,
-            status: checkedOutContainers.has(id) ? "Ready" : "Out",
-          })),
-        }
-      )
-    );
-  };
-
-  const addContainer = (data: { name: string; type: string; location: string; barcode: string }) => {
-    const newContainer: Container = {
-      id: `C${Date.now()}`,
+  const handleAddContainer = (data: { name: string; type: string; location: string; barcode: string }) => {
+    const newContainer = {
       name: data.name,
       type: data.type,
       location: data.location,
       barcode: data.barcode,
-      items: [],
     };
-    setContainers((prev) => [...prev, newContainer]);
-    setExpandedContainers((prev) => [...prev, newContainer.id]);
+    addContainer(newContainer);
   };
 
   return (
@@ -176,7 +104,7 @@ export const StockPage = (): JSX.Element => {
         <AddNewItemModal onClose={() => setAddNewItemOpen(false)} />
       )}
       {addContainerOpen && (
-        <AddContainerModal onClose={() => setAddContainerOpen(false)} onAdd={addContainer} />
+        <AddContainerModal onClose={() => setAddContainerOpen(false)} onAdd={handleAddContainer} />
       )}
       {addIndividualUnitOpen && (
         <AddIndividualUnitModal onClose={() => setAddIndividualUnitOpen(false)} />

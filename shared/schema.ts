@@ -1,18 +1,362 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+// Database Schema — STAK Rental Management
+// ทุก table ที่เก็บข้อมูลธุรกิจจะมี company_id เสมอ
+// เพื่อรองรับ multi-tenant (หลายบริษัทในฐานข้อมูลเดียว)
+
+import { sql, relations } from "drizzle-orm";
+import {
+  pgTable,
+  pgEnum,
+  text,
+  integer,
+  boolean,
+  timestamp,
+  uuid,
+  decimal,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// ─────────────────────────────────────────────
+// ENUMS — ค่าที่เป็นไปได้สำหรับแต่ละ field
+// PostgreSQL จะ enforce ว่าต้องเป็นค่าในรายการเท่านั้น
+// ─────────────────────────────────────────────
+
+export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "manager", "crew"]);
+export const stockUnitStatusEnum = pgEnum("stock_unit_status", ["available", "out", "maintenance", "retired"]);
+export const containerTypeEnum = pgEnum("container_type", ["rack", "case", "bag", "box", "other"]);
+export const jobStatusEnum = pgEnum("job_status", ["draft", "scheduled", "active", "completed", "cancelled"]);
+export const pullSheetStatusEnum = pgEnum("pull_sheet_status", ["draft", "pending", "dispatched", "returned"]);
+export const maintenanceTypeEnum = pgEnum("maintenance_type", ["repair", "preventive", "inspection"]);
+export const maintenanceStatusEnum = pgEnum("maintenance_status", ["in_progress", "completed"]);
+export const subRentalStatusEnum = pgEnum("sub_rental_status", ["active", "pending", "returned"]);
+export const quoteStatusEnum = pgEnum("quote_status", ["draft", "sent", "accepted", "declined"]);
+export const invoiceStatusEnum = pgEnum("invoice_status", ["pending", "paid", "overdue"]);
+export const incidentSeverityEnum = pgEnum("incident_severity", ["low", "medium", "high"]);
+export const incidentStatusEnum = pgEnum("incident_status", ["open", "resolved"]);
+export const activityTypeEnum = pgEnum("activity_type", ["stock", "finance", "maintenance", "jobs"]);
+
+// ─────────────────────────────────────────────
+// 1. COMPANIES — บริษัทที่ใช้แอป (แต่ละแถว = 1 บริษัท)
+// ─────────────────────────────────────────────
+
+export const companies = pgTable("companies", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  name:      text("name").notNull(),
+  slug:      text("slug").notNull().unique(),  // ใช้ใน URL เช่น stak.app/my-company
+  plan:      planEnum("plan").default("free").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 2. USERS — พนักงานของแต่ละบริษัท
+// ─────────────────────────────────────────────
+
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  username:  text("username").notNull().unique(),
+  password:  text("password").notNull(),
+  name:      text("name").notNull(),
+  initials:  text("initials").notNull(),  // เช่น "JW" สำหรับ James Wilson
+  role:      userRoleEnum("role").default("crew").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+// ─────────────────────────────────────────────
+// 3. STOCK ITEMS — หมวดหมู่อุปกรณ์ (เช่น "J8 Loudspeaker" มี 24 ตัว)
+// ─────────────────────────────────────────────
+
+export const stockItems = pgTable("stock_items", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:        text("name").notNull(),
+  brand:       text("brand").notNull(),
+  category:    text("category").notNull(),
+  subCategory: text("sub_category").notNull(),
+  quantity:    integer("quantity").default(0).notNull(),
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
 });
 
+// ─────────────────────────────────────────────
+// 4. STOCK UNITS — หน่วยย่อยแต่ละชิ้น (เช่น "J8 Top1" serial Z330...)
+// ─────────────────────────────────────────────
+
+export const stockUnits = pgTable("stock_units", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  stockItemId: uuid("stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
+  name:        text("name").notNull(),
+  serialNumber:text("serial_number"),
+  barcode:     text("barcode"),
+  location:    text("location"),
+  status:      stockUnitStatusEnum("status").default("available").notNull(),
+  healthScore: integer("health_score").default(100),  // 0-100%
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 5. CONTAINERS — ลัง/ราก ที่บรรจุอุปกรณ์
+// ─────────────────────────────────────────────
+
+export const containers = pgTable("containers", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  type:      containerTypeEnum("type").notNull(),
+  location:  text("location"),
+  barcode:   text("barcode"),
+  isOut:     boolean("is_out").default(false).notNull(),  // check out ไปแล้วหรือยัง
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 6. CONTAINER UNITS — อุปกรณ์ชิ้นไหนอยู่ใน container ไหน
+// (junction table — เชื่อม 2 table เข้าหากัน)
+// ─────────────────────────────────────────────
+
+export const containerUnits = pgTable("container_units", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  containerId: uuid("container_id").references(() => containers.id, { onDelete: "cascade" }).notNull(),
+  stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "cascade" }).notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 7. JOBS — งานให้เช่า (events, concerts, conferences)
+// ─────────────────────────────────────────────
+
+export const jobs = pgTable("jobs", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  client:    text("client").notNull(),
+  location:  text("location"),
+  startDate: timestamp("start_date").notNull(),
+  endDate:   timestamp("end_date").notNull(),
+  status:    jobStatusEnum("status").default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 8. JOB STOCK — อุปกรณ์ที่ assign ให้แต่ละงาน
+// ─────────────────────────────────────────────
+
+export const jobStock = pgTable("job_stock", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  stockItemId: uuid("stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
+  quantity:    integer("quantity").notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 9. JOB CREW — พนักงานที่ assign ให้แต่ละงาน
+// ─────────────────────────────────────────────
+
+export const jobCrew = pgTable("job_crew", {
+  id:     uuid("id").primaryKey().defaultRandom(),
+  jobId:  uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  role:   text("role"),  // บทบาทในงานนี้ เช่น "Lead Engineer"
+});
+
+// ─────────────────────────────────────────────
+// 10. PULL SHEETS — รายการเบิกอุปกรณ์ก่อนออกงาน
+// ─────────────────────────────────────────────
+
+export const pullSheets = pgTable("pull_sheets", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  createdById: uuid("created_by").references(() => users.id).notNull(),
+  assigneeId:  uuid("assignee_id").references(() => users.id),
+  status:      pullSheetStatusEnum("status").default("draft").notNull(),
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 11. MAINTENANCE LOGS — ประวัติการซ่อมบำรุง
+// ─────────────────────────────────────────────
+
+export const maintenanceLogs = pgTable("maintenance_logs", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "set null" }),
+  type:        maintenanceTypeEnum("type").notNull(),
+  description: text("description").notNull(),
+  techId:      uuid("tech_id").references(() => users.id),  // ช่างที่รับผิดชอบ
+  status:      maintenanceStatusEnum("status").default("in_progress").notNull(),
+  cost:        decimal("cost", { precision: 10, scale: 2 }),  // เก็บทศนิยม 2 ตำแหน่ง
+  date:        timestamp("date").notNull(),
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 12. SUB RENTALS — อุปกรณ์ที่ยืมมาจากบริษัทอื่น
+// ─────────────────────────────────────────────
+
+export const subRentals = pgTable("sub_rentals", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:     uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  itemName:  text("item_name").notNull(),
+  partner:   text("partner").notNull(),   // บริษัทที่ยืมมา
+  dueBack:   timestamp("due_back").notNull(),
+  dailyRate: decimal("daily_rate", { precision: 10, scale: 2 }),
+  status:    subRentalStatusEnum("status").default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 13. QUOTES — ใบเสนอราคา
+// ─────────────────────────────────────────────
+
+export const quotes = pgTable("quotes", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  companyId:    uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:        uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  quoteNumber:  text("quote_number").notNull(),  // เช่น "QT-018"
+  client:       text("client").notNull(),
+  totalValue:   decimal("total_value", { precision: 10, scale: 2 }).notNull(),
+  status:       quoteStatusEnum("status").default("draft").notNull(),
+  createdAt:    timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 14. INVOICES — ใบแจ้งหนี้
+// ─────────────────────────────────────────────
+
+export const invoices = pgTable("invoices", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  companyId:     uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:         uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  invoiceNumber: text("invoice_number").notNull(),  // เช่น "INV-0045"
+  client:        text("client").notNull(),
+  amount:        decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  issuedDate:    timestamp("issued_date").notNull(),
+  dueDate:       timestamp("due_date").notNull(),
+  status:        invoiceStatusEnum("status").default("pending").notNull(),
+  createdAt:     timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 15. INCIDENTS — รายงานความเสียหาย/สูญหาย
+// ─────────────────────────────────────────────
+
+export const incidents = pgTable("incidents", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "set null" }),
+  jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  reporterId:  uuid("reporter_id").references(() => users.id).notNull(),
+  description: text("description").notNull(),
+  severity:    incidentSeverityEnum("severity").notNull(),
+  status:      incidentStatusEnum("status").default("open").notNull(),
+  hasPhoto:    boolean("has_photo").default(false).notNull(),
+  date:        timestamp("date").notNull(),
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 16. ACTIVITY LOG — ประวัติทุกการกระทำ (สำหรับหน้า History)
+// ─────────────────────────────────────────────
+
+export const activityLog = pgTable("activity_log", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  userId:    uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  type:      activityTypeEnum("type").notNull(),
+  action:    text("action").notNull(),   // เช่น "Checked Out"
+  detail:    text("detail").notNull(),   // เช่น "24x J8 → Festival Sound 2026"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// RELATIONS — บอก Drizzle ว่าแต่ละ table เชื่อมกับใคร
+// ใช้สำหรับ query แบบ JOIN ที่ type-safe
+// ─────────────────────────────────────────────
+
+export const companiesRelations = relations(companies, ({ many }) => ({
+  users:           many(users),
+  stockItems:      many(stockItems),
+  containers:      many(containers),
+  jobs:            many(jobs),
+  maintenanceLogs: many(maintenanceLogs),
+  quotes:          many(quotes),
+  invoices:        many(invoices),
+  incidents:       many(incidents),
+  activityLog:     many(activityLog),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
+  company: one(companies, { fields: [users.companyId], references: [companies.id] }),
+}));
+
+export const stockItemsRelations = relations(stockItems, ({ one, many }) => ({
+  company: one(companies, { fields: [stockItems.companyId], references: [companies.id] }),
+  units:   many(stockUnits),
+}));
+
+export const stockUnitsRelations = relations(stockUnits, ({ one }) => ({
+  company:   one(companies,  { fields: [stockUnits.companyId],   references: [companies.id] }),
+  stockItem: one(stockItems, { fields: [stockUnits.stockItemId], references: [stockItems.id] }),
+}));
+
+export const jobsRelations = relations(jobs, ({ one, many }) => ({
+  company:     one(companies, { fields: [jobs.companyId], references: [companies.id] }),
+  stock:       many(jobStock),
+  crew:        many(jobCrew),
+  pullSheets:  many(pullSheets),
+  subRentals:  many(subRentals),
+  quotes:      many(quotes),
+  invoices:    many(invoices),
+  incidents:   many(incidents),
+}));
+
+// ─────────────────────────────────────────────
+// ZOD SCHEMAS — ใช้ validate ข้อมูลก่อน insert ลง DB
+// ─────────────────────────────────────────────
+
+export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true });
+export const insertUserSchema    = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertStockItemSchema = createInsertSchema(stockItems).omit({ id: true, createdAt: true });
+export const insertStockUnitSchema = createInsertSchema(stockUnits).omit({ id: true, createdAt: true });
+export const insertContainerSchema = createInsertSchema(containers).omit({ id: true, createdAt: true });
+export const insertJobSchema       = createInsertSchema(jobs).omit({ id: true, createdAt: true });
+export const insertMaintenanceLogSchema = createInsertSchema(maintenanceLogs).omit({ id: true, createdAt: true });
+export const insertQuoteSchema     = createInsertSchema(quotes).omit({ id: true, createdAt: true });
+export const insertInvoiceSchema   = createInsertSchema(invoices).omit({ id: true, createdAt: true });
+export const insertIncidentSchema  = createInsertSchema(incidents).omit({ id: true, createdAt: true });
+
+// ─────────────────────────────────────────────
+// TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
+// ─────────────────────────────────────────────
+
+export type Company       = typeof companies.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+
+export type User       = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+
+export type StockItem       = typeof stockItems.$inferSelect;
+export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
+
+export type StockUnit       = typeof stockUnits.$inferSelect;
+export type InsertStockUnit = z.infer<typeof insertStockUnitSchema>;
+
+export type Container       = typeof containers.$inferSelect;
+export type InsertContainer = z.infer<typeof insertContainerSchema>;
+
+export type Job       = typeof jobs.$inferSelect;
+export type InsertJob = z.infer<typeof insertJobSchema>;
+
+export type MaintenanceLog       = typeof maintenanceLogs.$inferSelect;
+export type InsertMaintenanceLog = z.infer<typeof insertMaintenanceLogSchema>;
+
+export type Quote       = typeof quotes.$inferSelect;
+export type InsertQuote = z.infer<typeof insertQuoteSchema>;
+
+export type Invoice       = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+
+export type Incident       = typeof incidents.$inferSelect;
+export type InsertIncident = z.infer<typeof insertIncidentSchema>;

@@ -8,63 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-// Data for the main stock items
-const stockItems = [
-  {
-    id: 1,
-    name: "J8 loudspeaker",
-    brand: "d&b audiotechnik",
-    category: "Speakers",
-    subCategory: "Line Array",
-    quantity: 24,
-    expanded: true,
-    subItems: [
-      {
-        id: 1,
-        name: "J8 Top1",
-        serialNumber: "Z33057252456",
-        barcodeNumber: "DBJ8-1",
-        location: "Zone A1",
-        status: "Available",
-      },
-      {
-        id: 2,
-        name: "J8 Top1",
-        serialNumber: "Z33057252456",
-        barcodeNumber: "DBJ8-1",
-        location: "Zone A1",
-        status: "Available",
-      },
-      {
-        id: 3,
-        name: "J8 Top1",
-        serialNumber: "Z33057252456",
-        barcodeNumber: "DBJ8-1",
-        location: "Zone A1",
-        status: "Available",
-      },
-      {
-        id: 4,
-        name: "J8 Top1",
-        serialNumber: "Z33057252456",
-        barcodeNumber: "DBJ8-1",
-        location: "Zone A1",
-        status: "Maintenace",
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "GSL8 loudspeaker",
-    brand: "d&b audiotechnik",
-    category: "Speakers",
-    subCategory: "Line Array",
-    quantity: 10,
-    expanded: false,
-    subItems: [],
-  },
-];
+import { stockItems } from "@/data/stock";
+import type { StockItem } from "@/data/stock";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const isAvailable = status === "Available";
@@ -86,13 +31,13 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const ActionIcons = ({ onView, onEdit }: { onView: () => void; onEdit: () => void }) => (
+const ActionIcons = ({ onView, onEdit }: { onView?: () => void; onEdit?: () => void }) => (
   <div className="flex items-center gap-1">
-    <button onClick={(e) => { e.stopPropagation(); onView(); }}
+    <button onClick={(e) => { e.stopPropagation(); onView?.(); }}
       className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="View details">
       <Eye className="w-4 h-4" />
     </button>
-    <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
+    <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
       className="p-1.5 rounded-md text-white/40 hover:bg-white/10 transition-colors" title="Edit"
       style={{ color: "inherit" }}
       onMouseEnter={e => (e.currentTarget.style.color = "#FFFF00")}
@@ -111,7 +56,7 @@ interface StockItemsTableProps {
   selectedBrands?: string[];
   selectedCategories?: string[];
   searchQuery?: string;
-  onViewItem?: (item: (typeof stockItems)[0]) => void;
+  onViewItem?: (item: StockItem) => void;
   selectedItemId?: number | null;
 }
 
