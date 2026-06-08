@@ -28,6 +28,7 @@ export class MemStorage implements IStorage {
       ...insertUser,
       id:        crypto.randomUUID(),
       role:      insertUser.role ?? "crew",
+      authId:    insertUser.authId ?? null,
       createdAt: new Date(),
     };
     this.users.set(user.id, user);

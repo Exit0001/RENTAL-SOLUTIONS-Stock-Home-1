@@ -10,9 +10,14 @@ import { log } from "./index";
 // Pool คือกลุ่ม connection ที่เปิดทิ้งไว้ล่วงหน้า
 // แทนที่จะเปิด-ปิด connection ทุก request (ช้า)
 // Pool จัดการให้อัตโนมัติ (เร็วกว่ามาก)
+// ลบ ?sslmode=require ออกจาก URL และใช้ ssl config จาก Pool แทน
+// เพื่อป้องกัน conflict ระหว่าง sslmode ใน URL กับ ssl object
+const connectionString = (process.env.DATABASE_URL || "").replace("?sslmode=require", "");
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 10, // connection พร้อมกันสูงสุด 10 ตัว
+  connectionString,
+  max: 10,
+  ssl: { rejectUnauthorized: false },
 });
 
 // db คือ object หลักที่ใช้ query database ทั่วทั้งแอป
@@ -27,8 +32,15 @@ export async function runMigrations() {
     log("Running database migrations...", "db");
     await migrate(db, { migrationsFolder: "./migrations" });
     log("Migrations completed successfully", "db");
-  } catch (error) {
-    log(`Migration failed: ${error}`, "db");
-    throw error; // หยุด server ถ้า migration ล้มเหลว
+  } catch (error: any) {
+    // 42710 = type already exists, 42P07 = table already exists
+    // เกิดเมื่อ SQL ถูกรันไปแล้วผ่าน SQL Editor
+    const alreadyExists = error?.code === "42710" || error?.code === "42P07";
+    if (alreadyExists) {
+      log("Migration skipped — database already up to date", "db");
+    } else {
+      log(`Migration failed: ${error}`, "db");
+      throw error;
+    }
   }
 }

@@ -1,44 +1,37 @@
-import {
-  Home,
-  Boxes,
-  Briefcase,
-  DollarSign,
-  Clock,
-} from "lucide-react";
+import { Home, Boxes, Briefcase, DollarSign, Clock, Settings } from "lucide-react";
 import { StockManagementHeaderSection } from "./sections/StockManagementHeaderSection";
 import { HomePage } from "./sections/HomePage";
 import { StockPage } from "./sections/StockPage";
 import { FinancePage } from "./sections/FinancePage";
 import { JobsPage } from "./sections/JobsPage";
 import { HistoryPage } from "./sections/HistoryPage";
+import { SettingsPage } from "./sections/SettingsPage";
 import { useAppStore } from "@/store/appStore";
 
-const sidebarNavItems = [
-  { label: "Home",    Icon: Home },
-  { label: "Stock",   Icon: Boxes },
-  { label: "Finance", Icon: DollarSign },
-  { label: "Jobs",    Icon: Briefcase },
-  { label: "History", Icon: Clock },
-];
-
 export const StockHome = (): JSX.Element => {
-  // อ่านและเขียน activePage จาก store กลาง — ไม่ต้องใช้ useState แล้ว
-  const { activePage, setActivePage } = useAppStore();
+  const { activePage, setActivePage, userRole } = useAppStore();
+
+  // กำหนด nav items ตาม role
+  // crew เห็นแค่ Home + Jobs
+  // manager/admin เห็นทุกหน้า
+  const navItems = [
+    { label: "Home",     Icon: Home,       roles: ["admin", "manager", "crew"] },
+    { label: "Stock",    Icon: Boxes,      roles: ["admin", "manager"] },
+    { label: "Finance",  Icon: DollarSign, roles: ["admin", "manager"] },
+    { label: "Jobs",     Icon: Briefcase,  roles: ["admin", "manager", "crew"] },
+    { label: "History",  Icon: Clock,      roles: ["admin", "manager"] },
+    { label: "Settings", Icon: Settings,   roles: ["admin", "manager", "crew"] },
+  ].filter((item) => !userRole || item.roles.includes(userRole));
 
   const renderPage = () => {
     switch (activePage) {
-      case "Home":
-        return <HomePage onNavigate={setActivePage} />;
-      case "Stock":
-        return <StockPage />;
-      case "Finance":
-        return <FinancePage />;
-      case "Jobs":
-        return <JobsPage />;
-      case "History":
-        return <HistoryPage />;
-      default:
-        return <HomePage onNavigate={setActivePage} />;
+      case "Home":     return <HomePage onNavigate={setActivePage} />;
+      case "Stock":    return <StockPage />;
+      case "Finance":  return <FinancePage />;
+      case "Jobs":     return <JobsPage />;
+      case "History":  return <HistoryPage />;
+      case "Settings": return <SettingsPage />;
+      default:         return <HomePage onNavigate={setActivePage} />;
     }
   };
 
@@ -49,29 +42,18 @@ export const StockHome = (): JSX.Element => {
       <div className="flex flex-row flex-1 overflow-hidden">
         <aside className="group/sidebar relative flex-shrink-0 w-[3px] hover:w-48 overflow-hidden bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col pt-2 pb-4 transition-all duration-300 ease-in-out z-10">
           <nav className="flex flex-col gap-0.5 px-1.5">
-            {sidebarNavItems.map(({ label, Icon }) => {
+            {navItems.map(({ label, Icon }) => {
               const isActive = activePage === label;
               return (
-                <button
-                  key={label}
-                  onClick={() => setActivePage(label)}
+                <button key={label} onClick={() => setActivePage(label)}
                   className={`group/item relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg w-full text-left
                     opacity-0 group-hover/sidebar:opacity-100 transition-all duration-200
                     focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40
-                    ${isActive
-                      ? "bg-[#FFFF00]/10 text-[#FFFF00]"
-                      : "text-white/30 hover:text-white/70 hover:bg-white/[0.04]"
-                    }`}
-                  title={label}
-                  data-testid={`nav-${label.toLowerCase()}`}
-                >
-                  {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-[#FFFF00] rounded-r-full" />
-                  )}
+                    ${isActive ? "bg-[#FFFF00]/10 text-[#FFFF00]" : "text-white/30 hover:text-white/70 hover:bg-white/[0.04]"}`}
+                  title={label} data-testid={`nav-${label.toLowerCase()}`}>
+                  {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-[#FFFF00] rounded-r-full" />}
                   <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-[#FFFF00]" : ""}`} />
-                  <span className="text-[13px] font-medium whitespace-nowrap overflow-hidden">
-                    {label}
-                  </span>
+                  <span className="text-[13px] font-medium whitespace-nowrap overflow-hidden">{label}</span>
                 </button>
               );
             })}

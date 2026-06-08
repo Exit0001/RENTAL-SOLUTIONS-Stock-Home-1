@@ -12,6 +12,7 @@ import {
   timestamp,
   uuid,
   decimal,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -55,10 +56,11 @@ export const companies = pgTable("companies", {
 export const users = pgTable("users", {
   id:        uuid("id").primaryKey().defaultRandom(),
   companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  authId:    text("auth_id").unique(),   // Supabase auth user ID
   username:  text("username").notNull().unique(),
   password:  text("password").notNull(),
   name:      text("name").notNull(),
-  initials:  text("initials").notNull(),  // เช่น "JW" สำหรับ James Wilson
+  initials:  text("initials").notNull(),
   role:      userRoleEnum("role").default("crew").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -75,6 +77,40 @@ export const stockItems = pgTable("stock_items", {
   category:    text("category").notNull(),
   subCategory: text("sub_category").notNull(),
   quantity:    integer("quantity").default(0).notNull(),
+
+  // General — รายละเอียดเพิ่มเติม
+  manufacturer:        text("manufacturer"),
+  manufacturerCountry: text("manufacturer_country"),
+  description:         text("description"),
+  imageUrl:            text("image_url"),
+
+  // Pricing & Finance
+  purchaseCost:     decimal("purchase_cost", { precision: 12, scale: 2 }),
+  purchaseDate:     timestamp("purchase_date"),
+  dailyRate:        decimal("daily_rate", { precision: 10, scale: 2 }),
+  weeklyRate:       decimal("weekly_rate", { precision: 10, scale: 2 }),
+  replacementValue: decimal("replacement_value", { precision: 12, scale: 2 }),
+  securityDeposit:  decimal("security_deposit", { precision: 10, scale: 2 }),
+
+  // Logistics & Specs
+  weight:     decimal("weight", { precision: 8, scale: 2 }),
+  dimensions: text("dimensions"),
+  specs:      jsonb("specs").$type<{
+    template?: string;
+    fields?: Record<string, string>;
+    customFields?: { key: string; label: string; value: string }[];
+    protocolTags?: string[];
+    customProtocolOptions?: string[];
+  }>(),
+
+  // Documents & Warranty (ลิงก์ไฟล์ — Supabase Storage)
+  warrantyExpiry: timestamp("warranty_expiry"),
+  supplierName:   text("supplier_name"),
+  supportContact: text("support_contact"),
+  manualUrl:      text("manual_url"),
+  certUrl:        text("cert_url"),
+  invoiceUrl:     text("invoice_url"),
+
   createdAt:   timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -186,6 +222,7 @@ export const maintenanceLogs = pgTable("maintenance_logs", {
   techId:      uuid("tech_id").references(() => users.id),  // ช่างที่รับผิดชอบ
   status:      maintenanceStatusEnum("status").default("in_progress").notNull(),
   cost:        decimal("cost", { precision: 10, scale: 2 }),  // เก็บทศนิยม 2 ตำแหน่ง
+  receiptUrl:  text("receipt_url"),  // ลิงก์ใบเสร็จ/บิลค่าซ่อม (Supabase Storage)
   date:        timestamp("date").notNull(),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
 });
@@ -202,6 +239,7 @@ export const subRentals = pgTable("sub_rentals", {
   partner:   text("partner").notNull(),   // บริษัทที่ยืมมา
   dueBack:   timestamp("due_back").notNull(),
   dailyRate: decimal("daily_rate", { precision: 10, scale: 2 }),
+  receiptUrl:text("receipt_url"),  // ลิงก์ใบเสร็จ/บิลค่าเช่า (Supabase Storage)
   status:    subRentalStatusEnum("status").default("pending").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -252,6 +290,7 @@ export const incidents = pgTable("incidents", {
   severity:    incidentSeverityEnum("severity").notNull(),
   status:      incidentStatusEnum("status").default("open").notNull(),
   hasPhoto:    boolean("has_photo").default(false).notNull(),
+  photoUrl:    text("photo_url"),  // ลิงก์รูปหลักฐาน (Supabase Storage)
   date:        timestamp("date").notNull(),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
 });
@@ -267,6 +306,45 @@ export const activityLog = pgTable("activity_log", {
   type:      activityTypeEnum("type").notNull(),
   action:    text("action").notNull(),   // เช่น "Checked Out"
   detail:    text("detail").notNull(),   // เช่น "24x J8 → Festival Sound 2026"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 17. CATALOG — Brand / Category / Sub-Category (จัดการได้จากหน้า Stock)
+// ─────────────────────────────────────────────
+
+export const brands = pgTable("brands", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:        text("name").notNull(),
+  logoUrl:     text("logo_url"),
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+});
+
+export const categories = pgTable("categories", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const subCategories = pgTable("sub_categories", {
+  id:             uuid("id").primaryKey().defaultRandom(),
+  companyId:      uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:           text("name").notNull(),
+  parentCategory: text("parent_category").notNull(),
+  createdAt:      timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 18. LOCATIONS — สถานที่จัดเก็บสินค้า (จัดการได้จากหน้า Stock)
+// ─────────────────────────────────────────────
+
+export const locations = pgTable("locations", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -323,9 +401,14 @@ export const insertStockUnitSchema = createInsertSchema(stockUnits).omit({ id: t
 export const insertContainerSchema = createInsertSchema(containers).omit({ id: true, createdAt: true });
 export const insertJobSchema       = createInsertSchema(jobs).omit({ id: true, createdAt: true });
 export const insertMaintenanceLogSchema = createInsertSchema(maintenanceLogs).omit({ id: true, createdAt: true });
+export const insertSubRentalSchema = createInsertSchema(subRentals).omit({ id: true, createdAt: true });
 export const insertQuoteSchema     = createInsertSchema(quotes).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema   = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertIncidentSchema  = createInsertSchema(incidents).omit({ id: true, createdAt: true });
+export const insertBrandSchema        = createInsertSchema(brands).omit({ id: true, createdAt: true });
+export const insertCategorySchema     = createInsertSchema(categories).omit({ id: true, createdAt: true });
+export const insertSubCategorySchema  = createInsertSchema(subCategories).omit({ id: true, createdAt: true });
+export const insertLocationSchema     = createInsertSchema(locations).omit({ id: true, createdAt: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -352,6 +435,9 @@ export type InsertJob = z.infer<typeof insertJobSchema>;
 export type MaintenanceLog       = typeof maintenanceLogs.$inferSelect;
 export type InsertMaintenanceLog = z.infer<typeof insertMaintenanceLogSchema>;
 
+export type SubRental       = typeof subRentals.$inferSelect;
+export type InsertSubRental = z.infer<typeof insertSubRentalSchema>;
+
 export type Quote       = typeof quotes.$inferSelect;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 
@@ -360,3 +446,15 @@ export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 
 export type Incident       = typeof incidents.$inferSelect;
 export type InsertIncident = z.infer<typeof insertIncidentSchema>;
+
+export type Brand       = typeof brands.$inferSelect;
+export type InsertBrand = z.infer<typeof insertBrandSchema>;
+
+export type Category       = typeof categories.$inferSelect;
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
+
+export type SubCategory       = typeof subCategories.$inferSelect;
+export type InsertSubCategory = z.infer<typeof insertSubCategorySchema>;
+
+export type Location       = typeof locations.$inferSelect;
+export type InsertLocation = z.infer<typeof insertLocationSchema>;

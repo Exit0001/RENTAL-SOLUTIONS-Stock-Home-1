@@ -1,30 +1,10 @@
 import React, { useState } from "react";
 import { X, Pencil, Trash2, Plus, Tag, Layers, GitBranch } from "lucide-react";
-
-interface Brand { id: number; name: string; description: string; }
-interface Category { id: number; name: string; }
-interface SubCategory { id: number; name: string; parentCategory: string; }
-
-const INITIAL_BRANDS: Brand[] = [
-  { id: 1, name: "d&b audiotechnik", description: "Professional audio" },
-  { id: 2, name: "L-Acoustics", description: "Line array systems" },
-  { id: 3, name: "Shure", description: "Microphones & wireless" },
-  { id: 4, name: "Senheiser", description: "Audio equipment" },
-];
-
-const INITIAL_CATEGORIES: Category[] = [
-  { id: 1, name: "Speakers" },
-  { id: 2, name: "Cable" },
-  { id: 3, name: "Rigging" },
-  { id: 4, name: "Safety" },
-];
-
-const INITIAL_SUBCATEGORIES: SubCategory[] = [
-  { id: 1, name: "Line Array", parentCategory: "Speakers" },
-  { id: 2, name: "Moving Heads", parentCategory: "Rigging" },
-  { id: 3, name: "LED Walls", parentCategory: "Speakers" },
-  { id: 4, name: "Ground Stacks", parentCategory: "Rigging" },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAppStore } from "@/store/appStore";
+import { catalogApi } from "@/api";
+import { FileUploadField } from "@/components/FileUploadField";
+import type { Brand, Category, SubCategory } from "@shared/schema";
 
 const avatarColors = [
   "#FFFF00", "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
@@ -33,14 +13,57 @@ const avatarColors = [
 const getBgColor = (name: string) =>
   avatarColors[name.charCodeAt(0) % avatarColors.length];
 
-const BrandAvatar = ({ name }: { name: string }) => (
-  <span
-    className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-black flex-shrink-0"
-    style={{ backgroundColor: getBgColor(name) }}
-  >
-    {name.charAt(0).toUpperCase()}
-  </span>
-);
+const BrandAvatar = ({ name, logoUrl }: { name: string; logoUrl?: string | null }) =>
+  logoUrl ? (
+    <img src={logoUrl} alt={name} className="w-8 h-8 rounded-lg object-cover border border-white/10 flex-shrink-0" />
+  ) : (
+    <span
+      className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-black flex-shrink-0"
+      style={{ backgroundColor: getBgColor(name) }}
+    >
+      {name.charAt(0).toUpperCase()}
+    </span>
+  );
+
+interface BrandFormProps {
+  companyId: string;
+  initial?: { name: string; logoUrl: string | null };
+  onSave: (data: { name: string; logoUrl: string | null }) => void;
+  onCancel: () => void;
+}
+const BrandForm = ({ companyId, initial, onSave, onCancel }: BrandFormProps) => {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [logoUrl, setLogoUrl] = useState<string | null>(initial?.logoUrl ?? null);
+  return (
+    <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] text-white/40 uppercase tracking-wider">Brand Name</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Pioneer DJ"
+          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
+        />
+      </div>
+      <FileUploadField label="Brand Logo" folder="brands" companyId={companyId} value={logoUrl} onChange={setLogoUrl} />
+      <div className="flex gap-2 mt-1">
+        <button
+          onClick={onCancel}
+          className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave({ name, logoUrl })}
+          className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
+          style={{ backgroundColor: "#FFFF00" }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface AddFormProps {
   fields: { key: string; label: string; placeholder: string }[];
@@ -83,44 +106,164 @@ const AddForm = ({ fields, onSave, onCancel }: AddFormProps) => {
   );
 };
 
+interface SubCategoryFormProps {
+  categoryOptions: string[];
+  initial?: { name: string; parentCategory: string };
+  onSave: (data: { name: string; parentCategory: string }) => void;
+  onCancel: () => void;
+}
+const SubCategoryForm = ({ categoryOptions, initial, onSave, onCancel }: SubCategoryFormProps) => {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [parentCategory, setParentCategory] = useState(initial?.parentCategory ?? "");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const suggestions = parentCategory.trim()
+    ? categoryOptions.filter((c) => c.toLowerCase().includes(parentCategory.toLowerCase()))
+    : categoryOptions;
+
+  return (
+    <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] text-white/40 uppercase tracking-wider">Sub-Category Name</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Line Array"
+          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
+        />
+      </div>
+      <div className="flex flex-col gap-1 relative">
+        <label className="text-[10px] text-white/40 uppercase tracking-wider">Parent Category</label>
+        <input
+          value={parentCategory}
+          onChange={(e) => setParentCategory(e.target.value)}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          placeholder="Select or type to search…"
+          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-36 overflow-y-auto">
+            {suggestions.map((c) => (
+              <button
+                key={c}
+                onMouseDown={() => { setParentCategory(c); setShowSuggestions(false); }}
+                className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00] transition-colors"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2 mt-1">
+        <button
+          onClick={onCancel}
+          className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave({ name, parentCategory })}
+          className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
+          style={{ backgroundColor: "#FFFF00" }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface BrandCategoryModalProps {
   onClose: () => void;
 }
 
 export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.Element => {
-  const [brands, setBrands] = useState<Brand[]>(INITIAL_BRANDS);
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
-  const [subCategories, setSubCategories] = useState<SubCategory[]>(INITIAL_SUBCATEGORIES);
+  const { token, companyId } = useAppStore();
+  const qc = useQueryClient();
+
+  const { data: brands = [] } = useQuery({
+    queryKey: ["catalog", "brands"],
+    queryFn: catalogApi.getBrands,
+    enabled: !!token,
+  });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["catalog", "categories"],
+    queryFn: catalogApi.getCategories,
+    enabled: !!token,
+  });
+  const { data: subCategories = [] } = useQuery({
+    queryKey: ["catalog", "subcategories"],
+    queryFn: catalogApi.getSubCategories,
+    enabled: !!token,
+  });
+
+  const createBrand = useMutation({
+    mutationFn: catalogApi.createBrand,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "brands"] }),
+  });
+  const updateBrand = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof catalogApi.updateBrand>[1] }) =>
+      catalogApi.updateBrand(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "brands"] }),
+  });
+  const deleteBrand = useMutation({
+    mutationFn: catalogApi.deleteBrand,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "brands"] }),
+  });
+
+  const createCategory = useMutation({
+    mutationFn: catalogApi.createCategory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "categories"] }),
+  });
+  const deleteCategory = useMutation({
+    mutationFn: catalogApi.deleteCategory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "categories"] }),
+  });
+
+  const createSubCategory = useMutation({
+    mutationFn: catalogApi.createSubCategory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "subcategories"] }),
+  });
+  const deleteSubCategory = useMutation({
+    mutationFn: catalogApi.deleteSubCategory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "subcategories"] }),
+  });
 
   const [showAddBrand, setShowAddBrand] = useState(false);
+  const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddSub, setShowAddSub] = useState(false);
 
-  const addBrand = (data: Record<string, string>) => {
+  const addBrand = (data: { name: string; logoUrl: string | null }) => {
     if (!data.name.trim()) return;
-    setBrands((p) => [...p, { id: Date.now(), name: data.name, description: data.description }]);
+    createBrand.mutate({ name: data.name.trim(), logoUrl: data.logoUrl });
     setShowAddBrand(false);
+  };
+
+  const saveBrandEdit = (id: string, data: { name: string; logoUrl: string | null }) => {
+    if (!data.name.trim()) return;
+    updateBrand.mutate({ id, data: { name: data.name.trim(), logoUrl: data.logoUrl } });
+    setEditingBrandId(null);
   };
 
   const addCategory = (data: Record<string, string>) => {
     if (!data.name.trim()) return;
-    setCategories((p) => [...p, { id: Date.now(), name: data.name }]);
+    createCategory.mutate({ name: data.name.trim() });
     setShowAddCategory(false);
   };
 
-  const addSub = (data: Record<string, string>) => {
+  const addSub = (data: { name: string; parentCategory: string }) => {
     if (!data.name.trim()) return;
-    setSubCategories((p) => [...p, { id: Date.now(), name: data.name, parentCategory: data.parentCategory }]);
+    createSubCategory.mutate({ name: data.name.trim(), parentCategory: data.parentCategory.trim() });
     setShowAddSub(false);
   };
-
-  const deleteItem = <T extends { id: number }>(id: number, setter: React.Dispatch<React.SetStateAction<T[]>>) =>
-    setter((p) => p.filter((x) => x.id !== id));
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.8)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-4xl bg-[#111111] rounded-2xl border border-white/10 shadow-2xl animate-modal-up flex flex-col max-h-[90vh]">
@@ -151,38 +294,45 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
             </div>
 
             <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
-              {brands.map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-white/8 group transition-colors"
-                >
-                  <BrandAvatar name={b.name} />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm font-medium text-white truncate">{b.name}</span>
-                    {b.description && (
-                      <span className="text-[10px] text-white/30 truncate">{b.description}</span>
-                    )}
+              {brands.map((b: Brand) => (
+                editingBrandId === b.id ? (
+                  <BrandForm
+                    key={b.id}
+                    companyId={companyId ?? ""}
+                    initial={{ name: b.name, logoUrl: b.logoUrl }}
+                    onSave={(data) => saveBrandEdit(b.id, data)}
+                    onCancel={() => setEditingBrandId(null)}
+                  />
+                ) : (
+                  <div
+                    key={b.id}
+                    className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-white/8 group transition-colors"
+                  >
+                    <BrandAvatar name={b.name} logoUrl={b.logoUrl} />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium text-white truncate">{b.name}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        className="p-1 rounded text-white/30 hover:text-[#FFFF00] transition-colors"
+                        onClick={() => { setEditingBrandId(b.id); setShowAddBrand(false); }}
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        className="p-1 rounded text-white/30 hover:text-red-400 transition-colors"
+                        onClick={() => deleteBrand.mutate(b.id)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-1 rounded text-white/30 hover:text-[#FFFF00] transition-colors">
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                    <button
-                      className="p-1 rounded text-white/30 hover:text-red-400 transition-colors"
-                      onClick={() => deleteItem(b.id, setBrands)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
+                )
               ))}
 
               {showAddBrand && (
-                <AddForm
-                  fields={[
-                    { key: "name", label: "Brand Name", placeholder: "e.g. Pioneer DJ" },
-                    { key: "description", label: "Description", placeholder: "Optional description" },
-                  ]}
+                <BrandForm
+                  companyId={companyId ?? ""}
                   onSave={addBrand}
                   onCancel={() => setShowAddBrand(false)}
                 />
@@ -191,7 +341,7 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
 
             {!showAddBrand && (
               <button
-                onClick={() => setShowAddBrand(true)}
+                onClick={() => { setShowAddBrand(true); setEditingBrandId(null); }}
                 className="mt-3 w-full h-9 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/30 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -209,7 +359,7 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
             </div>
 
             <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
-              {categories.map((c, i) => (
+              {categories.map((c: Category, i: number) => (
                 <div
                   key={c.id}
                   className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-white/8 group transition-colors"
@@ -222,12 +372,9 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
                   </span>
                   <span className="text-sm font-medium text-white flex-1 truncate">{c.name}</span>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-1 rounded text-white/30 hover:text-[#FFFF00] transition-colors">
-                      <Pencil className="w-3 h-3" />
-                    </button>
                     <button
                       className="p-1 rounded text-white/30 hover:text-red-400 transition-colors"
-                      onClick={() => deleteItem(c.id, setCategories)}
+                      onClick={() => deleteCategory.mutate(c.id)}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -266,7 +413,7 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
             </div>
 
             <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
-              {subCategories.map((s) => (
+              {subCategories.map((s: SubCategory) => (
                 <div
                   key={s.id}
                   className="flex flex-col px-2.5 py-2 rounded-lg bg-white/5 hover:bg-white/8 group transition-colors"
@@ -275,12 +422,9 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
                     <span className="w-1.5 h-1.5 rounded-full bg-[#FFFF00]/60 flex-shrink-0 mt-0.5" />
                     <span className="text-sm font-medium text-white flex-1 truncate">{s.name}</span>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1 rounded text-white/30 hover:text-[#FFFF00] transition-colors">
-                        <Pencil className="w-3 h-3" />
-                      </button>
                       <button
                         className="p-1 rounded text-white/30 hover:text-red-400 transition-colors"
-                        onClick={() => deleteItem(s.id, setSubCategories)}
+                        onClick={() => deleteSubCategory.mutate(s.id)}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -291,11 +435,8 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
               ))}
 
               {showAddSub && (
-                <AddForm
-                  fields={[
-                    { key: "name", label: "Sub-Category Name", placeholder: "e.g. Line Array" },
-                    { key: "parentCategory", label: "Parent Category", placeholder: "e.g. Speakers" },
-                  ]}
+                <SubCategoryForm
+                  categoryOptions={categories.map((c: Category) => c.name)}
                   onSave={addSub}
                   onCancel={() => setShowAddSub(false)}
                 />

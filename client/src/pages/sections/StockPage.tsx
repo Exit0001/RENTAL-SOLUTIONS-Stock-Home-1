@@ -14,19 +14,22 @@ import {
   LogOut,
   LogIn,
   PackagePlus,
+  Receipt,
 } from "lucide-react";
 import { BrandCategoryModal } from "./BrandCategoryModal";
 import { AddNewItemModal } from "./AddNewItemModal";
 import { AddContainerModal } from "./AddContainerModal";
 import { AddIndividualUnitModal } from "./AddIndividualUnitModal";
 import { AddLocationModal } from "./AddLocationModal";
+import { AddMaintenanceLogModal } from "./AddMaintenanceLogModal";
+import { AddSubRentalModal } from "./AddSubRentalModal";
 import { ItemDetailPanel } from "./ItemDetailPanel";
 import { StockFilterControlsSection } from "./StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./StockFilterSidebarSection";
 import { StockItemsTableSection } from "./StockItemsTableSection";
-import { maintenanceLogs } from "@/data/maintenance";
-import { subRentals } from "@/data/subrentals";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
+import { containersApi, maintenanceApi, stockApi } from "@/api";
 
 type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
 
@@ -62,13 +65,71 @@ export const StockPage = (): JSX.Element => {
   const [addContainerOpen, setAddContainerOpen] = useState(false);
   const [addIndividualUnitOpen, setAddIndividualUnitOpen] = useState(false);
   const [addLocationOpen, setAddLocationOpen] = useState(false);
+  const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
+  const [addSubRentalOpen, setAddSubRentalOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  // containers ย้ายมาจาก store กลาง — พร้อม actions ทุกอย่าง
-  const { containers, expandedContainers, checkedOutContainers, addContainer, toggleContainer, toggleCheckout } = useAppStore();
+  const { token, expandedContainers, checkedOutContainers, toggleContainer, toggleCheckout } = useAppStore();
+  const qc = useQueryClient();
+
+  // ดึง containers จาก API (token ถูกส่งอัตโนมัติจาก api client)
+  const { data: containers = [] } = useQuery({
+    queryKey: ["containers"],
+    queryFn: async () => {
+      const data = await containersApi.getAll();
+      return data.map((c) => ({ ...c, items: [] as { name: string; sn: string; status: string }[] }));
+    },
+    enabled: !!token,
+  });
+
+  // Mutation สำหรับสร้าง container ใหม่
+  const createContainer = useMutation({
+    mutationFn: (data: Parameters<typeof containersApi.create>[0]) =>
+      containersApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+  });
+
+  // ดึง maintenance + subrentals จาก API
+  const { data: maintenanceLogs = [] } = useQuery({
+    queryKey: ["maintenance"],
+    queryFn: maintenanceApi.getAll,
+    enabled: !!token,
+  });
+
+  const { data: subRentals = [] } = useQuery<any[]>({
+    queryKey: ["subrentals"],
+    queryFn: maintenanceApi.getSubRentals as () => Promise<any[]>,
+    enabled: !!token,
+  });
+
+  const createMaintenanceLog = useMutation({
+    mutationFn: (data: Parameters<typeof maintenanceApi.create>[0]) => maintenanceApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["maintenance"] }),
+  });
+
+  const createSubRental = useMutation({
+    mutationFn: (data: Parameters<typeof maintenanceApi.createSubRental>[0]) => maintenanceApi.createSubRental(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["subrentals"] }),
+  });
+
+  // Mutation สำหรับสร้าง stock item ใหม่
+  const createStockItem = useMutation({
+    mutationFn: (data: Parameters<typeof stockApi.create>[0]) => stockApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["stock"] }),
+  });
+
+  // Mutation สำหรับเพิ่ม unit ให้กับ stock item ที่มีอยู่ (เรียกทีละตัว)
+  const addStockUnits = useMutation({
+    mutationFn: async ({ stockItemId, units }: { stockItemId: string; units: Parameters<typeof stockApi.addUnit>[1][] }) => {
+      for (const unit of units) {
+        await stockApi.addUnit(stockItemId, unit);
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["stock"] }),
+  });
 
   const toggleBrand = (brand: string) =>
     setSelectedBrands((prev) =>
@@ -86,13 +147,12 @@ export const StockPage = (): JSX.Element => {
   };
 
   const handleAddContainer = (data: { name: string; type: string; location: string; barcode: string }) => {
-    const newContainer = {
+    createContainer.mutate({
       name: data.name,
-      type: data.type,
+      type: data.type as any,
       location: data.location,
       barcode: data.barcode,
-    };
-    addContainer(newContainer);
+    });
   };
 
   return (
@@ -101,16 +161,34 @@ export const StockPage = (): JSX.Element => {
         <BrandCategoryModal onClose={() => setBrandCategoryOpen(false)} />
       )}
       {addNewItemOpen && (
-        <AddNewItemModal onClose={() => setAddNewItemOpen(false)} />
+        <AddNewItemModal
+          onClose={() => setAddNewItemOpen(false)}
+          onSubmit={(data) => createStockItem.mutate(data)}
+        />
       )}
       {addContainerOpen && (
         <AddContainerModal onClose={() => setAddContainerOpen(false)} onAdd={handleAddContainer} />
       )}
       {addIndividualUnitOpen && (
-        <AddIndividualUnitModal onClose={() => setAddIndividualUnitOpen(false)} />
+        <AddIndividualUnitModal
+          onClose={() => setAddIndividualUnitOpen(false)}
+          onSubmit={(stockItemId, units) => addStockUnits.mutate({ stockItemId, units })}
+        />
       )}
       {addLocationOpen && (
         <AddLocationModal onClose={() => setAddLocationOpen(false)} />
+      )}
+      {addMaintenanceLogOpen && (
+        <AddMaintenanceLogModal
+          onClose={() => setAddMaintenanceLogOpen(false)}
+          onSubmit={(data) => createMaintenanceLog.mutate(data)}
+        />
+      )}
+      {addSubRentalOpen && (
+        <AddSubRentalModal
+          onClose={() => setAddSubRentalOpen(false)}
+          onSubmit={(data) => createSubRental.mutate(data)}
+        />
       )}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
@@ -267,7 +345,14 @@ export const StockPage = (): JSX.Element => {
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
               <Wrench className="w-4 h-4 text-[#FFFF00]" />
               <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">Maintenance Log</span>
-              <span className="ml-auto text-[10px] text-white/20">{maintenanceLogs.length} records</span>
+              <span className="text-[10px] text-white/20">{maintenanceLogs.length} records</span>
+              <button
+                onClick={() => setAddMaintenanceLogOpen(true)}
+                className="ml-auto flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold text-black transition-opacity hover:opacity-80"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                <Plus className="w-3 h-3" /> Add Log
+              </button>
             </div>
             <table className="w-full text-sm">
               <thead>
@@ -282,21 +367,31 @@ export const StockPage = (): JSX.Element => {
                 </tr>
               </thead>
               <tbody>
-                {maintenanceLogs.map((log) => (
+                {maintenanceLogs.map((log: any) => (
                   <tr key={log.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`maintenance-${log.id}`}>
-                    <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{log.asset}</td>
+                    <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{log.stockUnitId ?? "—"}</td>
                     <td className="py-2.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        log.type === "Repair" ? "bg-red-500/10 text-red-400" : log.type === "Preventive" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/40"
+                        log.type === "repair" ? "bg-red-500/10 text-red-400" : log.type === "preventive" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/40"
                       }`}>{log.type}</span>
                     </td>
-                    <td className="py-2.5 text-white/50 max-w-[250px] truncate">{log.desc}</td>
-                    <td className="py-2.5 text-white/30 text-xs">{log.date}</td>
-                    <td className="py-2.5 text-white/50">{log.tech}</td>
-                    <td className="py-2.5 text-white/60 font-semibold">{log.cost}</td>
+                    <td className="py-2.5 text-white/50 max-w-[250px] truncate">{log.description}</td>
+                    <td className="py-2.5 text-white/30 text-xs">{new Date(log.date).toLocaleDateString("en-GB")}</td>
+                    <td className="py-2.5 text-white/50">{log.techId ?? "—"}</td>
+                    <td className="py-2.5 text-white/60 font-semibold">
+                      <span className="inline-flex items-center gap-1.5">
+                        {log.cost ? `£${log.cost}` : "—"}
+                        {log.receiptUrl && (
+                          <a href={log.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
+                            className="text-white/20 hover:text-[#FFFF00] transition-colors">
+                            <Receipt className="w-3 h-3" />
+                          </a>
+                        )}
+                      </span>
+                    </td>
                     <td className="py-2.5 pr-4 text-right">
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${log.status === "Completed" ? "text-emerald-400" : "text-amber-400"}`}>
-                        {log.status === "Completed" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${log.status === "completed" ? "text-emerald-400" : "text-amber-400"}`}>
+                        {log.status === "completed" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                         {log.status}
                       </span>
                     </td>
@@ -318,25 +413,40 @@ export const StockPage = (): JSX.Element => {
             <div className="px-4 py-3 border-b border-purple-500/10 flex items-center gap-2">
               <ArrowRightLeft className="w-4 h-4 text-purple-400" />
               <span className="font-bold text-purple-400 text-xs tracking-widest uppercase">Sub-Rentals</span>
-              <span className="ml-auto text-[10px] text-white/20">{subRentals.length} active</span>
+              <span className="text-[10px] text-white/20">{subRentals.length} active</span>
+              <button
+                onClick={() => setAddSubRentalOpen(true)}
+                className="ml-auto flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold text-black transition-opacity hover:opacity-80"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                <Plus className="w-3 h-3" /> Add Sub-Rental
+              </button>
             </div>
             <div className="divide-y divide-white/[0.04]">
-              {subRentals.map((sr) => (
+              {(subRentals as any[]).map((sr) => (
                 <div key={sr.id} className="flex items-center gap-4 px-4 py-3 hover:bg-purple-500/[0.03] transition-colors" data-testid={`subrental-${sr.id}`}>
                   <div className="w-1 h-8 rounded-full bg-purple-400/60" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white/80">{sr.item}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "Active" ? "bg-purple-500/15 text-purple-400" : "bg-amber-500/15 text-amber-400"}`}>{sr.status}</span>
+                      <span className="text-sm font-medium text-white/80">{sr.itemName}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "active" ? "bg-purple-500/15 text-purple-400" : "bg-amber-500/15 text-amber-400"}`}>{sr.status}</span>
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-white/30 mt-0.5">
                       <span>From: {sr.partner}</span>
-                      <span>For: {sr.project}</span>
+                      <span>Job ID: {sr.jobId ?? "—"}</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-white/50 font-medium">{sr.dailyRate}</p>
-                    <p className="text-[10px] text-white/25 flex items-center gap-1"><Clock className="w-3 h-3" />Due: {sr.dueBack}</p>
+                    <p className="text-xs text-white/50 font-medium inline-flex items-center gap-1.5 justify-end">
+                      {sr.dailyRate ? `£${sr.dailyRate}/day` : "—"}
+                      {sr.receiptUrl && (
+                        <a href={sr.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
+                          className="text-white/20 hover:text-purple-300 transition-colors">
+                          <Receipt className="w-3 h-3" />
+                        </a>
+                      )}
+                    </p>
+                    <p className="text-[10px] text-white/25 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />Due: {new Date(sr.dueBack).toLocaleDateString("en-GB")}</p>
                   </div>
                 </div>
               ))}

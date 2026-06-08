@@ -1,9 +1,14 @@
 import React, { useState } from "react";
 import {
-  X, ChevronRight, Plus, Trash2, Upload, FileText, Shield, Receipt,
+  X, ChevronRight, Plus, FileText,
   Calendar, Banknote, Package, Cpu, Lightbulb,
   Monitor, Settings,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "@/store/appStore";
+import { catalogApi } from "@/api";
+import { FileUploadField } from "@/components/FileUploadField";
+import type { InsertStockItem } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +55,6 @@ const SPEC_TEMPLATES: Record<string, { label: string; icon: React.ElementType; f
 };
 
 const PROTOCOL_OPTIONS = ["Dante", "AES/EBU", "Milan", "Art-Net", "sACN", "AVB", "AES67", "MADI"];
-const STORAGE_LOCATIONS = ["Warehouse A, Zone 1", "Warehouse A, Zone 2", "Warehouse B", "Vehicle 1", "Offsite"];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -105,34 +109,17 @@ const SectionCard = ({ title, children }: { title: string; children: React.React
   </div>
 );
 
-const FileDropZone = ({ label, icon: Icon, fileName, onClear }: {
-  label: string; icon: React.ElementType; fileName?: string; onClear?: () => void;
-}) => (
-  <div className="relative flex flex-col items-center justify-center gap-2 p-5 rounded-xl border border-dashed border-white/10 hover:border-[#FFFF00]/30 bg-white/[0.02] hover:bg-white/[0.04] transition-all cursor-pointer group min-h-[110px]">
-    {fileName && (
-      <button onClick={onClear} className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors">
-        <X className="w-3 h-3" />
-      </button>
-    )}
-    <Icon className={`w-6 h-6 ${fileName ? "text-[#FFFF00]/50" : "text-white/15 group-hover:text-white/30"} transition-colors`} />
-    {fileName ? (
-      <span className="text-[10px] text-[#FFFF00]/60 text-center break-all px-2">{fileName}</span>
-    ) : (
-      <>
-        <span className="text-[11px] font-medium text-white/30 group-hover:text-white/50 transition-colors text-center">{label}</span>
-        <span className="text-[9px] text-white/15">Drag and drop</span>
-      </>
-    )}
-  </div>
-);
-
 // ─── Tab: General ─────────────────────────────────────────────────────────────
 
 interface GeneralData {
   itemName: string; manufacturer: string; manufacturerCountry: string;
-  brand: string; category: string; subCategory: string; description: string; imageFile?: string;
+  brand: string; category: string; subCategory: string; description: string;
+  imageUrl: string | null;
 }
-const GeneralTab = ({ data, onChange }: { data: GeneralData; onChange: (d: GeneralData) => void }) => {
+const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, subCategoryOptions }: {
+  data: GeneralData; onChange: (d: GeneralData) => void; companyId: string;
+  brandOptions: string[]; categoryOptions: string[]; subCategoryOptions: string[];
+}) => {
   const set = (key: keyof GeneralData) => (v: string) => onChange({ ...data, [key]: v });
   return (
     <div className="flex flex-col gap-5">
@@ -142,9 +129,9 @@ const GeneralTab = ({ data, onChange }: { data: GeneralData; onChange: (d: Gener
         <InputField label="Manufacturer Country" placeholder="e.g. Germany" value={data.manufacturerCountry} onChange={set("manufacturerCountry")} />
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <SelectField label="Brand" value={data.brand} onChange={set("brand")} options={["d&b audiotechnik", "L-Acoustics", "Shure", "Senheiser"]} />
-        <SelectField label="Category" value={data.category} onChange={set("category")} options={["Speakers", "Cable", "Rigging", "Safety", "Microphones"]} />
-        <SelectField label="Sub-Category" value={data.subCategory} onChange={set("subCategory")} options={["Line Array", "Moving Heads", "Ground Stacks", "LED Wall", "In-Ear"]} />
+        <SelectField label="Brand" value={data.brand} onChange={set("brand")} options={brandOptions} />
+        <SelectField label="Category" value={data.category} onChange={set("category")} options={categoryOptions} />
+        <SelectField label="Sub-Category" value={data.subCategory} onChange={set("subCategory")} options={subCategoryOptions} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Description</label>
@@ -156,17 +143,8 @@ const GeneralTab = ({ data, onChange }: { data: GeneralData; onChange: (d: Gener
           className="w-full bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 py-2.5 placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-colors resize-none"
         />
       </div>
-      <div className="flex gap-4 items-start">
-        <div className="flex flex-col items-center justify-center gap-2 w-44 h-32 rounded-xl border border-dashed border-white/10 hover:border-[#FFFF00]/30 bg-white/[0.02] hover:bg-[#FFFF00]/[0.03] cursor-pointer transition-all group">
-          <Upload className="w-5 h-5 text-white/20 group-hover:text-[#FFFF00]/40 transition-colors" />
-          <span className="text-[11px] text-white/25 group-hover:text-white/40 transition-colors text-center">Drag and drop<br/>or Upload Image</span>
-        </div>
-        {data.imageFile && (
-          <div className="w-32 h-32 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden">
-            <Package className="w-10 h-10 text-white/20" />
-          </div>
-        )}
-      </div>
+      <FileUploadField label="Item Image" folder="stock-items" companyId={companyId}
+        value={data.imageUrl} onChange={(url) => onChange({ ...data, imageUrl: url })} />
     </div>
   );
 };
@@ -349,9 +327,9 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
 
 interface DocsData {
   warrantyExpiry: string; supplierName: string; supportContact: string;
-  manualFile?: string; certFile?: string; invoiceFile?: string;
+  manualUrl: string | null; certUrl: string | null; invoiceUrl: string | null;
 }
-const DocsTab = ({ data, onChange }: { data: DocsData; onChange: (d: DocsData) => void }) => {
+const DocsTab = ({ data, onChange, companyId }: { data: DocsData; onChange: (d: DocsData) => void; companyId: string }) => {
   const set = (key: keyof DocsData) => (v: string) => onChange({ ...data, [key]: v });
   return (
     <div className="flex flex-col gap-4">
@@ -365,12 +343,12 @@ const DocsTab = ({ data, onChange }: { data: DocsData; onChange: (d: DocsData) =
 
       <SectionCard title="Documents">
         <div className="grid grid-cols-3 gap-4">
-          <FileDropZone label="User Manual (PDF)" icon={FileText}
-            fileName={data.manualFile} onClear={() => onChange({ ...data, manualFile: undefined })} />
-          <FileDropZone label="Safety Certificate" icon={Shield}
-            fileName={data.certFile} onClear={() => onChange({ ...data, certFile: undefined })} />
-          <FileDropZone label="Purchase Invoice" icon={Receipt}
-            fileName={data.invoiceFile} onClear={() => onChange({ ...data, invoiceFile: undefined })} />
+          <FileUploadField label="User Manual (PDF)" folder="stock-items" companyId={companyId}
+            value={data.manualUrl} onChange={(url) => onChange({ ...data, manualUrl: url })} />
+          <FileUploadField label="Safety Certificate" folder="stock-items" companyId={companyId}
+            value={data.certUrl} onChange={(url) => onChange({ ...data, certUrl: url })} />
+          <FileUploadField label="Purchase Invoice" folder="stock-items" companyId={companyId}
+            value={data.invoiceUrl} onChange={(url) => onChange({ ...data, invoiceUrl: url })} />
         </div>
         <p className="text-[10px] text-white/20 mt-3">Accepted formats: PDF, JPG, PNG — max 20 MB each</p>
       </SectionCard>
@@ -387,13 +365,28 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "documents", label: "Documents & Warranty", icon: FileText },
 ];
 
-interface AddNewItemModalProps { onClose: () => void; }
+interface AddNewItemModalProps {
+  onClose: () => void;
+  onSubmit: (data: Omit<InsertStockItem, "companyId">) => void;
+}
 
-export const AddNewItemModal = ({ onClose }: AddNewItemModalProps): JSX.Element => {
+export const AddNewItemModal = ({ onClose, onSubmit }: AddNewItemModalProps): JSX.Element => {
+  const { token, companyId } = useAppStore();
   const [activeTab, setActiveTab] = useState<TabKey>("general");
+
+  const { data: brands = [] } = useQuery({
+    queryKey: ["catalog", "brands"], queryFn: catalogApi.getBrands, enabled: !!token,
+  });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["catalog", "categories"], queryFn: catalogApi.getCategories, enabled: !!token,
+  });
+  const { data: subCategories = [] } = useQuery({
+    queryKey: ["catalog", "subcategories"], queryFn: catalogApi.getSubCategories, enabled: !!token,
+  });
+
   const [general, setGeneral] = useState<GeneralData>({
     itemName: "", manufacturer: "", manufacturerCountry: "",
-    brand: "", category: "", subCategory: "", description: "",
+    brand: "", category: "", subCategory: "", description: "", imageUrl: null,
   });
   const [pricing, setPricing] = useState<PricingData>({
     purchaseCost: "", purchaseDate: "", dailyRate: "", weeklyRate: "",
@@ -404,6 +397,7 @@ export const AddNewItemModal = ({ onClose }: AddNewItemModalProps): JSX.Element 
   });
   const [docs, setDocs] = useState<DocsData>({
     warrantyExpiry: "", supplierName: "", supportContact: "",
+    manualUrl: null, certUrl: null, invoiceUrl: null,
   });
 
   const tabOrder: TabKey[] = ["general", "pricing", "specs", "documents"];
@@ -412,14 +406,46 @@ export const AddNewItemModal = ({ onClose }: AddNewItemModalProps): JSX.Element 
   const canGoPrev = currentIdx > 0;
 
   const handleSave = () => {
-    console.log("Saving item:", { general, pricing, specs, docs });
+    if (!general.itemName.trim()) return;
+    onSubmit({
+      name: general.itemName.trim(),
+      brand: general.brand,
+      category: general.category,
+      subCategory: general.subCategory,
+      quantity: 0,
+      manufacturer: general.manufacturer || null,
+      manufacturerCountry: general.manufacturerCountry || null,
+      description: general.description || null,
+      imageUrl: general.imageUrl,
+      purchaseCost: pricing.purchaseCost || null,
+      purchaseDate: pricing.purchaseDate ? new Date(pricing.purchaseDate) : null,
+      dailyRate: pricing.dailyRate || null,
+      weeklyRate: pricing.weeklyRate || null,
+      replacementValue: pricing.replacementValue || null,
+      securityDeposit: pricing.securityDeposit || null,
+      weight: specs.weight || null,
+      dimensions: specs.dimensions || null,
+      specs: {
+        template: specs.template,
+        fields: specs.fields,
+        customFields: specs.customFields,
+        protocolTags: specs.protocolTags,
+        customProtocolOptions: specs.customProtocolOptions,
+      },
+      warrantyExpiry: docs.warrantyExpiry ? new Date(docs.warrantyExpiry) : null,
+      supplierName: docs.supplierName || null,
+      supportContact: docs.supportContact || null,
+      manualUrl: docs.manualUrl,
+      certUrl: docs.certUrl,
+      invoiceUrl: docs.invoiceUrl,
+    } as Omit<InsertStockItem, "companyId">);
     onClose();
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(6px)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-3xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[92vh]">
@@ -460,10 +486,15 @@ export const AddNewItemModal = ({ onClose }: AddNewItemModalProps): JSX.Element 
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === "general"   && <GeneralTab data={general} onChange={setGeneral} />}
+          {activeTab === "general"   && (
+            <GeneralTab data={general} onChange={setGeneral} companyId={companyId ?? ""}
+              brandOptions={brands.map((b) => b.name)}
+              categoryOptions={categories.map((c) => c.name)}
+              subCategoryOptions={subCategories.map((s) => s.name)} />
+          )}
           {activeTab === "pricing"   && <PricingTab data={pricing} onChange={setPricing} />}
           {activeTab === "specs"     && <SpecsTab data={specs} onChange={setSpecs} />}
-          {activeTab === "documents" && <DocsTab data={docs} onChange={setDocs} />}
+          {activeTab === "documents" && <DocsTab data={docs} onChange={setDocs} companyId={companyId ?? ""} />}
         </div>
 
         {/* Footer */}

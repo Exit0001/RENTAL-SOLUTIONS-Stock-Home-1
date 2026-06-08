@@ -8,6 +8,27 @@
       "when": 1780569948399,
       "tag": "0000_chubby_morbius",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780832413390,
+      "tag": "0001_famous_swarm",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780836812957,
+      "tag": "0002_unknown_raza",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780841408970,
+      "tag": "0003_yielding_mandroid",
+      "breakpoints": true
     }
   ]
 }

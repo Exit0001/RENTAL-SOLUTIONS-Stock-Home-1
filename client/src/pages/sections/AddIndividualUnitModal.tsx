@@ -1,29 +1,22 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { X, Layers, Hash, Trash2, Package } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "@/store/appStore";
+import { stockApi, catalogApi } from "@/api";
+import type { StockItem, StockUnit } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Unit {
+type UnitStatus = Extract<StockUnit["status"], "available" | "maintenance">;
+
+interface DraftUnit {
   id: number;
   unitName: string;
-  parentItem: string;
   serialNumber: string;
   barcodeNumber: string;
   storageLocation: string;
-  initialStatus: "Available" | "Maintenance";
+  initialStatus: UnitStatus;
 }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const EXISTING_ITEMS = [
-  "d&b J8 Loudspeaker", "d&b J12 Loudspeaker", "d&b B22 Sub",
-  "L-Acoustics K2", "L-Acoustics KS28", "Crown FP10000Q Amplifier",
-  "Shure ULXD4 Wireless Receiver", "Shure SM58 Microphone",
-];
-
-const DEFAULT_STORAGE_LOCATIONS = [
-  "Warehouse A, Zone 1", "Warehouse A, Zone 2", "Warehouse B", "Vehicle 1", "Offsite",
-];
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -47,54 +40,83 @@ const InputField = ({
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
-interface Props { onClose: () => void; }
+interface UnitDraft {
+  name: string;
+  serialNumber: string | null;
+  barcode: string | null;
+  location: string | null;
+  status: UnitStatus;
+}
 
-export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
-  const [parentItem, setParentItem] = useState("");
+interface Props {
+  onClose: () => void;
+  onSubmit: (stockItemId: string, units: UnitDraft[]) => void;
+}
+
+export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Element => {
+  const { token } = useAppStore();
+
+  const { data: stockItems = [] } = useQuery({
+    queryKey: ["stock"], queryFn: stockApi.getAll, enabled: !!token,
+  });
+  const { data: locations = [] } = useQuery({
+    queryKey: ["catalog", "locations"], queryFn: catalogApi.getLocations, enabled: !!token,
+  });
+
+  const [parentItemName, setParentItemName] = useState("");
+  const [parentItemId, setParentItemId] = useState<string | null>(null);
   const [qty, setQty] = useState("1");
   const [prefix, setPrefix] = useState("SN");
   const [startNum, setStartNum] = useState("1");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [units, setUnits] = useState<Unit[]>([]);
+  const [units, setUnits] = useState<DraftUnit[]>([]);
 
-  const suggestions = parentItem.trim()
-    ? EXISTING_ITEMS.filter((item) => item.toLowerCase().includes(parentItem.toLowerCase()))
-    : EXISTING_ITEMS;
+  const suggestions = parentItemName.trim()
+    ? stockItems.filter((item: StockItem) => item.name.toLowerCase().includes(parentItemName.toLowerCase()))
+    : stockItems;
+
+  const defaultLocation = locations[0]?.name ?? "";
 
   const generateUnits = () => {
     const q = parseInt(qty) || 1;
     const start = parseInt(startNum) || 1;
-    const baseName = parentItem || "Unit";
-    const newUnits: Unit[] = Array.from({ length: q }, (_, i) => {
+    const baseName = parentItemName || "Unit";
+    const newUnits: DraftUnit[] = Array.from({ length: q }, (_, i) => {
       const num = String(start + i).padStart(2, "0");
       return {
         id: Date.now() + i,
         unitName: `${baseName} - Unit ${num}`,
-        parentItem: baseName,
         serialNumber: "",
         barcodeNumber: `${prefix}-${num}`,
-        storageLocation: "Warehouse A, Zone 1",
-        initialStatus: "Available",
+        storageLocation: defaultLocation,
+        initialStatus: "available",
       };
     });
     setUnits((prev) => [...prev, ...newUnits]);
   };
 
-  const updateUnit = (id: number, key: keyof Unit, val: string) =>
+  const updateUnit = (id: number, key: keyof DraftUnit, val: string) =>
     setUnits((prev) => prev.map((u) => u.id === id ? { ...u, [key]: val } : u));
 
   const removeUnit = (id: number) =>
     setUnits((prev) => prev.filter((u) => u.id !== id));
 
   const handleSave = () => {
-    console.log("Saving units:", units);
+    if (!parentItemId || units.length === 0) return;
+    onSubmit(parentItemId, units.map((u) => ({
+      name: u.unitName,
+      serialNumber: u.serialNumber || null,
+      barcode: u.barcodeNumber || null,
+      location: u.storageLocation || null,
+      status: u.initialStatus,
+    })));
     onClose();
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.8)", backdropFilter: "blur(6px)" }}
+      style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-3xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[88vh]">
@@ -126,8 +148,8 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
             <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Parent Item</label>
             <input
               type="text"
-              value={parentItem}
-              onChange={(e) => { setParentItem(e.target.value); setShowSuggestions(true); }}
+              value={parentItemName}
+              onChange={(e) => { setParentItemName(e.target.value); setParentItemId(null); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="Type or select a parent item…"
@@ -136,13 +158,13 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
             />
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-44">
-                {suggestions.map((item) => (
+                {suggestions.map((item: StockItem) => (
                   <button
-                    key={item}
-                    onMouseDown={() => { setParentItem(item); setShowSuggestions(false); }}
+                    key={item.id}
+                    onMouseDown={() => { setParentItemName(item.name); setParentItemId(item.id); setShowSuggestions(false); }}
                     className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00] transition-colors"
                   >
-                    {item}
+                    {item.name}
                   </button>
                 ))}
               </div>
@@ -162,13 +184,17 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
             </div>
             <button
               onClick={generateUnits}
-              className="h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 flex items-center gap-2 flex-shrink-0"
+              disabled={!parentItemId}
+              className="h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 flex items-center gap-2 flex-shrink-0 disabled:opacity-30 disabled:pointer-events-none"
               style={{ backgroundColor: "#FFFF00" }}
             >
               <Hash className="w-3.5 h-3.5" />
               Generate
             </button>
           </div>
+          {!parentItemId && (
+            <p className="text-[10px] text-white/20 -mt-3">Select an existing parent item from the suggestions to generate units.</p>
+          )}
 
           {/* Units table */}
           {units.length > 0 ? (
@@ -211,19 +237,19 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
                       onChange={(e) => updateUnit(u.id, "storageLocation", e.target.value)}
                       className="h-7 bg-black/40 border border-white/10 rounded text-xs text-white/70 px-1.5 focus:outline-none focus:border-[#FFFF00]/40 appearance-none cursor-pointer"
                     >
-                      {DEFAULT_STORAGE_LOCATIONS.map((l) => <option key={l} value={l} className="bg-[#111]">{l}</option>)}
+                      {locations.map((l) => <option key={l.id} value={l.name} className="bg-[#111]">{l.name}</option>)}
                     </select>
                     <select
                       value={u.initialStatus}
-                      onChange={(e) => updateUnit(u.id, "initialStatus", e.target.value as Unit["initialStatus"])}
+                      onChange={(e) => updateUnit(u.id, "initialStatus", e.target.value as UnitStatus)}
                       className={`h-7 border rounded text-xs px-1.5 focus:outline-none focus:border-[#FFFF00]/40 appearance-none cursor-pointer ${
-                        u.initialStatus === "Available"
+                        u.initialStatus === "available"
                           ? "bg-emerald-950/50 border-emerald-800/40 text-emerald-400"
                           : "bg-red-950/50 border-red-800/40 text-red-400"
                       }`}
                     >
-                      <option value="Available" className="bg-[#111] text-white">Available</option>
-                      <option value="Maintenance" className="bg-[#111] text-white">Maintenance</option>
+                      <option value="available" className="bg-[#111] text-white">Available</option>
+                      <option value="maintenance" className="bg-[#111] text-white">Maintenance</option>
                     </select>
                     <button
                       onClick={() => removeUnit(u.id)}
@@ -256,7 +282,7 @@ export const AddIndividualUnitModal = ({ onClose }: Props): JSX.Element => {
           </div>
           <button
             onClick={handleSave}
-            disabled={units.length === 0}
+            disabled={units.length === 0 || !parentItemId}
             className="h-9 px-6 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-30 disabled:pointer-events-none"
             style={{ backgroundColor: "#FFFF00" }}
           >

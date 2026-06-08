@@ -10,15 +10,13 @@ import {
   Send,
   Calculator,
   ShieldAlert,
+  TrendingUp,
+  TrendingDown,
+  Target,
 } from "lucide-react";
-import {
-  summaryCards,
-  quotes,
-  invoices,
-  projectCosts,
-  lossItems,
-  autoBillingItems,
-} from "@/data/finance";
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "@/store/appStore";
+import { financeApi, type ProjectCost } from "@/api";
 
 type FinanceTab = "quotes" | "invoices" | "costing" | "loss";
 
@@ -41,6 +39,48 @@ const statusColors: Record<string, string> = {
 
 export const FinancePage = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState<FinanceTab>("quotes");
+  const { token } = useAppStore();
+
+  const { data: quotes = [] } = useQuery({
+    queryKey: ["quotes"],
+    queryFn: financeApi.getQuotes,
+    enabled: !!token,
+  });
+
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["invoices"],
+    queryFn: financeApi.getInvoices,
+    enabled: !!token,
+  });
+
+  const { data: projectCosts = [] } = useQuery({
+    queryKey: ["finance-costing"],
+    queryFn: financeApi.getCosting,
+    enabled: !!token,
+  });
+
+  const { data: lossData } = useQuery({
+    queryKey: ["finance-loss"],
+    queryFn: financeApi.getLoss,
+    enabled: !!token,
+  });
+
+  const lossItems       = lossData?.lossItems       ?? [];
+  const autoBillingItems = lossData?.autoBillingItems ?? [];
+
+  // คำนวณ summary cards จาก invoices จริง
+  const paidInvoices   = (invoices as any[]).filter(i => i.status === "paid");
+  const pendingInvoices= (invoices as any[]).filter(i => i.status === "pending");
+  const totalRevenue   = paidInvoices.reduce((s, i) => s + Number(i.amount), 0);
+  const totalPending   = pendingInvoices.reduce((s, i) => s + Number(i.amount), 0);
+  const totalQuotes    = (quotes as any[]).filter(q => q.status === "accepted").length;
+
+  const summaryCards = [
+    { label: "Revenue (Paid)",    value: `£${totalRevenue.toLocaleString()}`,   change: "", icon: TrendingUp },
+    { label: "Outstanding",       value: `£${totalPending.toLocaleString()}`,   change: "", icon: TrendingDown },
+    { label: "Quotes Accepted",   value: `${totalQuotes}`,                       change: "", icon: DollarSign },
+    { label: "Total Invoices",    value: `${(invoices as any[]).length}`,         change: "", icon: Target },
+  ];
 
   return (
     <div className="flex-1 overflow-auto p-6 space-y-4" data-testid="page-finance">
@@ -90,17 +130,15 @@ export const FinancePage = (): JSX.Element => {
               </tr>
             </thead>
             <tbody>
-              {quotes.map((q) => (
+              {(quotes as any[]).map((q) => (
                 <tr key={q.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-quote-${q.id}`}>
-                  <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{q.id}</td>
+                  <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{q.quoteNumber ?? q.id}</td>
                   <td className="py-2.5 text-white/60">{q.client}</td>
-                  <td className="py-2.5 text-white/40">{q.project}</td>
-                  <td className="py-2.5 text-white font-bold">{q.items}</td>
-                  <td className="py-2.5 text-white font-semibold">{q.value}</td>
-                  <td className="py-2.5">
-                    <span className={`text-xs font-semibold ${q.stockAvail === "100%" ? "text-emerald-400" : "text-amber-400"}`}>{q.stockAvail}</span>
-                  </td>
-                  <td className="py-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[q.status]}`}>{q.status}</span></td>
+                  <td className="py-2.5 text-white/40">{q.jobId ?? "—"}</td>
+                  <td className="py-2.5 text-white font-bold">—</td>
+                  <td className="py-2.5 text-white font-semibold">£{Number(q.totalValue).toLocaleString()}</td>
+                  <td className="py-2.5"><span className="text-xs font-semibold text-white/30">—</span></td>
+                  <td className="py-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[q.status] ?? "bg-white/5 text-white/30"}`}>{q.status}</span></td>
                   <td className="py-2.5 pr-4 text-right">
                     <button className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-[#FFFF00] transition-colors" title="Send" data-testid={`button-send-quote-${q.id}`}><Send className="w-3.5 h-3.5" /></button>
                   </td>
@@ -129,26 +167,29 @@ export const FinancePage = (): JSX.Element => {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-invoice-${inv.id}`}>
-                  <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{inv.id}</td>
-                  <td className="py-2.5 text-white/60">{inv.client}</td>
-                  <td className="py-2.5 text-white font-semibold">{inv.amount}</td>
-                  <td className="py-2.5 text-white/30 text-xs">{inv.date}</td>
-                  <td className="py-2.5 text-xs">
-                    <span className={inv.status === "Overdue" ? "text-red-400" : "text-white/30"}>{inv.due}</span>
-                    {inv.daysLeft < 0 && <span className="ml-1 text-red-400/60 text-[10px]">({Math.abs(inv.daysLeft)}d overdue)</span>}
-                  </td>
-                  <td className="py-2.5 pr-4 text-right">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[inv.status]}`}>
-                      {inv.status === "Paid" && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                      {inv.status === "Overdue" && <AlertTriangle className="w-3 h-3 mr-1" />}
-                      {inv.status === "Pending" && <Clock className="w-3 h-3 mr-1" />}
-                      {inv.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {(invoices as any[]).map((inv) => {
+                const daysLeft = Math.round((new Date(inv.dueDate).getTime() - Date.now()) / 86400000);
+                return (
+                  <tr key={inv.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-invoice-${inv.id}`}>
+                    <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{inv.invoiceNumber ?? inv.id}</td>
+                    <td className="py-2.5 text-white/60">{inv.client}</td>
+                    <td className="py-2.5 text-white font-semibold">£{Number(inv.amount).toLocaleString()}</td>
+                    <td className="py-2.5 text-white/30 text-xs">{new Date(inv.issuedDate).toLocaleDateString("en-GB")}</td>
+                    <td className="py-2.5 text-xs">
+                      <span className={inv.status === "overdue" ? "text-red-400" : "text-white/30"}>{new Date(inv.dueDate).toLocaleDateString("en-GB")}</span>
+                      {daysLeft < 0 && <span className="ml-1 text-red-400/60 text-[10px]">({Math.abs(daysLeft)}d overdue)</span>}
+                    </td>
+                    <td className="py-2.5 pr-4 text-right">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[inv.status] ?? "bg-white/5 text-white/30"}`}>
+                        {inv.status === "paid"    && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                        {inv.status === "overdue" && <AlertTriangle className="w-3 h-3 mr-1" />}
+                        {inv.status === "pending" && <Clock className="w-3 h-3 mr-1" />}
+                        {inv.status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -199,7 +240,7 @@ export const FinancePage = (): JSX.Element => {
             <div className="flex items-center gap-6 text-xs">
               <span className="text-white/50">Revenue: <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue, 0).toLocaleString()}</span></span>
               <span className="text-white/50">Profit: <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue - p.costs - p.staff - p.transport - p.subRentals, 0).toLocaleString()}</span></span>
-              <span className="text-white/50">Avg ROI: <span className="text-[#FFFF00] font-bold">{Math.round(projectCosts.reduce((s, p) => s + p.roi, 0) / projectCosts.length)}%</span></span>
+              <span className="text-white/50">Avg ROI: <span className="text-[#FFFF00] font-bold">{projectCosts.length > 0 ? Math.round(projectCosts.reduce((s, p) => s + p.roi, 0) / projectCosts.length) : 0}%</span></span>
             </div>
           </div>
         </div>

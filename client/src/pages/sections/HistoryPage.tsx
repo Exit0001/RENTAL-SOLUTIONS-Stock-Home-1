@@ -7,7 +7,9 @@ import {
   Heart,
   BarChart3,
 } from "lucide-react";
-import { activityLog, utilizationData, healthMetrics, revenueMonths } from "@/data/history";
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "@/store/appStore";
+import { activityApi, analyticsApi } from "@/api";
 
 type HistoryFilter = "all" | "stock" | "finance" | "maintenance" | "jobs";
 
@@ -22,14 +24,31 @@ const filters: { key: HistoryFilter; label: string }[] = [
 export const HistoryPage = (): JSX.Element => {
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [search, setSearch] = useState("");
+  const { token } = useAppStore();
 
-  const filtered = activityLog.filter((a) => {
+  const { data: activityLog = [] } = useQuery({
+    queryKey: ["activity"],
+    queryFn: activityApi.getAll,
+    enabled: !!token,
+  });
+
+  const { data: analytics } = useQuery({
+    queryKey: ["analytics"],
+    queryFn: analyticsApi.get,
+    enabled: !!token,
+  });
+
+  const utilizationData = analytics?.utilizationData ?? [];
+  const healthMetrics   = analytics?.healthMetrics;
+  const revenueMonths   = analytics?.revenueMonths ?? [];
+
+  const filtered = (activityLog as any[]).filter((a) => {
     if (filter !== "all" && a.type !== filter) return false;
     if (search && !a.detail.toLowerCase().includes(search.toLowerCase()) && !a.person.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const maxRevenue = Math.max(...revenueMonths.map((m) => m.revenue));
+  const maxRevenue = revenueMonths.length > 0 ? Math.max(...revenueMonths.map((m) => m.revenue)) : 1;
 
   return (
     <div className="flex-1 overflow-auto p-6 space-y-4" data-testid="page-history">
@@ -113,12 +132,24 @@ export const HistoryPage = (): JSX.Element => {
               <Heart className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-semibold text-emerald-400">Fleet Health</span>
             </div>
-            {healthMetrics.map((m) => (
-              <div key={m.label} className="flex justify-between text-xs mb-2 last:mb-0">
-                <span className="text-white/40">{m.label}</span>
-                <span className={`font-semibold ${m.color}`}>{m.value}</span>
-              </div>
-            ))}
+            {healthMetrics ? (
+              <>
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-white/40">Overall Health</span>
+                  <span className={`font-semibold ${healthMetrics.overall >= 80 ? "text-emerald-400" : "text-amber-400"}`}>{healthMetrics.overall}%</span>
+                </div>
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-white/40">Assets Out</span>
+                  <span className="font-semibold text-amber-400">{healthMetrics.atRisk}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/40">In Maintenance</span>
+                  <span className="font-semibold text-white/60">{healthMetrics.maintenanceInProgress}</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-white/20">ยังไม่มีข้อมูล</p>
+            )}
           </div>
 
           <div className="bg-[#111] border border-white/[0.06] rounded-xl p-4">
@@ -141,11 +172,9 @@ export const HistoryPage = (): JSX.Element => {
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-[#FFFF00]/30" />Revenue</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-400/30" />Profit</span>
             </div>
-            <div className="mt-2 text-xs flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3 text-emerald-400" />
-              <span className="text-emerald-400 font-semibold">+18.2%</span>
-              <span className="text-white/25">vs last month</span>
-            </div>
+            {revenueMonths.length === 0 && (
+              <p className="text-xs text-white/20 text-center py-2">ยังไม่มีข้อมูลรายได้</p>
+            )}
           </div>
         </div>
       </div>

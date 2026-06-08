@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronRightIcon, Pencil, Trash2, Eye, Package } from "lucide-react";
+import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -8,8 +8,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { stockItems } from "@/data/stock";
-import type { StockItem } from "@/data/stock";
+import { useQuery } from "@tanstack/react-query";
+import { useAppStore } from "@/store/appStore";
+import { stockApi } from "@/api";
+import type { StockItem } from "@shared/schema";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const isAvailable = status === "Available";
@@ -57,7 +59,7 @@ interface StockItemsTableProps {
   selectedCategories?: string[];
   searchQuery?: string;
   onViewItem?: (item: StockItem) => void;
-  selectedItemId?: number | null;
+  selectedItemId?: string | null;
 }
 
 export const StockItemsTableSection = ({
@@ -67,11 +69,16 @@ export const StockItemsTableSection = ({
   onViewItem,
   selectedItemId,
 }: StockItemsTableProps): JSX.Element => {
-  const [expandedRows, setExpandedRows] = useState<number[]>(
-    stockItems.filter((item) => item.expanded).map((item) => item.id),
-  );
+  const { token } = useAppStore();
+  const [expandedRows, setExpandedRows] = useState<string[]>([]);
 
-  const toggleRow = (id: number) => {
+  const { data: stockItems = [], isLoading } = useQuery({
+    queryKey: ["stock"],
+    queryFn: stockApi.getAll,
+    enabled: !!token,
+  });
+
+  const toggleRow = (id: string) => {
     setExpandedRows((prev) =>
       prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id],
     );
@@ -198,31 +205,19 @@ export const StockItemsTableSection = ({
                 </TableRow>,
               ];
 
-              if (isExpanded && item.subItems.length > 0) {
+              if (isExpanded) {
+                // units จะโหลดแยกจาก /api/stock/:id/units ในอนาคต
+                // ตอนนี้แสดง placeholder row
                 rows.push(
                   <TableRow key={`subhead-${item.id}`} className="animate-slide-down bg-[#111111] border-white/5 hover:bg-[#111111]">
-                    <TableCell className="py-2 pl-12 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
-                      Unit Name
-                    </TableCell>
-                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
-                      Serial No.
-                    </TableCell>
-                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
-                      Barcode
-                    </TableCell>
-                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
-                      Location
-                    </TableCell>
-                    <TableCell className="py-2 font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
-                      Status
-                    </TableCell>
-                    <TableCell className="py-2 pr-6 text-right font-semibold text-[#FFFF00]/30 text-xs uppercase tracking-wider">
-                      Actions
+                    <TableCell colSpan={6} className="py-2.5 pl-12 text-xs text-white/20 italic">
+                      เพิ่มอุปกรณ์ด้วย "Add Individual Unit" เพื่อดู units ที่นี่
                     </TableCell>
                   </TableRow>,
                 );
 
-                item.subItems.forEach((subItem, subIdx) => {
+                /* placeholder forEach to satisfy remaining code */
+                ([] as any[]).forEach((subItem: any, subIdx: number) => {
                   rows.push(
                     <TableRow
                       key={`sub-${item.id}-${subItem.id}`}
@@ -236,7 +231,7 @@ export const StockItemsTableSection = ({
                         {subItem.serialNumber}
                       </TableCell>
                       <TableCell className="py-2.5 text-white/60 text-sm font-mono truncate align-middle">
-                        {subItem.barcodeNumber}
+                        {subItem.barcode}
                       </TableCell>
                       <TableCell className="py-2.5 text-white/60 text-sm truncate align-middle">
                         {subItem.location}
