@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **STAK v2.0** — Multi-tenant AV/audio-visual rental equipment management SaaS. Built for 1 company now, scaling to 100+ companies. Each company's data is isolated via `company_id` on every database table.
 
+Dark theme, yellow (`#FFFF00`) accent color throughout.
+
 ## Commands
 
 ```bash
@@ -28,19 +30,20 @@ Single repo, full-stack TypeScript:
 
 ```
 client/src/          ← React 18 frontend (Vite)
-  data/              ← All mock/seed data (8 files, one per domain)
+  api/               ← All API calls (client.ts + index.ts) — TanStack Query hooks
   store/appStore.ts  ← Zustand global state (navigation + containers)
-  pages/sections/    ← 5 main pages + modal components
+  pages/sections/    ← Main pages + modal components
   components/ui/     ← shadcn/ui primitives (don't modify)
 
 server/              ← Express 5 backend
   index.ts           ← App bootstrap; auto-runs migrations if DATABASE_URL set
   db.ts              ← Drizzle + pg Pool connection; runMigrations()
-  routes.ts          ← API routes (prefix all with /api)
-  storage.ts         ← IStorage interface + MemStorage (in-memory fallback)
+  routes.ts          ← Mounts all sub-routers (prefix /api)
+  routes/            ← One file per domain: stock.ts, jobs.ts, maintenance.ts, etc.
 
 shared/schema.ts     ← Single source of truth: Drizzle schema + Zod validators + TS types
 migrations/          ← SQL migration files (commit these to git)
+scripts/             ← One-off scripts (e.g. data migration)
 ```
 
 ## Key Patterns
@@ -55,29 +58,86 @@ export const insertStockItemSchema = createInsertSchema(stockItems)  // Zod
 export type StockItem = typeof stockItems.$inferSelect  // TypeScript type
 ```
 
-**Data layer separation:** Mock data lives in `client/src/data/*.ts` (never inside components). Components import from there. When connecting real APIs, swap `data/` imports for TanStack Query hooks.
+**API layer:** All fetch calls go through `client/src/api/index.ts`. Components use TanStack Query (`useQuery` / `useMutation`) — never raw `fetch` inside components.
 
 **Global state:** `useAppStore()` from `client/src/store/appStore.ts` holds navigation (`activePage`) and containers state. Local `useState` is for UI-only state (modals, filters, search).
 
 **Path aliases:** `@/` → `client/src/`, `@shared/` → `shared/`, `@assets/` → `attached_assets/`
 
-## Database Schema (16 tables)
+**Button style standard** (all action buttons):
+```tsx
+className="h-9 px-4 text-sm font-bold gap-2 hover:opacity-90"
+style={{ backgroundColor: "#FFFF00" }}
+// icon: w-4 h-4
+```
+
+**Top action bar style** (tabs with action buttons):
+```tsx
+className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0"
+```
+
+## Database Schema (17 tables)
 
 ```
 companies → users, stock_items, containers, jobs, maintenance_logs, quotes, invoices, incidents, activity_log
 stock_items → stock_units → container_units → containers
-jobs → job_stock, job_crew, pull_sheets, sub_rentals, quotes, invoices, incidents
+jobs → job_stock, job_crew, job_units, pull_sheets, sub_rentals, quotes, invoices, incidents
+catalog: brands, categories, sub_categories, locations
 ```
 
-All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, `stockUnitStatusEnum`, `containerTypeEnum`, `maintenanceTypeEnum`, `quoteStatusEnum`, `invoiceStatusEnum`, `incidentSeverityEnum`, `activityTypeEnum`.
+All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, `stockUnitStatusEnum`, `containerTypeEnum`, `maintenanceTypeEnum`, `quoteStatusEnum`, `invoiceStatusEnum`, `incidentSeverityEnum`, `activityTypeEnum`, `maintenanceStatusEnum`, `subRentalStatusEnum`, `incidentStatusEnum`, `pullSheetStatusEnum`.
+
+## Current State (as of 2026-06-10)
+
+### Data
+- **2,188 stock_units** and **793 stock_items** migrated from `tenyear_backup_2026-06-09.sql` via `scripts/migrate-tenyear.js`
+- **145 brands**, **19 categories**, **90 sub-categories** populated from backup
+- Company in DB: `"test1"` (single tenant for now)
+
+### Pending DB Migration ⚠️
+`stock_units` needs 2 new columns — run in **Supabase SQL Editor**:
+```sql
+ALTER TABLE stock_units ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMP;
+ALTER TABLE stock_units ADD COLUMN IF NOT EXISTS warranty_expires_at TIMESTAMP;
+```
+These are already in `shared/schema.ts` and `migrations/0004_medical_stone_men.sql`.
+Until run, `GET /api/stock/:id` (fetch units) will fail → unit sub-rows won't show in Inventory.
+
+### Migration script state
+`npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
+
+### Inventory page (`client/src/pages/sections/StockItemsTableSection.tsx`)
+- Items grouped by **Category** (19 groups, collapsed by default)
+- Click category header → expand to see models
+- Click model row → expand to see individual units
+- Each unit row: Name · Serial · Barcode · Location · Purchased · Warranty Exp. · Status
+- **Edit button per unit** — inline edit form with Save/Cancel
+- Filter sidebar (`StockFilterSidebarSection.tsx`) fetches brands/categories from DB (real data, not hardcoded)
+- Filter sidebar has search box inside Brand section (145 brands) + collapsible sections
+- Table sorted A→Z via `localeCompare`
+
+### stock_units extra fields (added to schema)
+```typescript
+purchasedAt:       timestamp("purchased_at"),        // วันที่ซื้อ
+warrantyExpiresAt: timestamp("warranty_expires_at"), // ประกันหมดอายุ
+```
+
+### Loading states
+- Global yellow progress bar at top of screen (`GlobalLoadingBar` in `StockHome.tsx`) using `useIsFetching()`
+- Skeleton rows on all main tables (Inventory, Jobs, Maintenance)
+
+### API additions
+- `GET /api/stock` now returns `availableCount` per item (count of units with `status = 'available'`)
+- `PUT /api/stock/units/:unitId` handles date string → Date conversion for `purchasedAt` / `warrantyExpiresAt`
 
 ## Adding a New Feature
 
 1. Add table/columns to `shared/schema.ts`
 2. Run `npm run db:generate` → commit the new migration file
-3. Add API route in `server/routes.ts` (use `db` from `server/db.ts`)
-4. Add data types to `client/src/data/` if needed
-5. Add to Zustand store if state needs to be shared across components
+3. Add API route in `server/routes/` (use `db` from `server/db.ts`)
+4. Add API function to `client/src/api/index.ts`
+5. Use `useQuery` / `useMutation` from TanStack Query in the component
+6. Add to Zustand store if state needs to be shared across components
 
 ## Environment
 

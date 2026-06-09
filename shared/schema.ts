@@ -119,16 +119,18 @@ export const stockItems = pgTable("stock_items", {
 // ─────────────────────────────────────────────
 
 export const stockUnits = pgTable("stock_units", {
-  id:          uuid("id").primaryKey().defaultRandom(),
-  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
-  stockItemId: uuid("stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
-  name:        text("name").notNull(),
-  serialNumber:text("serial_number"),
-  barcode:     text("barcode"),
-  location:    text("location"),
-  status:      stockUnitStatusEnum("status").default("available").notNull(),
-  healthScore: integer("health_score").default(100),  // 0-100%
-  createdAt:   timestamp("created_at").defaultNow().notNull(),
+  id:                uuid("id").primaryKey().defaultRandom(),
+  companyId:         uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  stockItemId:       uuid("stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
+  name:              text("name").notNull(),
+  serialNumber:      text("serial_number"),
+  barcode:           text("barcode"),
+  location:          text("location"),
+  status:            stockUnitStatusEnum("status").default("available").notNull(),
+  healthScore:       integer("health_score").default(100),
+  purchasedAt:       timestamp("purchased_at"),
+  warrantyExpiresAt: timestamp("warranty_expires_at"),
+  createdAt:         timestamp("created_at").defaultNow().notNull(),
 });
 
 // ─────────────────────────────────────────────
@@ -193,6 +195,16 @@ export const jobCrew = pgTable("job_crew", {
   jobId:  uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   role:   text("role"),  // บทบาทในงานนี้ เช่น "Lead Engineer"
+});
+
+// ─────────────────────────────────────────────
+// 10b. JOB UNITS — individual units ที่ assign ให้งาน (รู้ชัดว่า serial ไหนออกงานไหน)
+// ─────────────────────────────────────────────
+
+export const jobUnits = pgTable("job_units", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "cascade" }).notNull(),
 });
 
 // ─────────────────────────────────────────────
@@ -382,12 +394,18 @@ export const stockUnitsRelations = relations(stockUnits, ({ one }) => ({
 export const jobsRelations = relations(jobs, ({ one, many }) => ({
   company:     one(companies, { fields: [jobs.companyId], references: [companies.id] }),
   stock:       many(jobStock),
+  units:       many(jobUnits),
   crew:        many(jobCrew),
   pullSheets:  many(pullSheets),
   subRentals:  many(subRentals),
   quotes:      many(quotes),
   invoices:    many(invoices),
   incidents:   many(incidents),
+}));
+
+export const jobUnitsRelations = relations(jobUnits, ({ one }) => ({
+  job:       one(jobs,       { fields: [jobUnits.jobId],       references: [jobs.id] }),
+  stockUnit: one(stockUnits, { fields: [jobUnits.stockUnitId], references: [stockUnits.id] }),
 }));
 
 // ─────────────────────────────────────────────
@@ -409,6 +427,7 @@ export const insertBrandSchema        = createInsertSchema(brands).omit({ id: tr
 export const insertCategorySchema     = createInsertSchema(categories).omit({ id: true, createdAt: true });
 export const insertSubCategorySchema  = createInsertSchema(subCategories).omit({ id: true, createdAt: true });
 export const insertLocationSchema     = createInsertSchema(locations).omit({ id: true, createdAt: true });
+export const insertJobUnitSchema      = createInsertSchema(jobUnits).omit({ id: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -431,6 +450,9 @@ export type InsertContainer = z.infer<typeof insertContainerSchema>;
 
 export type Job       = typeof jobs.$inferSelect;
 export type InsertJob = z.infer<typeof insertJobSchema>;
+
+export type JobUnit       = typeof jobUnits.$inferSelect;
+export type InsertJobUnit = z.infer<typeof insertJobUnitSchema>;
 
 export type MaintenanceLog       = typeof maintenanceLogs.$inferSelect;
 export type InsertMaintenanceLog = z.infer<typeof insertMaintenanceLogSchema>;

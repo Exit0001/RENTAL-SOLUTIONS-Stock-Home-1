@@ -67,6 +67,7 @@ export const StockPage = (): JSX.Element => {
   const [addLocationOpen, setAddLocationOpen] = useState(false);
   const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
   const [addSubRentalOpen, setAddSubRentalOpen] = useState(false);
+  const [editItemOpen, setEditItemOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,13 +94,13 @@ export const StockPage = (): JSX.Element => {
   });
 
   // ดึง maintenance + subrentals จาก API
-  const { data: maintenanceLogs = [] } = useQuery({
+  const { data: maintenanceLogs = [], isLoading: maintenanceLoading } = useQuery({
     queryKey: ["maintenance"],
     queryFn: maintenanceApi.getAll,
     enabled: !!token,
   });
 
-  const { data: subRentals = [] } = useQuery<any[]>({
+  const { data: subRentals = [], isLoading: subRentalsLoading } = useQuery<any[]>({
     queryKey: ["subrentals"],
     queryFn: maintenanceApi.getSubRentals as () => Promise<any[]>,
     enabled: !!token,
@@ -121,14 +122,29 @@ export const StockPage = (): JSX.Element => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["stock"] }),
   });
 
+  // Mutation สำหรับแก้ไข stock item
+  const updateStockItem = useMutation({
+    mutationFn: (data: Parameters<typeof stockApi.update>[1]) =>
+      stockApi.update(selectedItem!.id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["stock", selectedItem?.id] });
+    },
+  });
+
   // Mutation สำหรับเพิ่ม unit ให้กับ stock item ที่มีอยู่ (เรียกทีละตัว)
   const addStockUnits = useMutation({
     mutationFn: async ({ stockItemId, units }: { stockItemId: string; units: Parameters<typeof stockApi.addUnit>[1][] }) => {
       for (const unit of units) {
         await stockApi.addUnit(stockItemId, unit);
       }
+      return stockItemId;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["stock"] }),
+    onSuccess: (stockItemId) => {
+      // invalidate list (เพื่อ refresh unitCount) และ detail (เพื่อ refresh expanded units)
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["stock", stockItemId] });
+    },
   });
 
   const toggleBrand = (brand: string) =>
@@ -164,6 +180,13 @@ export const StockPage = (): JSX.Element => {
         <AddNewItemModal
           onClose={() => setAddNewItemOpen(false)}
           onSubmit={(data) => createStockItem.mutate(data)}
+        />
+      )}
+      {editItemOpen && selectedItem && (
+        <AddNewItemModal
+          initialItem={selectedItem}
+          onClose={() => setEditItemOpen(false)}
+          onSubmit={(data) => { updateStockItem.mutate(data); setEditItemOpen(false); }}
         />
       )}
       {addContainerOpen && (
@@ -238,7 +261,7 @@ export const StockPage = (): JSX.Element => {
                 <ItemDetailPanel
                   item={selectedItem as any}
                   onClose={() => setSelectedItem(null)}
-                  onEdit={() => setAddNewItemOpen(true)}
+                  onEdit={() => setEditItemOpen(true)}
                 />
               )}
             </div>
@@ -247,22 +270,23 @@ export const StockPage = (): JSX.Element => {
       )}
 
       {activeTab === "containers" && (
-        <div className="flex-1 overflow-auto p-6 space-y-3">
-          {/* Top bar */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-white/30">
-              <ScanLine className="w-3.5 h-3.5 text-[#FFFF00]/60" />
-              <span>Scan a container barcode to instantly view all contents</span>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Action bar */}
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+            <ScanLine className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
+            <span className="text-sm text-white/30">Scan a container barcode to instantly view all contents</span>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setAddContainerOpen(true)}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                <Plus className="w-4 h-4" /> Add Container
+              </button>
             </div>
-            <button
-              onClick={() => setAddContainerOpen(true)}
-              className="flex items-center gap-2 h-8 px-4 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
-              style={{ backgroundColor: "#FFFF00" }}
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Container
-            </button>
           </div>
 
+          <div className="flex-1 overflow-auto p-6 space-y-3">
           {containers.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-white/15">
               <Layers className="w-10 h-10 mb-3" />
@@ -336,23 +360,34 @@ export const StockPage = (): JSX.Element => {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
       {activeTab === "maintenance" && (
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Action bar */}
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+            <Wrench className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
+            <span className="text-sm font-semibold text-white/50">Maintenance Log</span>
+            <span className="text-xs text-white/20">{maintenanceLogs.length} records</span>
+            <div className="ml-auto">
+              <button
+                onClick={() => setAddMaintenanceLogOpen(true)}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                <Plus className="w-4 h-4" /> Add Log
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto p-6">
           <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
               <Wrench className="w-4 h-4 text-[#FFFF00]" />
               <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">Maintenance Log</span>
               <span className="text-[10px] text-white/20">{maintenanceLogs.length} records</span>
-              <button
-                onClick={() => setAddMaintenanceLogOpen(true)}
-                className="ml-auto flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold text-black transition-opacity hover:opacity-80"
-                style={{ backgroundColor: "#FFFF00" }}
-              >
-                <Plus className="w-3 h-3" /> Add Log
-              </button>
             </div>
             <table className="w-full text-sm">
               <thead>
@@ -367,7 +402,19 @@ export const StockPage = (): JSX.Element => {
                 </tr>
               </thead>
               <tbody>
-                {maintenanceLogs.map((log: any) => (
+                {maintenanceLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={`msk-${i}`} className="animate-pulse border-b border-white/[0.04]">
+                      <td className="py-2.5 pl-4"><div className="h-3 rounded bg-white/[0.06] w-28" /></td>
+                      <td className="py-2.5"><div className="h-5 rounded bg-white/[0.05] w-16" /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04]" style={{ width: `${100 + (i * 27) % 100}px` }} /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04] w-20" /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04] w-16" /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.05] w-10" /></td>
+                      <td className="py-2.5 pr-4 text-right"><div className="h-3 rounded bg-white/[0.05] w-16 ml-auto" /></td>
+                    </tr>
+                  ))
+                ) : maintenanceLogs.map((log: any) => (
                   <tr key={log.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`maintenance-${log.id}`}>
                     <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{log.stockUnitId ?? "—"}</td>
                     <td className="py-2.5">
@@ -400,30 +447,58 @@ export const StockPage = (): JSX.Element => {
               </tbody>
             </table>
           </div>
+          </div>
         </div>
       )}
 
       {activeTab === "subrentals" && (
-        <div className="flex-1 overflow-auto p-6 space-y-4">
-          <div className="flex items-center gap-2 p-3 bg-purple-500/5 border border-purple-500/15 rounded-lg">
-            <Shield className="w-4 h-4 text-purple-400" />
-            <span className="text-xs text-purple-300">Sub-rental items are color-coded differently to prevent mixing with company stock</span>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Action bar */}
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+            <ArrowRightLeft className="w-4 h-4 text-purple-400/70 flex-shrink-0" />
+            <span className="text-sm font-semibold text-white/50">Sub-Rentals</span>
+            <span className="text-xs text-white/20">{subRentals.length} active</span>
+            <span className="flex items-center gap-1.5 text-xs text-purple-400/50 ml-2">
+              <Shield className="w-3 h-3" />
+              Color-coded separately from company stock
+            </span>
+            <div className="ml-auto">
+              <button
+                onClick={() => setAddSubRentalOpen(true)}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                <Plus className="w-4 h-4" /> Add Sub-Rental
+              </button>
+            </div>
           </div>
+
+          <div className="flex-1 overflow-auto p-6">
           <div className="bg-[#111] border border-purple-500/15 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-purple-500/10 flex items-center gap-2">
               <ArrowRightLeft className="w-4 h-4 text-purple-400" />
               <span className="font-bold text-purple-400 text-xs tracking-widest uppercase">Sub-Rentals</span>
               <span className="text-[10px] text-white/20">{subRentals.length} active</span>
-              <button
-                onClick={() => setAddSubRentalOpen(true)}
-                className="ml-auto flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-bold text-black transition-opacity hover:opacity-80"
-                style={{ backgroundColor: "#FFFF00" }}
-              >
-                <Plus className="w-3 h-3" /> Add Sub-Rental
-              </button>
             </div>
             <div className="divide-y divide-white/[0.04]">
-              {(subRentals as any[]).map((sr) => (
+              {subRentalsLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={`srsk-${i}`} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+                    <div className="w-1 h-8 rounded-full bg-purple-400/20" />
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="h-3.5 rounded bg-white/[0.06]" style={{ width: `${80 + (i * 29) % 60}px` }} />
+                        <div className="h-4 rounded bg-purple-500/15 w-12" />
+                      </div>
+                      <div className="h-2.5 rounded bg-white/[0.04] w-40" />
+                    </div>
+                    <div className="text-right space-y-1.5">
+                      <div className="h-3 rounded bg-white/[0.05] w-16 ml-auto" />
+                      <div className="h-2.5 rounded bg-white/[0.04] w-20 ml-auto" />
+                    </div>
+                  </div>
+                ))
+              ) : (subRentals as any[]).map((sr) => (
                 <div key={sr.id} className="flex items-center gap-4 px-4 py-3 hover:bg-purple-500/[0.03] transition-colors" data-testid={`subrental-${sr.id}`}>
                   <div className="w-1 h-8 rounded-full bg-purple-400/60" />
                   <div className="flex-1 min-w-0">
@@ -451,6 +526,7 @@ export const StockPage = (): JSX.Element => {
                 </div>
               ))}
             </div>
+          </div>
           </div>
         </div>
       )}

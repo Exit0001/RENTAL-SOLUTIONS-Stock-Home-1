@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  X, ChevronRight, Plus, FileText,
+  X, ChevronRight, Plus, FileText, Pencil,
   Calendar, Banknote, Package, Cpu, Lightbulb,
   Monitor, Settings,
 } from "lucide-react";
@@ -8,7 +8,53 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
 import { FileUploadField } from "@/components/FileUploadField";
-import type { InsertStockItem } from "@shared/schema";
+import type { InsertStockItem, StockItem } from "@shared/schema";
+
+// ─── helpers for pre-populating edit state ────────────────────────────────────
+
+const dateToInput = (v: any): string => {
+  if (!v) return "";
+  try { return new Date(v).toISOString().split("T")[0]; } catch { return ""; }
+};
+
+const initGeneral = (item?: StockItem): GeneralData => item ? {
+  itemName: item.name,
+  manufacturer: item.manufacturer ?? "",
+  manufacturerCountry: item.manufacturerCountry ?? "",
+  brand: item.brand,
+  category: item.category,
+  subCategory: item.subCategory,
+  description: item.description ?? "",
+  imageUrl: item.imageUrl ?? null,
+} : { itemName: "", manufacturer: "", manufacturerCountry: "", brand: "", category: "", subCategory: "", description: "", imageUrl: null };
+
+const initPricing = (item?: StockItem): PricingData => item ? {
+  purchaseCost:     item.purchaseCost?.toString()     ?? "",
+  purchaseDate:     dateToInput(item.purchaseDate),
+  dailyRate:        item.dailyRate?.toString()        ?? "",
+  weeklyRate:       item.weeklyRate?.toString()       ?? "",
+  replacementValue: item.replacementValue?.toString() ?? "",
+  securityDeposit:  item.securityDeposit?.toString()  ?? "",
+} : { purchaseCost: "", purchaseDate: "", dailyRate: "", weeklyRate: "", replacementValue: "", securityDeposit: "" };
+
+const initSpecs = (item?: StockItem): SpecsData => item ? {
+  template:              item.specs?.template              ?? "sound",
+  fields:                item.specs?.fields                ?? {},
+  customFields:          item.specs?.customFields          ?? [],
+  protocolTags:          item.specs?.protocolTags          ?? [],
+  customProtocolOptions: item.specs?.customProtocolOptions ?? [],
+  weight:     item.weight?.toString() ?? "",
+  dimensions: item.dimensions        ?? "",
+} : { template: "sound", fields: {}, customFields: [], protocolTags: [], customProtocolOptions: [], weight: "", dimensions: "" };
+
+const initDocs = (item?: StockItem): DocsData => item ? {
+  warrantyExpiry: dateToInput(item.warrantyExpiry),
+  supplierName:   item.supplierName   ?? "",
+  supportContact: item.supportContact ?? "",
+  manualUrl:      item.manualUrl      ?? null,
+  certUrl:        item.certUrl        ?? null,
+  invoiceUrl:     item.invoiceUrl     ?? null,
+} : { warrantyExpiry: "", supplierName: "", supportContact: "", manualUrl: null, certUrl: null, invoiceUrl: null };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -366,12 +412,14 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
 ];
 
 interface AddNewItemModalProps {
-  onClose: () => void;
-  onSubmit: (data: Omit<InsertStockItem, "companyId">) => void;
+  onClose:      () => void;
+  onSubmit:     (data: Omit<InsertStockItem, "companyId">) => void;
+  initialItem?: StockItem;
 }
 
-export const AddNewItemModal = ({ onClose, onSubmit }: AddNewItemModalProps): JSX.Element => {
+export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemModalProps): JSX.Element => {
   const { token, companyId } = useAppStore();
+  const isEdit = !!initialItem;
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
   const { data: brands = [] } = useQuery({
@@ -384,21 +432,10 @@ export const AddNewItemModal = ({ onClose, onSubmit }: AddNewItemModalProps): JS
     queryKey: ["catalog", "subcategories"], queryFn: catalogApi.getSubCategories, enabled: !!token,
   });
 
-  const [general, setGeneral] = useState<GeneralData>({
-    itemName: "", manufacturer: "", manufacturerCountry: "",
-    brand: "", category: "", subCategory: "", description: "", imageUrl: null,
-  });
-  const [pricing, setPricing] = useState<PricingData>({
-    purchaseCost: "", purchaseDate: "", dailyRate: "", weeklyRate: "",
-    replacementValue: "", securityDeposit: "",
-  });
-  const [specs, setSpecs] = useState<SpecsData>({
-    template: "sound", fields: {}, customFields: [], protocolTags: [], customProtocolOptions: [], weight: "", dimensions: "",
-  });
-  const [docs, setDocs] = useState<DocsData>({
-    warrantyExpiry: "", supplierName: "", supportContact: "",
-    manualUrl: null, certUrl: null, invoiceUrl: null,
-  });
+  const [general, setGeneral] = useState<GeneralData>(() => initGeneral(initialItem));
+  const [pricing, setPricing] = useState<PricingData>(() => initPricing(initialItem));
+  const [specs,   setSpecs]   = useState<SpecsData>(  () => initSpecs(initialItem));
+  const [docs,    setDocs]    = useState<DocsData>(   () => initDocs(initialItem));
 
   const tabOrder: TabKey[] = ["general", "pricing", "specs", "documents"];
   const currentIdx = tabOrder.indexOf(activeTab);
@@ -407,38 +444,41 @@ export const AddNewItemModal = ({ onClose, onSubmit }: AddNewItemModalProps): JS
 
   const handleSave = () => {
     if (!general.itemName.trim()) return;
-    onSubmit({
-      name: general.itemName.trim(),
-      brand: general.brand,
-      category: general.category,
-      subCategory: general.subCategory,
-      quantity: 0,
-      manufacturer: general.manufacturer || null,
+    const payload: Record<string, any> = {
+      name:                general.itemName.trim(),
+      brand:               general.brand,
+      category:            general.category,
+      subCategory:         general.subCategory,
+      manufacturer:        general.manufacturer        || null,
       manufacturerCountry: general.manufacturerCountry || null,
-      description: general.description || null,
-      imageUrl: general.imageUrl,
-      purchaseCost: pricing.purchaseCost || null,
-      purchaseDate: pricing.purchaseDate ? new Date(pricing.purchaseDate) : null,
-      dailyRate: pricing.dailyRate || null,
-      weeklyRate: pricing.weeklyRate || null,
-      replacementValue: pricing.replacementValue || null,
-      securityDeposit: pricing.securityDeposit || null,
-      weight: specs.weight || null,
-      dimensions: specs.dimensions || null,
+      description:         general.description         || null,
+      imageUrl:            general.imageUrl,
+      purchaseCost:        pricing.purchaseCost        || null,
+      purchaseDate:        pricing.purchaseDate        || null,  // string → server converts to Date
+      dailyRate:           pricing.dailyRate           || null,
+      weeklyRate:          pricing.weeklyRate          || null,
+      replacementValue:    pricing.replacementValue    || null,
+      securityDeposit:     pricing.securityDeposit     || null,
+      weight:              specs.weight                || null,
+      dimensions:          specs.dimensions            || null,
       specs: {
-        template: specs.template,
-        fields: specs.fields,
-        customFields: specs.customFields,
-        protocolTags: specs.protocolTags,
+        template:              specs.template,
+        fields:                specs.fields,
+        customFields:          specs.customFields,
+        protocolTags:          specs.protocolTags,
         customProtocolOptions: specs.customProtocolOptions,
       },
-      warrantyExpiry: docs.warrantyExpiry ? new Date(docs.warrantyExpiry) : null,
-      supplierName: docs.supplierName || null,
+      warrantyExpiry: docs.warrantyExpiry || null,  // string → server converts to Date
+      supplierName:   docs.supplierName   || null,
       supportContact: docs.supportContact || null,
-      manualUrl: docs.manualUrl,
-      certUrl: docs.certUrl,
-      invoiceUrl: docs.invoiceUrl,
-    } as Omit<InsertStockItem, "companyId">);
+      manualUrl:      docs.manualUrl,
+      certUrl:        docs.certUrl,
+      invoiceUrl:     docs.invoiceUrl,
+    };
+    // ไม่ reset quantity เมื่อ edit — quantity ถูก track จาก stock_units
+    if (!isEdit) payload.quantity = 0;
+
+    onSubmit(payload as Omit<InsertStockItem, "companyId">);
     onClose();
   };
 
@@ -454,10 +494,12 @@ export const AddNewItemModal = ({ onClose, onSubmit }: AddNewItemModalProps): JS
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFFF00" }}>
-              <Plus className="w-4 h-4 text-black" />
+              {isEdit ? <Pencil className="w-4 h-4 text-black" /> : <Plus className="w-4 h-4 text-black" />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Add New Item</h2>
+              <h2 className="text-base font-bold text-white">
+                {isEdit ? `Edit: ${initialItem.name}` : "Add New Item"}
+              </h2>
               <p className="text-[10px] text-white/30 capitalize">{TABS.find(t => t.key === activeTab)?.label}</p>
             </div>
           </div>

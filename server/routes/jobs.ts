@@ -2,8 +2,8 @@ import { Router } from "express";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
-  jobs, jobStock, jobCrew, pullSheets, incidents, insertJobSchema,
-  users, activityLog,
+  jobs, jobStock, jobCrew, jobUnits, pullSheets, incidents, insertJobSchema,
+  users, activityLog, stockUnits, stockItems,
 } from "@shared/schema";
 
 export const jobsRouter = Router();
@@ -190,7 +190,7 @@ jobsRouter.get("/crew", async (req, res) => {
   }
 });
 
-// GET /api/jobs/:id — ดึงงานพร้อม stock และ crew
+// GET /api/jobs/:id — ดึงงานพร้อม stock (พร้อมชื่อ item) และ crew
 jobsRouter.get("/:id", async (req, res) => {
   try {
     const [job] = await db
@@ -203,14 +203,29 @@ jobsRouter.get("/:id", async (req, res) => {
 
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-    const [stock, crew, sheets] = await Promise.all([
+    const [rawStock, crew, sheets] = await Promise.all([
       db.select().from(jobStock).where(eq(jobStock.jobId, job.id)),
       db.select().from(jobCrew).where(eq(jobCrew.jobId, job.id)),
       db.select().from(pullSheets).where(eq(pullSheets.jobId, job.id)),
     ]);
 
+    // ดึงชื่อ stock items
+    const { stockItems } = await import("@shared/schema");
+    const itemIds = rawStock.map((s) => s.stockItemId);
+    const itemRows = itemIds.length
+      ? await db.select({ id: stockItems.id, name: stockItems.name, category: stockItems.category })
+          .from(stockItems).where(inArray(stockItems.id, itemIds))
+      : [];
+    const itemMap = Object.fromEntries(itemRows.map((i) => [i.id, i]));
+
+    const stock = rawStock.map((s) => ({
+      ...s,
+      itemName:     itemMap[s.stockItemId]?.name     ?? "Unknown",
+      itemCategory: itemMap[s.stockItemId]?.category ?? "",
+    }));
+
     res.json({ ...job, stock, crew, pullSheets: sheets });
-  } catch {
+  } catch (err: any) {
     res.status(500).json({ message: "Failed to fetch job" });
   }
 });
@@ -221,10 +236,83 @@ jobsRouter.post("/", async (req, res) => {
     const data = insertJobSchema.parse({
       ...req.body,
       companyId: req.companyId,
+      startDate: new Date(req.body.startDate),
+      endDate:   new Date(req.body.endDate),
     });
 
     const [job] = await db.insert(jobs).values(data).returning();
     res.status(201).json(job);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/jobs/:id/units — individual units ที่ assign ให้ job
+jobsRouter.get("/:id/units", async (req, res) => {
+  try {
+    const assigned = await db
+      .select()
+      .from(jobUnits)
+      .where(eq(jobUnits.jobId, req.params.id));
+
+    if (assigned.length === 0) return res.json([]);
+
+    const unitIds = assigned.map((a) => a.stockUnitId);
+    const units   = await db
+      .select()
+      .from(stockUnits)
+      .where(inArray(stockUnits.id, unitIds));
+
+    const itemIds  = Array.from(new Set(units.map((u) => u.stockItemId)));
+    const items    = itemIds.length
+      ? await db.select({ id: stockItems.id, name: stockItems.name })
+          .from(stockItems).where(inArray(stockItems.id, itemIds))
+      : [];
+    const itemMap  = Object.fromEntries(items.map((i) => [i.id, i.name]));
+
+    res.json(units.map((u) => ({ ...u, itemName: itemMap[u.stockItemId] ?? "Unknown" })));
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job units" });
+  }
+});
+
+// POST /api/jobs/:id/units — set individual units สำหรับ job (replace all)
+jobsRouter.post("/:id/units", async (req, res) => {
+  try {
+    const { unitIds }: { unitIds: string[] } = req.body;
+
+    await db.delete(jobUnits).where(eq(jobUnits.jobId, req.params.id));
+
+    if (unitIds && unitIds.length > 0) {
+      await db.insert(jobUnits).values(
+        unitIds.map((uid) => ({ jobId: req.params.id, stockUnitId: uid }))
+      );
+    }
+
+    res.json({ message: "Units updated" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// POST /api/jobs/:id/stock — batch set stock items สำหรับ job (replace all)
+jobsRouter.post("/:id/stock", async (req, res) => {
+  try {
+    const { items }: { items: { stockItemId: string; quantity: number }[] } = req.body;
+
+    await db.delete(jobStock).where(eq(jobStock.jobId, req.params.id));
+
+    if (items && items.length > 0) {
+      await db.insert(jobStock).values(
+        items.map((item) => ({
+          jobId:       req.params.id,
+          stockItemId: item.stockItemId,
+          quantity:    item.quantity,
+        }))
+      );
+    }
+
+    res.json({ message: "Stock updated" });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

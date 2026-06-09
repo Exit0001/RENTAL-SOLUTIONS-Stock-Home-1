@@ -7,6 +7,17 @@ import { JobsPage } from "./sections/JobsPage";
 import { HistoryPage } from "./sections/HistoryPage";
 import { SettingsPage } from "./sections/SettingsPage";
 import { useAppStore } from "@/store/appStore";
+import { useIsFetching } from "@tanstack/react-query";
+
+const GlobalLoadingBar = () => {
+  const n = useIsFetching();
+  if (!n) return null;
+  return (
+    <div className="fixed top-0 left-0 right-0 h-[2px] z-[9999] overflow-hidden bg-[#FFFF00]/10">
+      <div className="animate-loading-bar" />
+    </div>
+  );
+};
 
 export const StockHome = (): JSX.Element => {
   const { activePage, setActivePage, userRole } = useAppStore();
@@ -37,6 +48,7 @@ export const StockHome = (): JSX.Element => {
 
   return (
     <div className="min-h-screen w-full bg-[#0a0a0a] flex flex-col">
+      <GlobalLoadingBar />
       <StockManagementHeaderSection activeSection={activePage} />
 
       <div className="flex flex-row flex-1 overflow-hidden">

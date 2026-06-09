@@ -16,6 +16,8 @@ interface DraftUnit {
   barcodeNumber: string;
   storageLocation: string;
   initialStatus: UnitStatus;
+  purchasedAt: string;
+  warrantyExpiresAt: string;
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -40,17 +42,19 @@ const InputField = ({
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
-interface UnitDraft {
+interface UnitDraftOutput {
   name: string;
   serialNumber: string | null;
   barcode: string | null;
   location: string | null;
   status: UnitStatus;
+  purchasedAt: Date | null;
+  warrantyExpiresAt: Date | null;
 }
 
 interface Props {
   onClose: () => void;
-  onSubmit: (stockItemId: string, units: UnitDraft[]) => void;
+  onSubmit: (stockItemId: string, units: UnitDraftOutput[]) => void;
 }
 
 export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Element => {
@@ -90,6 +94,8 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
         barcodeNumber: `${prefix}-${num}`,
         storageLocation: defaultLocation,
         initialStatus: "available",
+        purchasedAt: "",
+        warrantyExpiresAt: "",
       };
     });
     setUnits((prev) => [...prev, ...newUnits]);
@@ -109,6 +115,8 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
       barcode: u.barcodeNumber || null,
       location: u.storageLocation || null,
       status: u.initialStatus,
+      purchasedAt:       u.purchasedAt       ? new Date(u.purchasedAt)       : null,
+      warrantyExpiresAt: u.warrantyExpiresAt ? new Date(u.warrantyExpiresAt) : null,
     })));
     onClose();
   };
@@ -119,7 +127,7 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
       style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-3xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[88vh]">
+      <div className="w-full max-w-5xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[88vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
@@ -201,21 +209,23 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
             <div className="border border-white/[0.06] rounded-xl overflow-hidden">
               <div
                 className="grid text-[10px] text-[#FFFF00]/40 uppercase tracking-wider font-semibold bg-black/20 px-3 py-2"
-                style={{ gridTemplateColumns: "2fr 1.5fr 1.5fr 1.8fr 1.3fr 32px" }}
+                style={{ gridTemplateColumns: "2fr 1.2fr 1.2fr 1.4fr 1.1fr 1.1fr 1.1fr 32px" }}
               >
                 <span>Unit Name</span>
                 <span>Serial No.</span>
                 <span>Barcode</span>
-                <span>Storage Location</span>
+                <span>Location</span>
+                <span>Purchased</span>
+                <span>Warranty Exp.</span>
                 <span>Status</span>
                 <span />
               </div>
-              <div className="max-h-72">
+              <div className="max-h-72 overflow-y-auto">
                 {units.map((u, i) => (
                   <div
                     key={u.id}
                     className="grid items-center gap-2 px-3 py-1.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]"
-                    style={{ gridTemplateColumns: "2fr 1.5fr 1.5fr 1.8fr 1.3fr 32px", animationDelay: `${i * 20}ms` }}
+                    style={{ gridTemplateColumns: "2fr 1.2fr 1.2fr 1.4fr 1.1fr 1.1fr 1.1fr 32px", animationDelay: `${i * 20}ms` }}
                   >
                     <input
                       value={u.unitName}
@@ -239,6 +249,20 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
                     >
                       {locations.map((l) => <option key={l.id} value={l.name} className="bg-[#111]">{l.name}</option>)}
                     </select>
+                    {/* Purchase date */}
+                    <input
+                      type="date"
+                      value={u.purchasedAt}
+                      onChange={(e) => updateUnit(u.id, "purchasedAt", e.target.value)}
+                      className="h-7 bg-black/40 border border-white/10 rounded text-xs text-white/60 px-1.5 focus:outline-none focus:border-[#FFFF00]/40 transition-colors [color-scheme:dark]"
+                    />
+                    {/* Warranty expiry */}
+                    <input
+                      type="date"
+                      value={u.warrantyExpiresAt}
+                      onChange={(e) => updateUnit(u.id, "warrantyExpiresAt", e.target.value)}
+                      className="h-7 bg-black/40 border border-white/10 rounded text-xs text-white/60 px-1.5 focus:outline-none focus:border-[#FFFF00]/40 transition-colors [color-scheme:dark]"
+                    />
                     <select
                       value={u.initialStatus}
                       onChange={(e) => updateUnit(u.id, "initialStatus", e.target.value as UnitStatus)}

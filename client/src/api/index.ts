@@ -26,16 +26,23 @@ export const companiesApi = {
 
 // ─── Stock ────────────────────────────────────────────────
 
+export type ScannedUnit    = StockUnit & { itemName: string; category: string };
+export type StockItemWithUnits = StockItem & { units: StockUnit[] };
+export type AssignedUnit   = StockUnit & { itemName: string };
+
 export const stockApi = {
-  getAll:     () => api.get<StockItem[]>("/stock"),
-  getById:    (id: string) => api.get<StockItem & { units: StockUnit[] }>(`/stock/${id}`),
-  create:     (data: Omit<InsertStockItem, "companyId">) => api.post<StockItem>("/stock", data),
-  update:     (id: string, data: Partial<InsertStockItem>) => api.put<StockItem>(`/stock/${id}`, data),
-  delete:     (id: string) => api.delete<void>(`/stock/${id}`),
-  addUnit:    (itemId: string, data: Omit<InsertStockUnit, "companyId" | "stockItemId">) =>
-                api.post<StockUnit>(`/stock/${itemId}/units`, data),
-  updateUnit: (unitId: string, data: Partial<InsertStockUnit>) =>
-                api.put<StockUnit>(`/stock/units/${unitId}`, data),
+  getAll:         () => api.get<StockItem[]>("/stock"),
+  getById:        (id: string) => api.get<StockItemWithUnits>(`/stock/${id}`),
+  getAllWithUnits: () => api.get<StockItemWithUnits[]>("/stock/all-with-units"),
+  create:         (data: Omit<InsertStockItem, "companyId">) => api.post<StockItem>("/stock", data),
+  update:         (id: string, data: Partial<InsertStockItem>) => api.put<StockItem>(`/stock/${id}`, data),
+  delete:         (id: string) => api.delete<void>(`/stock/${id}`),
+  addUnit:        (itemId: string, data: Omit<InsertStockUnit, "companyId" | "stockItemId">) =>
+                    api.post<StockUnit>(`/stock/${itemId}/units`, data),
+  updateUnit:     (unitId: string, data: Partial<InsertStockUnit>) =>
+                    api.put<StockUnit>(`/stock/units/${unitId}`, data),
+  scanBarcode:    (barcode: string) =>
+                    api.get<ScannedUnit>(`/stock/units/scan/${encodeURIComponent(barcode)}`),
 };
 
 // ─── Containers ───────────────────────────────────────────
@@ -96,11 +103,19 @@ export type CrewData = {
   responsibilityLog: ResponsibilityEntry[];
 };
 
+export type JobStockItem = { stockItemId: string; itemName: string; itemCategory: string; quantity: number };
+export type JobDetail = Job & { stock: JobStockItem[]; crew: unknown[]; pullSheets: unknown[] };
+
 export const jobsApi = {
   getAll:        () => api.get<Job[]>("/jobs"),
-  getById:       (id: string) => api.get<Job>(`/jobs/${id}`),
+  getById:       (id: string) => api.get<JobDetail>(`/jobs/${id}`),
   create:        (data: Omit<InsertJob, "companyId">) => api.post<Job>("/jobs", data),
   update:        (id: string, data: Partial<InsertJob>) => api.put<Job>(`/jobs/${id}`, data),
+  addStock:      (jobId: string, items: { stockItemId: string; quantity: number }[]) =>
+                   api.post<void>(`/jobs/${jobId}/stock`, { items }),
+  getUnits:      (jobId: string) => api.get<AssignedUnit[]>(`/jobs/${jobId}/units`),
+  setUnits:      (jobId: string, unitIds: string[]) =>
+                   api.post<void>(`/jobs/${jobId}/units`, { unitIds }),
   getPullSheets: () => api.get<PullSheetRow[]>("/jobs/pullsheets"),
   getCrew:       () => api.get<CrewData>("/jobs/crew"),
   getIncidents:  () => api.get<Incident[]>("/jobs/all/incidents"),

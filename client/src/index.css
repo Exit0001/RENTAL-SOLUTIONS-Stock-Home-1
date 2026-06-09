@@ -108,6 +108,18 @@
   animation: modal-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes loading-bar {
+  0%   { left: -50%; width: 40%; }
+  100% { left: 110%; width: 40%; }
+}
+
+.animate-loading-bar {
+  position: absolute;
+  height: 100%;
+  background: #FFFF00;
+  animation: loading-bar 1s ease-in-out infinite;
+}
+
 @keyframes slide-in-right {
   0% {
     opacity: 0;
