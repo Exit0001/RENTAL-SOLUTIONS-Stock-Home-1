@@ -87,11 +87,6 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
   const outCount         = units.filter((u) => u.status === "out").length;
   const maintenanceCount = units.filter((u) => u.status === "maintenance").length;
 
-  const fmtDate = (v: any) => {
-    if (nil(v)) return null;
-    return new Date(v).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  };
-
   const fmtCost = (v: any) => {
     if (nil(v)) return null;
     return `฿${Number(v).toLocaleString()}`;
@@ -122,20 +117,20 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-4 gap-px bg-white/[0.04] flex-shrink-0">
-        <div className="bg-[#0d0d0d] px-2 py-2.5 flex flex-col items-center">
+      <div className="grid grid-cols-4 flex-shrink-0">
+        <div className="px-2 py-2.5 flex flex-col items-center">
           <span className="text-base font-bold text-white">{units.length}</span>
           <span className="text-[8px] text-white/25 uppercase tracking-wider">Total</span>
         </div>
-        <div className="bg-[#0d0d0d] px-2 py-2.5 flex flex-col items-center">
+        <div className="px-2 py-2.5 flex flex-col items-center">
           <span className="text-base font-bold text-emerald-400">{availableCount}</span>
           <span className="text-[8px] text-white/25 uppercase tracking-wider">Ready</span>
         </div>
-        <div className="bg-[#0d0d0d] px-2 py-2.5 flex flex-col items-center">
+        <div className="px-2 py-2.5 flex flex-col items-center">
           <span className="text-base font-bold text-blue-400">{outCount}</span>
           <span className="text-[8px] text-white/25 uppercase tracking-wider">Out</span>
         </div>
-        <div className="bg-[#0d0d0d] px-2 py-2.5 flex flex-col items-center">
+        <div className="px-2 py-2.5 flex flex-col items-center">
           <span className="text-base font-bold text-amber-400">{maintenanceCount}</span>
           <span className="text-[8px] text-white/25 uppercase tracking-wider">Repair</span>
         </div>
@@ -148,7 +143,7 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
           { key: "details", label: "Details", icon: Info },
         ].map((t) => (
           <button key={t.key} onClick={() => setActiveTab(t.key as any)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium border-b-2 transition-colors ${
               activeTab === t.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/25 hover:text-white/50"
             }`}>
             <t.icon className="w-3.5 h-3.5" />{t.label}
@@ -250,14 +245,12 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
               <Row label="ผู้ผลิต"      value={item.manufacturer} />
               <Row label="ประเทศ"        value={item.manufacturerCountry} />
               <Row label="คำอธิบาย"      value={item.description} />
-              <Row label="เพิ่มเมื่อ"    value={fmtDate(item.createdAt)} />
             </Section>
 
             <div className="border-t border-white/[0.04]" />
 
             <Section title="ราคา / ค่าเช่า" icon={DollarSign}>
               <Row label="ราคาซื้อ"       value={fmtCost(item.purchaseCost)} />
-              <Row label="วันที่ซื้อ"      value={fmtDate(item.purchaseDate)} />
               <Row label="Daily rate"      value={item.dailyRate ? `฿${Number(item.dailyRate).toLocaleString()}` : null} />
               <Row label="Weekly rate"     value={item.weeklyRate ? `฿${Number(item.weeklyRate).toLocaleString()}` : null} />
               <Row label="มูลค่าทดแทน"    value={fmtCost(item.replacementValue)} />
@@ -282,7 +275,6 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
             <Section title="เอกสาร / ผู้จัดจำหน่าย" icon={FileText}>
               <Row label="ผู้จัดจำหน่าย"  value={item.supplierName} />
               <Row label="ติดต่อ"          value={item.supportContact} />
-              <Row label="ประกันหมดอายุ"   value={fmtDate(item.warrantyExpiry)} />
 
               {/* Document links */}
               {[

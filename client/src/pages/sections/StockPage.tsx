@@ -19,6 +19,7 @@ import {
 import { BrandCategoryModal } from "./BrandCategoryModal";
 import { AddNewItemModal } from "./AddNewItemModal";
 import { AddContainerModal } from "./AddContainerModal";
+import { ManageContainerUnitsModal } from "./ManageContainerUnitsModal";
 import { AddIndividualUnitModal } from "./AddIndividualUnitModal";
 import { AddLocationModal } from "./AddLocationModal";
 import { AddMaintenanceLogModal } from "./AddMaintenanceLogModal";
@@ -30,6 +31,7 @@ import { StockItemsTableSection } from "./StockItemsTableSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { containersApi, maintenanceApi, stockApi } from "@/api";
+import type { ContainerWithItems } from "@/api";
 
 type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
 
@@ -41,15 +43,16 @@ const stockTabs: { key: StockTab; label: string; icon: typeof Package }[] = [
 ];
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
-  Ready:       { bg: "bg-emerald-950/60", text: "text-emerald-400", dot: "bg-emerald-400" },
-  Out:         { bg: "bg-blue-950/60",    text: "text-blue-400",    dot: "bg-blue-400" },
-  Maintenance: { bg: "bg-amber-950/60",   text: "text-amber-400",   dot: "bg-amber-400" },
+  available:   { bg: "bg-emerald-950/60", text: "text-emerald-400", dot: "bg-emerald-400" },
+  out:         { bg: "bg-blue-950/60",    text: "text-blue-400",    dot: "bg-blue-400" },
+  maintenance: { bg: "bg-amber-950/60",   text: "text-amber-400",   dot: "bg-amber-400" },
+  retired:     { bg: "bg-white/5",        text: "text-white/30",    dot: "bg-white/20" },
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const s = statusColors[status] || statusColors.Ready;
+  const s = statusColors[status] || statusColors.available;
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${s.bg} ${s.text} border border-current/20`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${s.bg} ${s.text} border border-current/20`}>
       <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${s.dot}`} />
       {status}
     </span>
@@ -68,6 +71,7 @@ export const StockPage = (): JSX.Element => {
   const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
   const [addSubRentalOpen, setAddSubRentalOpen] = useState(false);
   const [editItemOpen, setEditItemOpen] = useState(false);
+  const [assignContainer, setAssignContainer] = useState<ContainerWithItems | null>(null);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,10 +83,7 @@ export const StockPage = (): JSX.Element => {
   // ดึง containers จาก API (token ถูกส่งอัตโนมัติจาก api client)
   const { data: containers = [] } = useQuery({
     queryKey: ["containers"],
-    queryFn: async () => {
-      const data = await containersApi.getAll();
-      return data.map((c) => ({ ...c, items: [] as { name: string; sn: string; status: string }[] }));
-    },
+    queryFn: containersApi.getAll,
     enabled: !!token,
   });
 
@@ -213,6 +214,12 @@ export const StockPage = (): JSX.Element => {
           onSubmit={(data) => createSubRental.mutate(data)}
         />
       )}
+      {assignContainer && (
+        <ManageContainerUnitsModal
+          container={assignContainer}
+          onClose={() => setAssignContainer(null)}
+        />
+      )}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
         {stockTabs.map((t) => (
@@ -297,7 +304,7 @@ export const StockPage = (): JSX.Element => {
           {containers.map((c) => {
             const expanded = expandedContainers.includes(c.id);
             const isOut = checkedOutContainers.has(c.id);
-            const readyCount = c.items.filter((i) => i.status === "Ready").length;
+            const readyCount = c.items.filter((i) => i.status === "available").length;
             return (
               <div key={c.id} className={`bg-[#111] border rounded-xl overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-white/[0.06]"}`} data-testid={`container-${c.id}`}>
                 <div className="flex items-center gap-3 px-4 py-3">
@@ -321,7 +328,7 @@ export const StockPage = (): JSX.Element => {
                   {/* Container actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
-                      onClick={() => {}}
+                      onClick={() => setAssignContainer(c)}
                       className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-white/10 text-[11px] text-white/40 hover:text-white hover:border-white/20 transition-colors"
                       title="Assign items to this container"
                     >
@@ -348,9 +355,10 @@ export const StockPage = (): JSX.Element => {
                       </div>
                     ) : (
                       c.items.map((item, i) => (
-                        <div key={i} className="animate-slide-down flex items-center gap-3 px-4 py-2 pl-12 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
+                        <div key={item.id} className="animate-slide-down flex items-center gap-3 px-4 py-2 pl-12 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
                           <span className="text-sm text-white/60 flex-1">{item.name}</span>
-                          <span className="text-xs font-mono text-white/30">{item.sn}</span>
+                          <span className="text-[10px] text-white/25">{item.category}</span>
+                          <span className="text-xs font-mono text-white/30">{item.serialNumber ?? "—"}</span>
                           <StatusBadge status={item.status} />
                         </div>
                       ))

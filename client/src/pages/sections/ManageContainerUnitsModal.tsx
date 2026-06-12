@@ -1,15 +1,14 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { X, Package, Search, Loader2, Check, Save, ChevronDown, ChevronRight, Boxes } from "lucide-react";
+import { X, Layers, Search, Loader2, Check, Save, ChevronDown, ChevronRight, Boxes, Package } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
-import { stockApi, jobsApi } from "@/api";
-import type { AssignedUnit, StockItemWithUnits } from "@/api";
+import { stockApi, containersApi } from "@/api";
+import type { StockItemWithUnits, ContainerWithItems } from "@/api";
 import type { StockUnit } from "@shared/schema";
 
 interface Props {
-  jobId:       string;
-  jobName:     string;
-  onClose:     () => void;
+  container: ContainerWithItems;
+  onClose:   () => void;
 }
 
 const statusDot: Record<string, string> = {
@@ -19,12 +18,12 @@ const statusDot: Record<string, string> = {
   retired:     "bg-white/20",
 };
 
-export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Element => {
+export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.Element => {
   const { token } = useAppStore();
   const qc = useQueryClient();
 
   const [search,             setSearch]             = useState("");
-  const [selectedIds,        setSelectedIds]        = useState<Set<string>>(new Set());
+  const [selectedIds,        setSelectedIds]        = useState<Set<string>>(new Set(container.items.map((u) => u.id)));
   const [expanded,           setExpanded]           = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [saving,             setSaving]             = useState(false);
@@ -37,20 +36,10 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     enabled: !!token,
   });
 
-  // โหลด units ที่ assign แล้วสำหรับ job นี้
-  const { data: assignedUnits = [], isLoading: assignedLoading } = useQuery<AssignedUnit[]>({
-    queryKey: ["job-units", jobId],
-    queryFn: () => jobsApi.getUnits(jobId),
-    enabled: !!token,
-  });
-
-  // pre-select ตาม assigned units + expand groups ที่มี selection
+  // expand stock items + categories ที่มี unit ถูก select อยู่ (ของที่อยู่ใน container นี้แล้ว)
   useEffect(() => {
-    if (assignedLoading || stockLoading) return;
-    const ids = new Set(assignedUnits.map((u) => u.id));
-    setSelectedIds(ids);
-
-    // expand stock items + categories ที่มี unit ถูก select อยู่
+    if (stockLoading) return;
+    const ids = new Set(container.items.map((u) => u.id));
     if (ids.size > 0) {
       const toExpand = new Set<string>();
       const toExpandCat = new Set<string>();
@@ -63,7 +52,7 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
       setExpanded(toExpand);
       setExpandedCategories(toExpandCat);
     }
-  }, [assignedUnits, stockGroups, assignedLoading, stockLoading]);
+  }, [stockGroups, stockLoading, container.items]);
 
   const toggleUnit = (unitId: string) =>
     setSelectedIds((prev) => {
@@ -124,14 +113,14 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredGroups]);
 
-  const isLoading = stockLoading || assignedLoading;
+  const isLoading = stockLoading;
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
-      await jobsApi.setUnits(jobId, Array.from(selectedIds));
-      qc.invalidateQueries({ queryKey: ["job-units", jobId] });
+      await containersApi.setUnits(container.id, Array.from(selectedIds));
+      qc.invalidateQueries({ queryKey: ["containers"] });
       onClose();
     } catch (err: any) {
       setError(err.message ?? "บันทึกไม่สำเร็จ");
@@ -151,11 +140,11 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center">
-              <Package className="w-4 h-4 text-[#FFFF00]" />
+              <Layers className="w-4 h-4 text-[#FFFF00]" />
             </div>
             <div>
-              <h2 className="font-bold text-white text-sm">เลือกอุปกรณ์</h2>
-              <p className="text-[10px] text-white/30 truncate max-w-[220px]">{jobName}</p>
+              <h2 className="font-bold text-white text-sm">จัดของใน Container</h2>
+              <p className="text-[10px] text-white/30 truncate max-w-[220px]">{container.name}</p>
             </div>
           </div>
           <button onClick={onClose}

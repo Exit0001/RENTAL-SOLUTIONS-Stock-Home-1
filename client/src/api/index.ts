@@ -47,11 +47,15 @@ export const stockApi = {
 
 // ─── Containers ───────────────────────────────────────────
 
+export type ContainerUnit     = StockUnit & { itemName: string; category: string };
+export type ContainerWithItems = Container & { items: ContainerUnit[] };
+
 export const containersApi = {
-  getAll:         () => api.get<Container[]>("/containers"),
+  getAll:         () => api.get<ContainerWithItems[]>("/containers"),
   create:         (data: Omit<InsertContainer, "companyId">) => api.post<Container>("/containers", data),
   toggleCheckout: (id: string) => api.put<Container>(`/containers/${id}/checkout`, {}),
   delete:         (id: string) => api.delete<void>(`/containers/${id}`),
+  setUnits:       (id: string, unitIds: string[]) => api.post<void>(`/containers/${id}/units`, { unitIds }),
 };
 
 // ─── Jobs ─────────────────────────────────────────────────
