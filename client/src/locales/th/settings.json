@@ -1,0 +1,35 @@
+{
+  "pageTitle": "ตั้งค่า",
+  "pageSubtitle": "จัดการบริษัท ทีมงาน และโปรไฟล์",
+  "tabCompany": "บริษัท",
+  "tabTeam": "ทีมงาน",
+  "tabProfile": "โปรไฟล์",
+
+  "roles": {
+    "admin": "Admin",
+    "manager": "Manager",
+    "crew": "Crew"
+  },
+
+  "companyInformation": "ข้อมูลบริษัท",
+  "companyName": "ชื่อบริษัท",
+  "planLabel": "แพลน",
+  "freeBadge": "FREE",
+  "upgradeHint": "อัปเกรดเป็น Pro เพื่อ feature เพิ่มเติม",
+
+  "inviteNewMember": "เชิญสมาชิกใหม่",
+  "memberNamePlaceholder": "ชื่อสมาชิก (optional)",
+  "memberEmailPlaceholder": "อีเมลสมาชิก",
+  "pleaseEnterEmail": "กรุณากรอก email",
+  "allMembers": "สมาชิกทั้งหมด",
+  "membersCount": "{{count}} คน",
+  "roleGuideTitle": "สิทธิ์แต่ละ Role",
+  "roleAdminDesc": "เข้าถึงทุกอย่าง รวมถึง Settings และจัดการทีม",
+  "roleManagerDesc": "Stock, Jobs, Finance — ไม่สามารถจัดการ Settings",
+  "roleCrewDesc": "เฉพาะหน้า Jobs — Check in/out และรายงาน Incident",
+
+  "fullName": "ชื่อ-สกุล",
+  "changePassword": "เปลี่ยนรหัสผ่าน",
+  "newPasswordPlaceholder": "รหัสผ่านใหม่",
+  "confirmPasswordPlaceholder": "ยืนยันรหัสผ่านใหม่"
+}

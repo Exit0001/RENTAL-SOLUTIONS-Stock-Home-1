@@ -36,6 +36,20 @@
       "when": 1781030540477,
       "tag": "0004_medical_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781350633926,
+      "tag": "0005_fresh_paladin",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781359957768,
+      "tag": "0006_tough_genesis",
+      "breakpoints": true
     }
   ]
 }

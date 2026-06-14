@@ -21,31 +21,35 @@ import {
   ScanLine,
   Loader2,
   Check,
+  Layers,
+  X,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi } from "@/api";
 import { AddIncidentModal } from "./AddIncidentModal";
 import { AddJobModal } from "./AddJobModal";
 import { ScanModal } from "./ScanModal";
 import { ManageJobStockModal } from "./ManageJobStockModal";
+import { AssignContainerModal } from "./AssignContainerModal";
 
 type JobTab = "jobs" | "pullsheets" | "crew" | "incidents";
 
-const jobTabs: { key: JobTab; label: string; icon: typeof Briefcase }[] = [
-  { key: "jobs",       label: "Jobs",        icon: Briefcase },
-  { key: "pullsheets", label: "Pull Sheets", icon: FileText },
-  { key: "crew",       label: "Crew & Tasks",icon: Users },
-  { key: "incidents",  label: "Incidents",   icon: Camera },
+const jobTabs: { key: JobTab; labelKey: string; icon: typeof Briefcase }[] = [
+  { key: "jobs",       labelKey: "tabJobs",       icon: Briefcase },
+  { key: "pullsheets", labelKey: "tabPullSheets", icon: FileText },
+  { key: "crew",       labelKey: "tabCrew",       icon: Users },
+  { key: "incidents",  labelKey: "tabIncidents",  icon: Camera },
 ];
 
 const statusStyles: Record<string, string> = {
   Active:     "bg-emerald-950/60 text-emerald-400",
   Scheduled:  "bg-blue-950/60 text-blue-400",
-  Completed:  "bg-white/5 text-white/30",
+  Completed:  "bg-white/5 text-white/60",
   Pending:    "bg-amber-950/60 text-amber-400",
   Dispatched: "bg-emerald-950/60 text-emerald-400",
-  Draft:      "bg-white/5 text-white/30",
+  Draft:      "bg-white/5 text-white/60",
   Returned:   "bg-blue-950/60 text-blue-400",
   Open:       "bg-red-950/60 text-red-400",
   Resolved:   "bg-emerald-950/60 text-emerald-400",
@@ -71,18 +75,36 @@ const priorityColors: Record<string, string> = {
 
 const taskStatusColors: Record<string, string> = {
   "In Progress": "text-[#FFFF00]",
-  Pending:       "text-white/30",
+  Pending:       "text-white/60",
   Done:          "text-emerald-400",
 };
 
 // Expanded checklist row — shows assigned units grouped by item
 const JobDetailRow = ({ job }: { job: any }) => {
+  const { t } = useTranslation("jobs");
+  const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
+  const qc = useQueryClient();
+  const [assignContainerOpen, setAssignContainerOpen] = useState(false);
 
   const { data: assignedUnits = [], isLoading } = useQuery({
     queryKey: ["job-units", job.id],
     queryFn:  () => jobsApi.getUnits(job.id),
     enabled: !!token,
+  });
+
+  const { data: jobContainers = [], isLoading: containersLoading } = useQuery({
+    queryKey: ["job-containers", job.id],
+    queryFn:  () => jobsApi.getContainers(job.id),
+    enabled: !!token,
+  });
+
+  const removeContainer = useMutation({
+    mutationFn: (containerId: string) => jobsApi.removeContainer(job.id, containerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["job-containers", job.id] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
+    },
   });
 
   const start = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -105,7 +127,7 @@ const JobDetailRow = ({ job }: { job: any }) => {
       <td colSpan={6} className="p-0">
 
         {/* Info bar */}
-        <div className="flex items-center gap-6 px-6 py-2.5 bg-[#101010] border-b border-white/[0.04] text-[11px] text-white/35">
+        <div className="flex items-center gap-6 px-6 py-2.5 bg-[#101010] border-b border-white/[0.04] text-[11px] text-white/60">
           <span className="flex items-center gap-1.5">
             <Calendar className="w-3 h-3" />{start} → {end}
           </span>
@@ -117,22 +139,62 @@ const JobDetailRow = ({ job }: { job: any }) => {
           <span className="ml-auto flex items-center gap-2">
             <Package className="w-3 h-3 text-[#FFFF00]/35" />
             <span className="text-[#FFFF00]/50 font-semibold">{assignedUnits.length}</span>
-            <span className="text-white/20">units assigned</span>
+            <span className="text-white/60">{t("unitsAssigned")}</span>
             {checkedOutCount > 0 && (
-              <span className="text-blue-400/55 font-medium">· {checkedOutCount} checked out</span>
+              <span className="text-blue-400/55 font-medium">{t("checkedOutCount", { count: checkedOutCount })}</span>
             )}
           </span>
+        </div>
+
+        {/* Racks / Containers */}
+        <div className="px-6 py-3 border-b border-white/[0.04]">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="w-3 h-3" /> {t("racksLabel")}
+            </p>
+            <button
+              onClick={() => setAssignContainerOpen(true)}
+              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+            >
+              <Plus className="w-3 h-3" /> {t("addRack")}
+            </button>
+          </div>
+          {containersLoading ? (
+            <div className="flex items-center gap-2 text-white/60 text-xs py-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
+            </div>
+          ) : jobContainers.length === 0 ? (
+            <p className="text-xs text-white/60 italic">{t("noRacksAssigned")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {(jobContainers as any[]).map((c) => (
+                <div key={c.id} className="flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                  <Layers className="w-3.5 h-3.5 text-[#FFFF00]/50 flex-shrink-0" />
+                  <span className="text-xs text-white/70">{c.name}</span>
+                  <span className="text-[10px] text-white/60">{t("itemsCount", { count: c.itemCount })}</span>
+                  <button
+                    onClick={() => removeContainer.mutate(c.id)}
+                    disabled={removeContainer.isPending}
+                    title={t("checkIn")}
+                    className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Checklist */}
         <div className="px-6 py-4">
           {isLoading ? (
-            <div className="flex items-center gap-2 text-white/25 text-xs py-4">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
+            <div className="flex items-center gap-2 text-white/60 text-xs py-4">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
             </div>
           ) : grouped.length === 0 ? (
-            <p className="text-sm text-white/20 italic py-3 text-center">
-              ยังไม่มีอุปกรณ์ — กด "Edit Units" เพื่อเลือก
+            <p className="text-sm text-white/60 italic py-3 text-center">
+              {t("noUnitsAssignedHint", { editUnits: t("editUnits") })}
             </p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-5">
@@ -142,7 +204,7 @@ const JobDetailRow = ({ job }: { job: any }) => {
                     <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex-1 truncate">
                       {itemName}
                     </p>
-                    <span className="text-[9px] text-white/20 flex-shrink-0">{units.length}</span>
+                    <span className="text-[9px] text-white/60 flex-shrink-0">{units.length}</span>
                   </div>
                   {(units as any[]).map((u) => {
                     const isOut = u.status === "out";
@@ -157,17 +219,17 @@ const JobDetailRow = ({ job }: { job: any }) => {
                           }
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs truncate ${isOut ? "text-white/70" : "text-white/42"}`}>{u.name}</p>
+                          <p className={`text-xs truncate ${isOut ? "text-white/70" : "text-white/60"}`}>{u.name}</p>
                           {u.serialNumber && (
-                            <p className="text-[10px] text-white/18 font-mono truncate">SN: {u.serialNumber}</p>
+                            <p className="text-[10px] text-white/40 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>
                           )}
                         </div>
                         <span className={`text-[9px] px-1.5 rounded-full font-medium flex-shrink-0 ${
                           isOut            ? "bg-blue-400/10 text-blue-400/70" :
                           u.status === "maintenance" ? "bg-amber-400/10 text-amber-400/60" :
-                          "bg-white/5 text-white/18"
+                          "bg-white/5 text-white/40"
                         }`}>
-                          {u.status}
+                          {tc(`statusEnum.${u.status}`, { defaultValue: u.status })}
                         </span>
                       </div>
                     );
@@ -177,12 +239,18 @@ const JobDetailRow = ({ job }: { job: any }) => {
             </div>
           )}
         </div>
+
+        {assignContainerOpen && (
+          <AssignContainerModal jobId={job.id} onClose={() => setAssignContainerOpen(false)} />
+        )}
       </td>
     </tr>
   );
 };
 
 export const JobsPage = (): JSX.Element => {
+  const { t } = useTranslation("jobs");
+  const { t: tc } = useTranslation("common");
   const [activeTab, setActiveTab]   = useState<JobTab>("jobs");
   const [expandedJobs, setExpandedJobs] = useState<string[]>([]);
   const [addIncidentOpen, setAddIncidentOpen] = useState(false);
@@ -258,31 +326,31 @@ export const JobsPage = (): JSX.Element => {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white" data-testid="text-jobs-title">Jobs</h1>
+        <h1 className="text-xl font-bold text-white" data-testid="text-jobs-title">{t("pageTitle")}</h1>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-3 text-xs">
-            <span className="flex items-center gap-1 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{(jobs as any[]).filter((j) => j.status === "active").length} Active</span>
-            <span className="flex items-center gap-1 text-blue-400"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" />{(jobs as any[]).filter((j) => j.status === "scheduled").length} Scheduled</span>
-            <span className="flex items-center gap-1 text-white/30"><span className="w-1.5 h-1.5 rounded-full bg-white/30" />{(jobs as any[]).filter((j) => j.status === "completed").length} Completed</span>
+            <span className="flex items-center gap-1 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "active").length, status: tc("statusEnum.active") })}</span>
+            <span className="flex items-center gap-1 text-blue-400"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "scheduled").length, status: tc("statusEnum.scheduled") })}</span>
+            <span className="flex items-center gap-1 text-white/60"><span className="w-1.5 h-1.5 rounded-full bg-white/30" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "completed").length, status: tc("statusEnum.completed") })}</span>
           </div>
           <button
             onClick={() => setAddJobOpen(true)}
             className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
             style={{ backgroundColor: "#FFFF00" }}
           >
-            <Plus className="w-4 h-4" /> Add Job
+            <Plus className="w-4 h-4" /> {t("addJob")}
           </button>
         </div>
       </div>
 
       <div className="flex items-center gap-1 border-b border-white/[0.06]">
-        {jobTabs.map((t) => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
+        {jobTabs.map((tab) => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === t.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/30 hover:text-white/50"
+              activeTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"
             }`}
-            data-testid={`tab-${t.key}`}>
-            <t.icon className="w-3.5 h-3.5" />{t.label}
+            data-testid={`tab-${tab.key}`}>
+            <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -292,12 +360,12 @@ export const JobsPage = (): JSX.Element => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
-                <th className="py-2.5 pl-4 text-left font-semibold">Job</th>
-                <th className="py-2.5 text-left font-semibold">Client</th>
-                <th className="py-2.5 text-left font-semibold">Dates</th>
-                <th className="py-2.5 text-left font-semibold">Stock</th>
-                <th className="py-2.5 text-left font-semibold">Status</th>
-                <th className="py-2.5 pr-4 text-right font-semibold">Actions</th>
+                <th className="py-2.5 pl-4 text-left font-semibold">{t("colJob")}</th>
+                <th className="py-2.5 text-left font-semibold">{t("colClient")}</th>
+                <th className="py-2.5 text-left font-semibold">{t("colDates")}</th>
+                <th className="py-2.5 text-left font-semibold">{t("colStock")}</th>
+                <th className="py-2.5 text-left font-semibold">{tc("status")}</th>
+                <th className="py-2.5 pr-4 text-right font-semibold">{tc("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -336,33 +404,33 @@ export const JobsPage = (): JSX.Element => {
                   >
                     <td className="py-2.5 pl-4">
                       <div className="flex items-center gap-2">
-                        <ChevronRightIcon className={`w-3.5 h-3.5 transition-transform duration-200 flex-shrink-0 ${exp ? "rotate-90 text-[#FFFF00]" : "text-white/30"}`} />
+                        <ChevronRightIcon className={`w-3.5 h-3.5 transition-transform duration-200 flex-shrink-0 ${exp ? "rotate-90 text-[#FFFF00]" : "text-white/60"}`} />
                         <span className="font-medium text-white/90">{job.name}</span>
                       </div>
                     </td>
                     <td className="py-2.5 text-white/50">{job.client}</td>
-                    <td className="py-2.5 text-white/40 text-xs">{dateStr}</td>
-                    <td className="py-2.5"><span className="text-white/25 text-xs">—</span></td>
+                    <td className="py-2.5 text-white/60 text-xs">{dateStr}</td>
+                    <td className="py-2.5"><span className="text-white/60 text-xs">—</span></td>
                     <td className="py-2.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[job.status] ?? "bg-white/5 text-white/30"}`}>
-                        {job.status}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[job.status] ?? "bg-white/5 text-white/60"}`}>
+                        {tc(`statusEnum.${job.status}`, { defaultValue: job.status })}
                       </span>
                     </td>
                     <td className="py-2.5 pr-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={(e) => { e.stopPropagation(); setManageJob(job); }}
-                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-semibold text-white/45
+                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-semibold text-white/60
                             border border-white/[0.08] hover:border-white/20 hover:text-white transition-colors"
                         >
-                          <Package className="w-3 h-3" /> Edit Units
+                          <Package className="w-3 h-3" /> {t("editUnits")}
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setScanJob(job); }}
                           className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-bold text-black transition-opacity hover:opacity-80"
                           style={{ backgroundColor: "#FFFF00" }}
                         >
-                          <ScanLine className="w-3 h-3" /> Scan
+                          <ScanLine className="w-3 h-3" /> {t("scanButton")}
                         </button>
                       </div>
                     </td>
@@ -382,19 +450,19 @@ export const JobsPage = (): JSX.Element => {
         <div className="space-y-4">
           <div className="flex items-center gap-2 p-3 bg-[#FFFF00]/5 border border-[#FFFF00]/10 rounded-lg">
             <Smartphone className="w-4 h-4 text-[#FFFF00]" />
-            <span className="text-xs text-[#FFFF00]/70">Pull sheets can be shared via LINE or exported as PDF for paperless operations</span>
+            <span className="text-xs text-[#FFFF00]/70">{t("pullSheetsHint")}</span>
           </div>
           <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
-                  <th className="py-2.5 pl-4 text-left font-semibold">Pull Sheet</th>
-                  <th className="py-2.5 text-left font-semibold">Job</th>
-                  <th className="py-2.5 text-left font-semibold">Items</th>
-                  <th className="py-2.5 text-left font-semibold">Created</th>
-                  <th className="py-2.5 text-left font-semibold">Assignee</th>
-                  <th className="py-2.5 text-left font-semibold">Status</th>
-                  <th className="py-2.5 pr-4 text-right font-semibold">Actions</th>
+                  <th className="py-2.5 pl-4 text-left font-semibold">{t("colPullSheet")}</th>
+                  <th className="py-2.5 text-left font-semibold">{t("colJob")}</th>
+                  <th className="py-2.5 text-left font-semibold">{tc("items")}</th>
+                  <th className="py-2.5 text-left font-semibold">{t("colCreated")}</th>
+                  <th className="py-2.5 text-left font-semibold">{t("colAssignee")}</th>
+                  <th className="py-2.5 text-left font-semibold">{tc("status")}</th>
+                  <th className="py-2.5 pr-4 text-right font-semibold">{tc("actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -403,14 +471,14 @@ export const JobsPage = (): JSX.Element => {
                     <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{ps.id}</td>
                     <td className="py-2.5 text-white/60">{ps.job}</td>
                     <td className="py-2.5"><span className="font-bold text-white">{ps.items}</span></td>
-                    <td className="py-2.5 text-white/30 text-xs">{new Date(ps.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</td>
+                    <td className="py-2.5 text-white/60 text-xs">{new Date(ps.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</td>
                     <td className="py-2.5 text-white/50">{ps.assignee}</td>
-                    <td className="py-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[ps.status]}`}>{ps.status}</span></td>
+                    <td className="py-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[ps.status]}`}>{tc(`statusEnum.${ps.status}`, { defaultValue: ps.status })}</span></td>
                     <td className="py-2.5 pr-4 text-right">
                       <div className="flex items-center gap-1 justify-end">
-                        <button className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-[#FFFF00] transition-colors" title="Share via LINE" data-testid={`button-share-line-${ps.id}`}><MessageSquare className="w-3.5 h-3.5" /></button>
-                        <button className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-white transition-colors" title="Export PDF" data-testid={`button-export-pdf-${ps.id}`}><FileText className="w-3.5 h-3.5" /></button>
-                        <button className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-emerald-400 transition-colors" title="Send to crew" data-testid={`button-send-crew-${ps.id}`}><Send className="w-3.5 h-3.5" /></button>
+                        <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors" title={t("shareViaLine")} data-testid={`button-share-line-${ps.id}`}><MessageSquare className="w-3.5 h-3.5" /></button>
+                        <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-white transition-colors" title={t("exportPdf")} data-testid={`button-export-pdf-${ps.id}`}><FileText className="w-3.5 h-3.5" /></button>
+                        <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-emerald-400 transition-colors" title={t("sendToCrew")} data-testid={`button-send-crew-${ps.id}`}><Send className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -425,29 +493,29 @@ export const JobsPage = (): JSX.Element => {
         <div className="space-y-4">
           <div className="flex items-center gap-2 p-3 bg-[#FFFF00]/5 border border-[#FFFF00]/10 rounded-lg">
             <Bell className="w-4 h-4 text-[#FFFF00]" />
-            <span className="text-xs text-[#FFFF00]/70">Schedules and tasks are sent directly to crew via the notification system</span>
+            <span className="text-xs text-[#FFFF00]/70">{t("crewNotificationHint")}</span>
           </div>
 
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-7 bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
                 <Users className="w-4 h-4 text-[#FFFF00]" />
-                <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">Crew & Assignments</span>
+                <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("crewAndAssignments")}</span>
               </div>
               <div className="divide-y divide-white/[0.04]">
                 {crewMembers.map((crew) => (
                   <div key={crew.id} className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.02] transition-colors" data-testid={`crew-${crew.initials.toLowerCase()}`}>
                     <div className="w-8 h-8 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-xs font-bold text-[#FFFF00]/70">{crew.initials}</div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2"><span className="text-sm font-medium text-white/80">{crew.name}</span><span className="text-[10px] text-white/20">{crew.role}</span></div>
-                      <div className="flex items-center gap-3 text-[11px] text-white/25 mt-0.5">
-                        <span>Current: <span className={crew.currentJob !== "—" ? "text-emerald-400/70" : "text-white/20"}>{crew.currentJob}</span></span>
-                        <span>Next: <span className="text-white/40">{crew.nextJob}</span></span>
+                      <div className="flex items-center gap-2"><span className="text-sm font-medium text-white/80">{crew.name}</span><span className="text-[10px] text-white/60">{crew.role}</span></div>
+                      <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
+                        <span>{t("currentLabel")} <span className={crew.currentJob !== "—" ? "text-emerald-400/70" : "text-white/60"}>{crew.currentJob}</span></span>
+                        <span>{t("nextLabel")} <span className="text-white/60">{crew.nextJob}</span></span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="flex items-center gap-1 text-xs"><Package className="w-3 h-3 text-white/20" /><span className="text-white/50 font-medium">{crew.items}</span><span className="text-white/20">items</span></div>
-                      <div className="flex items-center gap-1 text-[10px] text-white/20 mt-0.5"><CheckCircle2 className="w-3 h-3" />{crew.tasksToday} tasks</div>
+                      <div className="flex items-center gap-1 text-xs"><Package className="w-3 h-3 text-white/60" /><span className="text-white/50 font-medium">{crew.items}</span><span className="text-white/60">{tc("items")}</span></div>
+                      <div className="flex items-center gap-1 text-[10px] text-white/60 mt-0.5"><CheckCircle2 className="w-3 h-3" />{t("tasksCount", { count: crew.tasksToday })}</div>
                     </div>
                   </div>
                 ))}
@@ -458,8 +526,8 @@ export const JobsPage = (): JSX.Element => {
               <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <ClipboardList className="w-4 h-4 text-[#FFFF00]" />
-                  <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">My Tasks</span>
-                  <span className="ml-auto text-[10px] text-white/20">{myTasks.filter((t) => t.status !== "Done").length} pending</span>
+                  <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("myTasksLabel")}</span>
+                  <span className="ml-auto text-[10px] text-white/60">{t("pendingCount", { count: myTasks.filter((task) => task.status !== "Done").length })}</span>
                 </div>
                 <div className="divide-y divide-white/[0.04]">
                   {myTasks.map((task) => (
@@ -468,8 +536,8 @@ export const JobsPage = (): JSX.Element => {
                         {task.status === "Done" ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : task.status === "In Progress" ? <div className="w-3.5 h-3.5 rounded-full border-2 border-[#FFFF00] border-t-transparent animate-spin" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5"><span className={`text-xs ${task.status === "Done" ? "line-through text-white/30" : "text-white/70"}`}>{task.title}</span><span className={`px-1 py-0.5 rounded text-[8px] font-semibold ${priorityColors[task.priority]}`}>{task.priority}</span></div>
-                        <span className="text-[10px] text-white/20">{task.due}</span>
+                        <div className="flex items-center gap-1.5"><span className={`text-xs ${task.status === "Done" ? "line-through text-white/60" : "text-white/70"}`}>{task.title}</span><span className={`px-1 py-0.5 rounded text-[8px] font-semibold ${priorityColors[task.priority]}`}>{tc(`statusEnum.${task.priority.toLowerCase()}`, { defaultValue: task.priority })}</span></div>
+                        <span className="text-[10px] text-white/60">{task.due}</span>
                       </div>
                     </div>
                   ))}
@@ -479,21 +547,28 @@ export const JobsPage = (): JSX.Element => {
               <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <Shield className="w-4 h-4 text-[#FFFF00]" />
-                  <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">Responsibility Log</span>
+                  <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("responsibilityLog")}</span>
                 </div>
                 <div className="divide-y divide-white/[0.04]">
-                  {responsibilityLog.map((log) => (
-                    <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors" data-testid={`responsibility-${log.id}`}>
-                      <div className={`w-6 h-6 rounded flex items-center justify-center ${actionColors[log.action]}`}>
-                        {log.action === "Checked Out" ? <ArrowRight className="w-3 h-3" /> : log.action === "Returned" ? <CheckCircle2 className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
+                  {responsibilityLog.map((log) => {
+                    const actionLabels: Record<string, string> = {
+                      "Checked Out": t("actionCheckedOut"),
+                      Returned: t("actionReturned"),
+                      "Reported Damage": t("actionReportedDamage"),
+                    };
+                    return (
+                      <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors" data-testid={`responsibility-${log.id}`}>
+                        <div className={`w-6 h-6 rounded flex items-center justify-center ${actionColors[log.action]}`}>
+                          {log.action === "Checked Out" ? <ArrowRight className="w-3 h-3" /> : log.action === "Returned" ? <CheckCircle2 className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5"><span className={`text-[10px] font-semibold ${actionColors[log.action]?.split(" ")[0]}`}>{actionLabels[log.action] ?? log.action}</span><span className="text-[9px] text-white/40">{log.time}</span></div>
+                          <p className="text-xs text-white/50"><span className="text-white/70">{log.person}</span> — {log.items}</p>
+                        </div>
+                        {log.signature && <CheckCircle2 className="w-3 h-3 text-emerald-400/40" />}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5"><span className={`text-[10px] font-semibold ${actionColors[log.action]?.split(" ")[0]}`}>{log.action}</span><span className="text-[9px] text-white/15">{log.time}</span></div>
-                        <p className="text-xs text-white/50"><span className="text-white/70">{log.person}</span> — {log.items}</p>
-                      </div>
-                      {log.signature && <CheckCircle2 className="w-3 h-3 text-emerald-400/40" />}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -511,20 +586,20 @@ export const JobsPage = (): JSX.Element => {
           )}
           <div className="flex items-center gap-2 p-3 bg-red-500/5 border border-red-500/15 rounded-lg">
             <Camera className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-red-300 flex-1">Crew can report damage on-site with photo evidence for full transparency</span>
+            <span className="text-xs text-red-300 flex-1">{t("incidentsHint")}</span>
             <button
               onClick={() => setAddIncidentOpen(true)}
               className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
               style={{ backgroundColor: "#FFFF00" }}
             >
-              <AlertTriangle className="w-4 h-4" /> Report Incident
+              <AlertTriangle className="w-4 h-4" /> {t("reportIncident")}
             </button>
           </div>
           <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-400" />
-              <span className="font-bold text-red-400 text-xs tracking-widest uppercase">Incident Reports</span>
-              <span className="ml-auto text-[10px] text-white/20">{(incidents as any[]).filter((i) => i.status === "open").length} open</span>
+              <span className="font-bold text-red-400 text-xs tracking-widest uppercase">{t("incidentReports")}</span>
+              <span className="ml-auto text-[10px] text-white/60">{t("openCount", { count: (incidents as any[]).filter((i) => i.status === "open").length })}</span>
             </div>
             <div className="divide-y divide-white/[0.04]">
               {(incidents as any[]).map((inc) => (
@@ -535,23 +610,23 @@ export const JobsPage = (): JSX.Element => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="font-mono text-xs text-[#FFFF00]/60">{inc.id.slice(0, 8)}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${severityStyles[inc.severity] ?? "bg-white/5 text-white/30"}`}>{inc.severity}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${statusStyles[inc.status] ?? "bg-white/5 text-white/30"}`}>{inc.status}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${severityStyles[inc.severity] ?? "bg-white/5 text-white/60"}`}>{tc(`statusEnum.${inc.severity.toLowerCase()}`, { defaultValue: inc.severity })}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${statusStyles[inc.status] ?? "bg-white/5 text-white/60"}`}>{tc(`statusEnum.${inc.status}`, { defaultValue: inc.status })}</span>
                       {inc.hasPhoto && (
                         inc.photoUrl ? (
-                          <a href={inc.photoUrl} target="_blank" rel="noopener noreferrer" title="View photo evidence" className="text-white/30 hover:text-[#FFFF00] transition-colors">
+                          <a href={inc.photoUrl} target="_blank" rel="noopener noreferrer" title={t("viewPhotoEvidence")} className="text-white/60 hover:text-[#FFFF00] transition-colors">
                             <Camera className="w-3 h-3" />
                           </a>
                         ) : (
-                          <span title="Photo attached"><Camera className="w-3 h-3 text-white/20" /></span>
+                          <span title={t("photoAttached")}><Camera className="w-3 h-3 text-white/60" /></span>
                         )
                       )}
                     </div>
                     <p className="text-sm text-white/60">{inc.description}</p>
-                    <div className="flex items-center gap-3 text-[10px] text-white/20 mt-1">
-                      <span>Asset: <span className="text-white/40">{inc.stockUnitId ?? "—"}</span></span>
-                      <span>Job: <span className="text-white/40">{inc.jobId ?? "—"}</span></span>
-                      <span>By: <span className="text-white/40">{inc.reporterId}</span></span>
+                    <div className="flex items-center gap-3 text-[10px] text-white/60 mt-1">
+                      <span>{t("assetLabel")} <span className="text-white/60">{inc.stockUnitId ?? "—"}</span></span>
+                      <span>{t("jobLabel")} <span className="text-white/60">{inc.jobId ?? "—"}</span></span>
+                      <span>{t("byLabel")} <span className="text-white/60">{inc.reporterId}</span></span>
                       <span>{new Date(inc.date).toLocaleDateString("en-GB")}</span>
                     </div>
                   </div>

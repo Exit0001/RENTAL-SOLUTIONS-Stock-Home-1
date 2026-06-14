@@ -262,7 +262,9 @@
   }
 
   body {
-    @apply bg-[#0a0a0a] text-foreground;
+    @apply bg-[#0a0a0a] text-foreground font-sans antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 }

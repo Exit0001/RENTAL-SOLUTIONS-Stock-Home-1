@@ -1,20 +1,15 @@
 import { Bell } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface HeaderProps {
   activeSection?: string;
 }
 
-const sectionTitles: Record<string, string> = {
-  Home: "Dashboard",
-  Stock: "Stock Management",
-  Finance: "Finance & Billing",
-  Jobs: "Job Management",
-  History: "History & Analytics",
-};
-
 export const StockManagementHeaderSection = ({
   activeSection = "Home",
 }: HeaderProps): JSX.Element => {
+  const { t } = useTranslation("nav");
+
   return (
     <header className="w-full h-14 bg-[#0f0f0f] border-b border-white/10 flex items-center justify-between px-6 flex-shrink-0">
       <div className="flex items-center gap-3">
@@ -29,7 +24,7 @@ export const StockManagementHeaderSection = ({
           className="font-semibold text-white/60 text-sm tracking-wide uppercase"
           data-testid="text-header-title"
         >
-          {sectionTitles[activeSection] || activeSection}
+          {t(`pageTitles.${activeSection}`, { defaultValue: activeSection })}
         </div>
       </div>
 
@@ -38,7 +33,7 @@ export const StockManagementHeaderSection = ({
           className="relative p-2 rounded-lg hover:bg-white/5 transition-colors"
           data-testid="button-notifications"
         >
-          <Bell className="w-4.5 h-4.5 text-white/40" />
+          <Bell className="w-4.5 h-4.5 text-white/60" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FFFF00] rounded-full" />
         </button>
         <div className="flex items-center gap-2.5">

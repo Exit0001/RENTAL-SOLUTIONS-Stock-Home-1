@@ -4,6 +4,7 @@ import {
   LogIn, LogOut, Loader2, Check,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, jobsApi } from "@/api";
 import type { AssignedUnit } from "@/api";
@@ -26,6 +27,8 @@ interface Props {
 }
 
 export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
+  const { t }        = useTranslation("modals");
+  const { t: tc }    = useTranslation("common");
   const { token }    = useAppStore();
   const inputRef     = useRef<HTMLInputElement>(null);
   const [mode, setMode]             = useState<"checkout" | "return">("checkout");
@@ -44,7 +47,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
   const grouped = useMemo(() => {
     const map: Record<string, AssignedUnit[]> = {};
     for (const u of assignedUnits) {
-      const key = (u as any).itemName ?? "Unknown";
+      const key = (u as any).itemName ?? t("scan.unknownItem");
       if (!map[key]) map[key] = [];
       map[key].push(u);
     }
@@ -87,7 +90,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
       setLastEntry(entry);
       setEntries((prev) => [entry, ...prev]);
     } catch (err: any) {
-      const entry: ScanEntry = { barcode, unitId: null, itemName: "", unitName: "", mode, success: false, inManifest: false, error: err.message ?? "ไม่พบ barcode นี้" };
+      const entry: ScanEntry = { barcode, unitId: null, itemName: "", unitName: "", mode, success: false, inManifest: false, error: err.message ?? t("scan.defaultScanError") };
       setLastEntry(entry);
       setEntries((prev) => [entry, ...prev]);
     } finally {
@@ -117,16 +120,16 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
               <ScanLine className={`w-5 h-5 ${modeCheckout ? "text-blue-400" : "text-emerald-400"}`} />
             </div>
             <div>
-              <h2 className="font-bold text-white text-sm">Scan Mode</h2>
-              <p className="text-[10px] text-white/30 truncate max-w-[220px]">{jobName}</p>
+              <h2 className="font-bold text-white text-sm">{t("scan.title")}</h2>
+              <p className="text-[10px] text-white/60 truncate max-w-[220px]">{jobName}</p>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
               <span className="text-lg font-bold text-[#FFFF00]">{scannedCount}</span>
-              <span className="text-sm text-white/30">/ {totalCount}</span>
-              <span className="text-[10px] text-white/20 ml-0.5">scanned</span>
+              <span className="text-sm text-white/60">/ {totalCount}</span>
+              <span className="text-[10px] text-white/60 ml-0.5">{t("scan.scannedSuffix")}</span>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.06] transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -138,7 +141,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
           <div className="flex-1 border-r border-white/[0.06] flex flex-col overflow-hidden">
             <div className="px-5 py-2.5 border-b border-white/[0.04] flex items-center gap-2 flex-shrink-0">
               <Package className="w-3.5 h-3.5 text-[#FFFF00]/40" />
-              <span className="text-[10px] font-bold text-[#FFFF00]/40 uppercase tracking-widest">Manifest</span>
+              <span className="text-[10px] font-bold text-[#FFFF00]/40 uppercase tracking-widest">{t("scan.manifest")}</span>
               <div className="ml-auto flex items-center gap-2">
                 <div className="h-1.5 w-28 rounded-full bg-white/[0.06] overflow-hidden">
                   <div
@@ -146,7 +149,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
                     style={{ width: totalCount > 0 ? `${Math.round((scannedCount / totalCount) * 100)}%` : "0%" }}
                   />
                 </div>
-                <span className="text-[10px] text-white/20">
+                <span className="text-[10px] text-white/60">
                   {totalCount > 0 ? Math.round((scannedCount / totalCount) * 100) : 0}%
                 </span>
               </div>
@@ -154,17 +157,17 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
               {isLoading && (
-                <div className="flex items-center gap-2 text-white/30 text-xs py-6">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading manifest...
+                <div className="flex items-center gap-2 text-white/60 text-xs py-6">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("scan.loadingManifest")}
                 </div>
               )}
               {!isLoading && assignedUnits.length === 0 && (
-                <p className="text-xs text-white/20 italic py-6 text-center">ยังไม่มีอุปกรณ์ที่กำหนดสำหรับงานนี้</p>
+                <p className="text-xs text-white/60 italic py-6 text-center">{t("scan.noEquipmentAssigned")}</p>
               )}
               {!isLoading && grouped.map(([itemName, units]) => (
                 <div key={itemName}>
                   <div className="flex items-center gap-2 mb-2 pb-1 border-b border-white/[0.05]">
-                    <p className="text-[10px] font-bold text-white/35 uppercase tracking-wider flex-1">{itemName}</p>
+                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider flex-1">{itemName}</p>
                     <span className="text-[9px] text-emerald-400/60">
                       {units.filter((u) => scannedIds.has(u.id)).length}/{units.length}
                     </span>
@@ -190,7 +193,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
                             {u.name}
                           </p>
                           {u.serialNumber && (
-                            <p className="text-[10px] text-white/20 font-mono">SN: {u.serialNumber}</p>
+                            <p className="text-[10px] text-white/60 font-mono">{t("scan.serialPrefix")} {u.serialNumber}</p>
                           )}
                         </div>
                         <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
@@ -198,9 +201,9 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
                             ? modeCheckout
                               ? "bg-blue-400/15 text-blue-300"
                               : "bg-emerald-400/15 text-emerald-300"
-                            : "bg-white/5 text-white/20"
+                            : "bg-white/5 text-white/60"
                         }`}>
-                          {ticked ? (modeCheckout ? "OUT" : "IN") : u.status}
+                          {ticked ? (modeCheckout ? t("scan.outBadge") : t("scan.inBadge")) : tc(`statusEnum.${u.status}`, { defaultValue: u.status })}
                         </span>
                       </div>
                     );
@@ -218,18 +221,18 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
               <button
                 onClick={() => setMode("checkout")}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                  modeCheckout ? "bg-blue-500/20 text-blue-400" : "text-white/30 hover:text-white/50"
+                  modeCheckout ? "bg-blue-500/20 text-blue-400" : "text-white/60 hover:text-white"
                 }`}
               >
-                <LogOut className="w-3.5 h-3.5" /> Out
+                <LogOut className="w-3.5 h-3.5" /> {t("scan.outButton")}
               </button>
               <button
                 onClick={() => setMode("return")}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-                  !modeCheckout ? "bg-emerald-500/20 text-emerald-400" : "text-white/30 hover:text-white/50"
+                  !modeCheckout ? "bg-emerald-500/20 text-emerald-400" : "text-white/60 hover:text-white"
                 }`}
               >
-                <LogIn className="w-3.5 h-3.5" /> Return
+                <LogIn className="w-3.5 h-3.5" /> {t("scan.returnButton")}
               </button>
             </div>
 
@@ -242,7 +245,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
               }`}>
                 <div className="absolute left-4 top-1/2 -translate-y-1/2">
                   {scanning
-                    ? <Loader2 className="w-5 h-5 text-white/30 animate-spin" />
+                    ? <Loader2 className="w-5 h-5 text-white/60 animate-spin" />
                     : <ScanLine className={`w-5 h-5 ${modeCheckout ? "text-blue-400/60" : "text-emerald-400/60"}`} />
                   }
                 </div>
@@ -252,12 +255,12 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
                   onChange={(e) => setValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={scanning}
-                  placeholder="Scan barcode / RFID..."
+                  placeholder={t("scan.scanPlaceholder")}
                   className="w-full h-12 pl-12 pr-4 bg-transparent text-sm text-white placeholder-white/20
                     focus:outline-none font-mono tracking-wider"
                 />
               </div>
-              <p className="text-[9px] text-white/15 mt-1.5 text-center">HID Mode — Enter to confirm</p>
+              <p className="text-[9px] text-white/40 mt-1.5 text-center">{t("scan.hidModeHint")}</p>
             </div>
 
             {/* Last result */}
@@ -278,35 +281,35 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
                     !lastEntry.success ? "text-red-300" :
                     lastEntry.mode === "checkout" ? "text-blue-300" : "text-emerald-300"
                   }`}>
-                    {!lastEntry.success ? "NOT FOUND" : lastEntry.mode === "checkout" ? "CHECKED OUT" : "RETURNED"}
+                    {!lastEntry.success ? t("scan.notFound") : lastEntry.mode === "checkout" ? t("scan.checkedOut") : t("scan.returned")}
                   </span>
                 </div>
                 {lastEntry.success ? (
                   <>
                     <p className="text-xs text-white/60 truncate">{lastEntry.itemName}</p>
-                    <p className="text-[10px] text-white/30 font-mono">{lastEntry.unitName}</p>
+                    <p className="text-[10px] text-white/60 font-mono">{lastEntry.unitName}</p>
                   </>
                 ) : (
                   <p className="text-xs text-red-300/70 truncate">{lastEntry.error}</p>
                 )}
-                <p className="text-[10px] text-white/20 font-mono mt-0.5">{lastEntry.barcode}</p>
+                <p className="text-[10px] text-white/60 font-mono mt-0.5">{lastEntry.barcode}</p>
                 {lastEntry.success && !lastEntry.inManifest && (
-                  <p className="text-[9px] text-amber-400/60 mt-1">⚠ ไม่อยู่ใน manifest</p>
+                  <p className="text-[9px] text-amber-400/60 mt-1">{t("scan.notInManifest")}</p>
                 )}
               </div>
             )}
 
             {/* Stats + close */}
             <div className="mt-auto space-y-3">
-              <div className="flex items-center justify-between text-[10px] text-white/20 border-t border-white/[0.04] pt-3">
-                <span className="text-emerald-400/50">{entries.filter((r) => r.success).length} scanned</span>
-                <span className="text-red-400/50">{entries.filter((r) => !r.success).length} errors</span>
+              <div className="flex items-center justify-between text-[10px] text-white/60 border-t border-white/[0.04] pt-3">
+                <span className="text-emerald-400/50">{t("scan.scannedCountLabel", { count: entries.filter((r) => r.success).length })}</span>
+                <span className="text-red-400/50">{t("scan.errorsCountLabel", { count: entries.filter((r) => !r.success).length })}</span>
               </div>
               <button
                 onClick={onClose}
-                className="w-full h-9 rounded-xl text-sm font-medium text-white/40 hover:text-white hover:bg-white/[0.06] border border-white/[0.06] transition-colors"
+                className="w-full h-9 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/[0.06] border border-white/[0.06] transition-colors"
               >
-                Done
+                {tc("done")}
               </button>
             </div>
           </div>

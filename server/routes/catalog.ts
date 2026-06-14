@@ -2,8 +2,8 @@ import { Router } from "express";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db";
 import {
-  brands, categories, subCategories, locations,
-  insertBrandSchema, insertCategorySchema, insertSubCategorySchema, insertLocationSchema,
+  brands, categories, subCategories, locations, containerTypes,
+  insertBrandSchema, insertCategorySchema, insertSubCategorySchema, insertLocationSchema, insertContainerTypeSchema,
 } from "@shared/schema";
 
 export const catalogRouter = Router();
@@ -151,5 +151,38 @@ catalogRouter.delete("/locations/:id", async (req, res) => {
     res.json({ message: "Deleted" });
   } catch {
     res.status(500).json({ message: "Failed to delete location" });
+  }
+});
+
+// ─── Container Types ───────────────────────────────────────
+
+catalogRouter.get("/container-types", async (req, res) => {
+  try {
+    const result = await db.select().from(containerTypes).where(eq(containerTypes.companyId, req.companyId));
+    res.json(result);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch container types" });
+  }
+});
+
+catalogRouter.post("/container-types", async (req, res) => {
+  try {
+    const data = insertContainerTypeSchema.parse({ ...req.body, companyId: req.companyId });
+    const [containerType] = await db.insert(containerTypes).values(data).returning();
+    res.status(201).json(containerType);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+catalogRouter.delete("/container-types/:id", async (req, res) => {
+  try {
+    const [containerType] = await db.delete(containerTypes)
+      .where(and(eq(containerTypes.id, req.params.id), eq(containerTypes.companyId, req.companyId)))
+      .returning();
+    if (!containerType) return res.status(404).json({ message: "Container type not found" });
+    res.json({ message: "Deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete container type" });
   }
 });

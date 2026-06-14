@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, MapPin, Plus, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
 import type { Location } from "@shared/schema";
@@ -8,6 +9,8 @@ import type { Location } from "@shared/schema";
 interface Props { onClose: () => void; }
 
 export const AddLocationModal = ({ onClose }: Props): JSX.Element => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
   const qc = useQueryClient();
   const [newLocation, setNewLocation] = useState("");
@@ -50,13 +53,13 @@ export const AddLocationModal = ({ onClose }: Props): JSX.Element => {
               <MapPin className="w-4 h-4 text-black" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Manage Locations</h2>
-              <p className="text-[10px] text-white/30">Add or remove storage locations</p>
+              <h2 className="text-base font-bold text-white">{t("addLocation.title")}</h2>
+              <p className="text-[10px] text-white/60">{t("addLocation.subtitle")}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -64,8 +67,8 @@ export const AddLocationModal = ({ onClose }: Props): JSX.Element => {
 
         {/* Add new location input */}
         <div className="px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
-          <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium block mb-2">
-            New Location
+          <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium block mb-2">
+            {t("addLocation.newLocation")}
           </label>
           <div className="flex gap-2">
             <input
@@ -73,9 +76,9 @@ export const AddLocationModal = ({ onClose }: Props): JSX.Element => {
               value={newLocation}
               onChange={(e) => setNewLocation(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addLocation()}
-              placeholder="e.g. Warehouse C, Zone 1…"
+              placeholder={t("addLocation.newLocationPlaceholder")}
               className="flex-1 h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3
-                placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
             />
             <button
               onClick={addLocation}
@@ -84,7 +87,7 @@ export const AddLocationModal = ({ onClose }: Props): JSX.Element => {
               style={{ backgroundColor: "#FFFF00" }}
             >
               <Plus className="w-3.5 h-3.5" />
-              Add
+              {tc("add")}
             </button>
           </div>
         </div>
@@ -97,18 +100,18 @@ export const AddLocationModal = ({ onClose }: Props): JSX.Element => {
               className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] transition-colors group"
             >
               <div className="flex items-center gap-2.5">
-                <MapPin className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
+                <MapPin className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
                 <span className="text-sm text-white/70">{loc.name}</span>
                 {loc.isDefault && (
-                  <span className="text-[9px] text-white/20 uppercase tracking-wider border border-white/10 px-1.5 py-0.5 rounded">
-                    default
+                  <span className="text-[9px] text-white/60 uppercase tracking-wider border border-white/10 px-1.5 py-0.5 rounded">
+                    {t("addLocation.defaultBadge")}
                   </span>
                 )}
               </div>
               {!loc.isDefault && (
                 <button
                   onClick={() => deleteLocation.mutate(loc.id)}
-                  className="w-6 h-6 flex items-center justify-center rounded text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                  className="w-6 h-6 flex items-center justify-center rounded text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -124,7 +127,7 @@ export const AddLocationModal = ({ onClose }: Props): JSX.Element => {
             className="h-9 px-6 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80"
             style={{ backgroundColor: "#FFFF00" }}
           >
-            Done
+            {tc("done")}
           </button>
         </div>
       </div>

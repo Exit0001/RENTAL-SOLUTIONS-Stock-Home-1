@@ -5,6 +5,8 @@ import {
   Monitor, Settings,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
 import { FileUploadField } from "@/components/FileUploadField";
@@ -62,43 +64,43 @@ type TabKey = "general" | "pricing" | "specs" | "documents";
 
 interface SpecField { key: string; label: string; placeholder: string; }
 
-const SPEC_TEMPLATES: Record<string, { label: string; icon: React.ElementType; fields: SpecField[] }> = {
+const getSpecTemplates = (t: TFunction): Record<string, { label: string; icon: React.ElementType; fields: SpecField[] }> => ({
   sound: {
-    label: "Sound (Speakers / Amps)",
+    label: t("addNewItem.specTemplateSound"),
     icon: Cpu,
     fields: [
-      { key: "impedance", label: "Impedance (Ohms)", placeholder: "e.g. 8" },
-      { key: "wattage", label: "Wattage RMS (W)", placeholder: "e.g. 1500" },
-      { key: "maxSpl", label: "Max SPL (dB)", placeholder: "e.g. 142" },
-      { key: "freqResponse", label: "Frequency Response (Hz)", placeholder: "e.g. 55 – 18k" },
+      { key: "impedance", label: t("addNewItem.specImpedanceLabel"), placeholder: t("addNewItem.specImpedancePlaceholder") },
+      { key: "wattage", label: t("addNewItem.specWattageRmsLabel"), placeholder: t("addNewItem.specWattageRmsPlaceholder") },
+      { key: "maxSpl", label: t("addNewItem.specMaxSplLabel"), placeholder: t("addNewItem.specMaxSplPlaceholder") },
+      { key: "freqResponse", label: t("addNewItem.specFreqResponseLabel"), placeholder: t("addNewItem.specFreqResponsePlaceholder") },
     ],
   },
   lighting: {
-    label: "Lighting (Moving Head)",
+    label: t("addNewItem.specTemplateLighting"),
     icon: Lightbulb,
     fields: [
-      { key: "wattage", label: "Wattage (W)", placeholder: "e.g. 350" },
-      { key: "beamAngle", label: "Beam Angle (°)", placeholder: "e.g. 3 – 36" },
-      { key: "dmxChannels", label: "DMX Channels", placeholder: "e.g. 24" },
-      { key: "ipRating", label: "IP Rating", placeholder: "e.g. IP20" },
+      { key: "wattage", label: t("addNewItem.specWattageLabel"), placeholder: t("addNewItem.specWattagePlaceholder") },
+      { key: "beamAngle", label: t("addNewItem.specBeamAngleLabel"), placeholder: t("addNewItem.specBeamAnglePlaceholder") },
+      { key: "dmxChannels", label: t("addNewItem.specDmxChannelsLabel"), placeholder: t("addNewItem.specDmxChannelsPlaceholder") },
+      { key: "ipRating", label: t("addNewItem.specIpRatingLabel"), placeholder: t("addNewItem.specIpRatingPlaceholder") },
     ],
   },
   video: {
-    label: "Video (LED / Projector)",
+    label: t("addNewItem.specTemplateVideo"),
     icon: Monitor,
     fields: [
-      { key: "resolution", label: "Resolution", placeholder: "e.g. 1920 × 1080" },
-      { key: "pixelPitch", label: "Pixel Pitch (mm)", placeholder: "e.g. 3.9" },
-      { key: "brightness", label: "Brightness (lm)", placeholder: "e.g. 12000" },
-      { key: "panelSize", label: "Panel Size", placeholder: "e.g. 500 × 500 mm" },
+      { key: "resolution", label: t("addNewItem.specResolutionLabel"), placeholder: t("addNewItem.specResolutionPlaceholder") },
+      { key: "pixelPitch", label: t("addNewItem.specPixelPitchLabel"), placeholder: t("addNewItem.specPixelPitchPlaceholder") },
+      { key: "brightness", label: t("addNewItem.specBrightnessLabel"), placeholder: t("addNewItem.specBrightnessPlaceholder") },
+      { key: "panelSize", label: t("addNewItem.specPanelSizeLabel"), placeholder: t("addNewItem.specPanelSizePlaceholder") },
     ],
   },
   custom: {
-    label: "Custom",
+    label: t("addNewItem.specTemplateCustom"),
     icon: Settings,
     fields: [],
   },
-};
+});
 
 const PROTOCOL_OPTIONS = ["Dante", "AES/EBU", "Milan", "Art-Net", "sACN", "AVB", "AES67", "MADI"];
 
@@ -113,15 +115,15 @@ const InputField = ({
   const Icon = icon;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">{label}</label>
+      <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
       <div className="relative">
-        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20 pointer-events-none" />}
+        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60 pointer-events-none" />}
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20
+          className={`w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60
             focus:outline-none focus:border-[#FFFF00]/40 transition-colors ${Icon ? "pl-9 pr-3" : "px-3"}`}
         />
       </div>
@@ -133,20 +135,23 @@ const SelectField = ({
   label, value, onChange, options,
 }: {
   label: string; value: string; onChange: (v: string) => void; options: string[];
-}) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">{label}</label>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3
-        focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
-    >
-      <option value="" className="bg-[#111]">Select…</option>
-      {options.map((o) => <option key={o} value={o} className="bg-[#111]">{o}</option>)}
-    </select>
-  </div>
-);
+}) => {
+  const { t: tc } = useTranslation("common");
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3
+          focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
+      >
+        <option value="" className="bg-[#111]">{tc("selectPlaceholder")}</option>
+        {options.map((o) => <option key={o} value={o} className="bg-[#111]">{o}</option>)}
+      </select>
+    </div>
+  );
+};
 
 const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
@@ -166,30 +171,32 @@ const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, 
   data: GeneralData; onChange: (d: GeneralData) => void; companyId: string;
   brandOptions: string[]; categoryOptions: string[]; subCategoryOptions: string[];
 }) => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const set = (key: keyof GeneralData) => (v: string) => onChange({ ...data, [key]: v });
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-3 gap-4">
-        <InputField label="Item Name" placeholder="e.g. J8 Loudspeaker" value={data.itemName} onChange={set("itemName")} />
-        <InputField label="Manufacturer" placeholder="e.g. d&b audiotechnik" value={data.manufacturer} onChange={set("manufacturer")} />
-        <InputField label="Manufacturer Country" placeholder="e.g. Germany" value={data.manufacturerCountry} onChange={set("manufacturerCountry")} />
+        <InputField label={t("addNewItem.itemName")} placeholder={t("addNewItem.itemNamePlaceholder")} value={data.itemName} onChange={set("itemName")} />
+        <InputField label={t("addNewItem.manufacturerLabel")} placeholder={t("addNewItem.manufacturerPlaceholder")} value={data.manufacturer} onChange={set("manufacturer")} />
+        <InputField label={t("addNewItem.manufacturerCountry")} placeholder={t("addNewItem.manufacturerCountryPlaceholder")} value={data.manufacturerCountry} onChange={set("manufacturerCountry")} />
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <SelectField label="Brand" value={data.brand} onChange={set("brand")} options={brandOptions} />
-        <SelectField label="Category" value={data.category} onChange={set("category")} options={categoryOptions} />
-        <SelectField label="Sub-Category" value={data.subCategory} onChange={set("subCategory")} options={subCategoryOptions} />
+        <SelectField label={tc("brand")} value={data.brand} onChange={set("brand")} options={brandOptions} />
+        <SelectField label={tc("category")} value={data.category} onChange={set("category")} options={categoryOptions} />
+        <SelectField label={t("addNewItem.subCategoryLabel")} value={data.subCategory} onChange={set("subCategory")} options={subCategoryOptions} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Description</label>
+        <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{tc("description")}</label>
         <textarea
           value={data.description}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
-          placeholder="Describe the item, its use case, and any important notes…"
+          placeholder={t("addNewItem.descriptionPlaceholder")}
           rows={3}
-          className="w-full bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 py-2.5 placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-colors resize-none"
+          className="w-full bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 py-2.5 placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors resize-none"
         />
       </div>
-      <FileUploadField label="Item Image" folder="stock-items" companyId={companyId}
+      <FileUploadField label={t("addNewItem.itemImage")} folder="stock-items" companyId={companyId}
         value={data.imageUrl} onChange={(url) => onChange({ ...data, imageUrl: url })} />
     </div>
   );
@@ -202,21 +209,22 @@ interface PricingData {
   dailyRate: string; weeklyRate: string; replacementValue: string; securityDeposit: string;
 }
 const PricingTab = ({ data, onChange }: { data: PricingData; onChange: (d: PricingData) => void }) => {
+  const { t } = useTranslation("modals");
   const set = (key: keyof PricingData) => (v: string) => onChange({ ...data, [key]: v });
   return (
     <div className="flex flex-col gap-4">
-      <SectionCard title="Procurement">
+      <SectionCard title={t("addNewItem.procurement")}>
         <div className="grid grid-cols-2 gap-4">
-          <InputField label="Purchase Cost (THB)" placeholder="e.g. 280,000" value={data.purchaseCost} onChange={set("purchaseCost")} icon={Banknote} />
-          <InputField label="Purchase Date" placeholder="YYYY-MM-DD" type="date" value={data.purchaseDate} onChange={set("purchaseDate")} icon={Calendar} />
+          <InputField label={t("addNewItem.purchaseCostThb")} placeholder={t("addNewItem.purchaseCostPlaceholder")} value={data.purchaseCost} onChange={set("purchaseCost")} icon={Banknote} />
+          <InputField label={t("addNewItem.purchaseDateLabel")} placeholder={t("addNewItem.purchaseDatePlaceholder")} type="date" value={data.purchaseDate} onChange={set("purchaseDate")} icon={Calendar} />
         </div>
       </SectionCard>
-      <SectionCard title="Rental Pricing">
+      <SectionCard title={t("addNewItem.rentalPricing")}>
         <div className="grid grid-cols-2 gap-4">
-          <InputField label="Daily Rental Rate (THB)" placeholder="e.g. 2,500" value={data.dailyRate} onChange={set("dailyRate")} icon={Banknote} />
-          <InputField label="Weekly Rental Rate (THB)" placeholder="e.g. 12,000" value={data.weeklyRate} onChange={set("weeklyRate")} icon={Banknote} />
-          <InputField label="Replacement Value (THB)" placeholder="e.g. 320,000" value={data.replacementValue} onChange={set("replacementValue")} icon={Banknote} />
-          <InputField label="Security Deposit (THB)" placeholder="e.g. 50,000" value={data.securityDeposit} onChange={set("securityDeposit")} icon={Banknote} />
+          <InputField label={t("addNewItem.dailyRentalRateThb")} placeholder={t("addNewItem.dailyRentalRatePlaceholder")} value={data.dailyRate} onChange={set("dailyRate")} icon={Banknote} />
+          <InputField label={t("addNewItem.weeklyRentalRateThb")} placeholder={t("addNewItem.weeklyRentalRatePlaceholder")} value={data.weeklyRate} onChange={set("weeklyRate")} icon={Banknote} />
+          <InputField label={t("addNewItem.replacementValueThb")} placeholder={t("addNewItem.replacementValuePlaceholder")} value={data.replacementValue} onChange={set("replacementValue")} icon={Banknote} />
+          <InputField label={t("addNewItem.securityDepositThb")} placeholder={t("addNewItem.securityDepositPlaceholder")} value={data.securityDeposit} onChange={set("securityDeposit")} icon={Banknote} />
         </div>
       </SectionCard>
     </div>
@@ -234,8 +242,11 @@ interface SpecsData {
   weight: string; dimensions: string;
 }
 const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData) => void }) => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const [newCustomLabel, setNewCustomLabel] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
+  const SPEC_TEMPLATES = getSpecTemplates(t);
   const tpl = SPEC_TEMPLATES[data.template] ?? SPEC_TEMPLATES.sound;
 
   const setField = (key: string, val: string) =>
@@ -276,20 +287,20 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
 
   return (
     <div className="flex flex-col gap-4">
-      <SectionCard title="Dynamic Attributes & Specs (Category-Based)">
+      <SectionCard title={t("addNewItem.dynamicAttributesTitle")}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Select Spec Template</label>
+            <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("addNewItem.selectSpecTemplate")}</label>
             <div className="grid grid-cols-4 gap-2">
-              {Object.entries(SPEC_TEMPLATES).map(([key, t]) => {
-                const Icon = t.icon;
+              {Object.entries(SPEC_TEMPLATES).map(([key, tmpl]) => {
+                const Icon = tmpl.icon;
                 const active = data.template === key;
                 return (
                   <button key={key} onClick={() => onChange({ ...data, template: key })}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                      active ? "border-[#FFFF00]/50 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 bg-white/[0.02] text-white/40 hover:border-white/20 hover:text-white/60"}`}>
+                      active ? "border-[#FFFF00]/50 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white"}`}>
                     <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{t.label}</span>
+                    <span className="truncate">{tmpl.label}</span>
                   </button>
                 );
               })}
@@ -308,7 +319,7 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
           {data.customFields.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               {data.customFields.map((f) => (
-                <InputField key={f.key} label={f.label} placeholder="Value"
+                <InputField key={f.key} label={f.label} placeholder={tc("value")}
                   value={f.value} onChange={(v) => setCustomField(f.key, v)} />
               ))}
             </div>
@@ -316,17 +327,17 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
 
           <div className="flex items-center gap-2">
             <input value={newCustomLabel} onChange={(e) => setNewCustomLabel(e.target.value)}
-              placeholder="Add custom spec field name…"
+              placeholder={t("addNewItem.addCustomSpecPlaceholder")}
               onKeyDown={(e) => e.key === "Enter" && addCustomField()}
-              className="flex-1 h-8 bg-black/40 border border-dashed border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/30 transition-colors" />
+              className="flex-1 h-8 bg-black/40 border border-dashed border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/30 transition-colors" />
             <button onClick={addCustomField}
-              className="h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/30 hover:text-[#FFFF00] text-xs flex items-center gap-1.5 transition-all">
-              <Plus className="w-3 h-3" /> Add Field
+              className="h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/60 hover:text-[#FFFF00] text-xs flex items-center gap-1.5 transition-all">
+              <Plus className="w-3 h-3" /> {t("addNewItem.addField")}
             </button>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Protocol Tags</label>
+            <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("addNewItem.protocolTags")}</label>
             <div className="flex flex-wrap gap-2">
               {allProtocolOptions.map((tag) => {
                 const active = data.protocolTags.includes(tag);
@@ -334,7 +345,7 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
                 return (
                   <button key={tag} onClick={() => toggleTag(tag)}
                     className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${
-                      active ? "border-[#FFFF00]/50 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 text-white/30 hover:border-white/20 hover:text-white/50"}`}>
+                      active ? "border-[#FFFF00]/50 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 text-white/60 hover:border-white/20 hover:text-white"}`}>
                     {isCustom && <span className="text-[8px] opacity-60">★</span>}
                     {tag}
                     {active && <span className="text-[#FFFF00]/60">×</span>}
@@ -347,22 +358,22 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
                 value={newTagInput}
                 onChange={(e) => setNewTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addProtocolTag()}
-                placeholder="Add custom protocol tag… (press Enter)"
-                className="flex-1 h-8 bg-black/40 border border-dashed border-white/10 rounded-lg text-xs text-white px-3 placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/30 transition-colors"
+                placeholder={t("addNewItem.addCustomProtocolPlaceholder")}
+                className="flex-1 h-8 bg-black/40 border border-dashed border-white/10 rounded-lg text-xs text-white px-3 placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/30 transition-colors"
               />
               <button onClick={addProtocolTag}
-                className="h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/30 hover:text-[#FFFF00] text-xs flex items-center gap-1.5 transition-all flex-shrink-0">
-                <Plus className="w-3 h-3" /> Add Tag
+                className="h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/60 hover:text-[#FFFF00] text-xs flex items-center gap-1.5 transition-all flex-shrink-0">
+                <Plus className="w-3 h-3" /> {t("addNewItem.addTag")}
               </button>
             </div>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="Physical Attributes">
+      <SectionCard title={t("addNewItem.physicalAttributes")}>
         <div className="grid grid-cols-2 gap-4">
-          <InputField label="Weight (kg)" placeholder="e.g. 28.5" value={data.weight} onChange={(v) => onChange({ ...data, weight: v })} />
-          <InputField label="Dimensions (W × H × D mm)" placeholder="e.g. 570 × 740 × 500" value={data.dimensions} onChange={(v) => onChange({ ...data, dimensions: v })} />
+          <InputField label={t("addNewItem.weightKg")} placeholder={t("addNewItem.weightPlaceholder")} value={data.weight} onChange={(v) => onChange({ ...data, weight: v })} />
+          <InputField label={t("addNewItem.dimensionsLabel")} placeholder={t("addNewItem.dimensionsPlaceholder")} value={data.dimensions} onChange={(v) => onChange({ ...data, dimensions: v })} />
         </div>
       </SectionCard>
     </div>
@@ -376,27 +387,28 @@ interface DocsData {
   manualUrl: string | null; certUrl: string | null; invoiceUrl: string | null;
 }
 const DocsTab = ({ data, onChange, companyId }: { data: DocsData; onChange: (d: DocsData) => void; companyId: string }) => {
+  const { t } = useTranslation("modals");
   const set = (key: keyof DocsData) => (v: string) => onChange({ ...data, [key]: v });
   return (
     <div className="flex flex-col gap-4">
-      <SectionCard title="Warranty & Support">
+      <SectionCard title={t("addNewItem.warrantySupport")}>
         <div className="grid grid-cols-3 gap-4">
-          <InputField label="Warranty Expiry Date" placeholder="YYYY-MM-DD" type="date" value={data.warrantyExpiry} onChange={set("warrantyExpiry")} icon={Calendar} />
-          <InputField label="Supplier Name" placeholder="e.g. AV Pro Thailand" value={data.supplierName} onChange={set("supplierName")} />
-          <InputField label="Support Contact" placeholder="e.g. +66 2 XXX XXXX" value={data.supportContact} onChange={set("supportContact")} />
+          <InputField label={t("addNewItem.warrantyExpiryDate")} placeholder={t("addNewItem.purchaseDatePlaceholder")} type="date" value={data.warrantyExpiry} onChange={set("warrantyExpiry")} icon={Calendar} />
+          <InputField label={t("addNewItem.supplierNameLabel")} placeholder={t("addNewItem.supplierNamePlaceholder")} value={data.supplierName} onChange={set("supplierName")} />
+          <InputField label={t("addNewItem.supportContactLabel")} placeholder={t("addNewItem.supportContactPlaceholder")} value={data.supportContact} onChange={set("supportContact")} />
         </div>
       </SectionCard>
 
-      <SectionCard title="Documents">
+      <SectionCard title={t("addNewItem.documentsTitle")}>
         <div className="grid grid-cols-3 gap-4">
-          <FileUploadField label="User Manual (PDF)" folder="stock-items" companyId={companyId}
+          <FileUploadField label={t("addNewItem.userManualPdf")} folder="stock-items" companyId={companyId}
             value={data.manualUrl} onChange={(url) => onChange({ ...data, manualUrl: url })} />
-          <FileUploadField label="Safety Certificate" folder="stock-items" companyId={companyId}
+          <FileUploadField label={t("addNewItem.safetyCertificate")} folder="stock-items" companyId={companyId}
             value={data.certUrl} onChange={(url) => onChange({ ...data, certUrl: url })} />
-          <FileUploadField label="Purchase Invoice" folder="stock-items" companyId={companyId}
+          <FileUploadField label={t("addNewItem.purchaseInvoice")} folder="stock-items" companyId={companyId}
             value={data.invoiceUrl} onChange={(url) => onChange({ ...data, invoiceUrl: url })} />
         </div>
-        <p className="text-[10px] text-white/20 mt-3">Accepted formats: PDF, JPG, PNG — max 20 MB each</p>
+        <p className="text-[10px] text-white/60 mt-3">{t("addNewItem.acceptedFormatsHint")}</p>
       </SectionCard>
     </div>
   );
@@ -404,12 +416,19 @@ const DocsTab = ({ data, onChange, companyId }: { data: DocsData; onChange: (d: 
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: "general",   label: "General",             icon: Package },
-  { key: "pricing",   label: "Pricing & Finance",   icon: Banknote },
-  { key: "specs",     label: "Logistics & Specs",   icon: Cpu },
-  { key: "documents", label: "Documents & Warranty", icon: FileText },
+const TABS: { key: TabKey; icon: React.ElementType }[] = [
+  { key: "general",   icon: Package },
+  { key: "pricing",   icon: Banknote },
+  { key: "specs",     icon: Cpu },
+  { key: "documents", icon: FileText },
 ];
+
+const TAB_LABEL_KEYS: Record<TabKey, string> = {
+  general: "addNewItem.tabGeneral",
+  pricing: "addNewItem.tabPricing",
+  specs: "addNewItem.tabSpecs",
+  documents: "addNewItem.tabDocuments",
+};
 
 interface AddNewItemModalProps {
   onClose:      () => void;
@@ -418,6 +437,8 @@ interface AddNewItemModalProps {
 }
 
 export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemModalProps): JSX.Element => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const { token, companyId } = useAppStore();
   const isEdit = !!initialItem;
   const [activeTab, setActiveTab] = useState<TabKey>("general");
@@ -498,29 +519,29 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
-                {isEdit ? `Edit: ${initialItem.name}` : "Add New Item"}
+                {isEdit ? t("addNewItem.editTitle", { name: initialItem!.name }) : t("addNewItem.addTitle")}
               </h2>
-              <p className="text-[10px] text-white/30 capitalize">{TABS.find(t => t.key === activeTab)?.label}</p>
+              <p className="text-[10px] text-white/60 capitalize">{t(TAB_LABEL_KEYS[activeTab])}</p>
             </div>
           </div>
           <button onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/[0.06] transition-colors">
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab nav */}
         <div className="flex items-center px-6 border-b border-white/[0.06] flex-shrink-0 overflow-x-auto">
-          {TABS.map((t, i) => {
-            const Icon = t.icon;
-            const isActive = activeTab === t.key;
-            const isDone = tabOrder.indexOf(t.key) < currentIdx;
+          {TABS.map((tab, i) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            const isDone = tabOrder.indexOf(tab.key) < currentIdx;
             return (
-              <button key={t.key} onClick={() => setActiveTab(t.key)}
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className={`flex items-center gap-1.5 px-3 py-3 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  isActive ? "border-[#FFFF00] text-[#FFFF00]" : isDone ? "border-transparent text-white/40 hover:text-white/60" : "border-transparent text-white/20 hover:text-white/40"}`}>
+                  isActive ? "border-[#FFFF00] text-[#FFFF00]" : isDone ? "border-transparent text-white/60 hover:text-white" : "border-transparent text-white/60 hover:text-white"}`}>
                 <Icon className="w-3.5 h-3.5" />
-                {t.label}
+                {t(TAB_LABEL_KEYS[tab.key])}
               </button>
             );
           })}
@@ -544,9 +565,9 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
           <button
             onClick={() => canGoPrev && setActiveTab(tabOrder[currentIdx - 1])}
             disabled={!canGoPrev}
-            className="h-9 px-4 rounded-lg border border-white/10 text-sm text-white/40 hover:text-white hover:border-white/20 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            className="h-9 px-4 rounded-lg border border-white/10 text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
-            Back
+            {tc("back")}
           </button>
           <div className="flex items-center gap-1.5">
             {tabOrder.map((k, i) => (
@@ -559,7 +580,7 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
               className="h-9 px-5 rounded-lg text-sm font-bold text-black flex items-center gap-2 transition-opacity hover:opacity-80"
               style={{ backgroundColor: "#FFFF00" }}
             >
-              Next <ChevronRight className="w-4 h-4" />
+              {tc("next")} <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
             <button
@@ -567,7 +588,7 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
               className="h-9 px-6 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80"
               style={{ backgroundColor: "#FFFF00" }}
             >
-              Save Item
+              {t("addNewItem.saveItem")}
             </button>
           )}
         </div>

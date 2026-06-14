@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { stockItems, stockUnits, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
+import { stockItems, stockUnits, containers, containerUnits, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
 
 export const stockRouter = Router();
 
@@ -113,7 +113,33 @@ stockRouter.get("/:id", async (req, res) => {
       .from(stockUnits)
       .where(eq(stockUnits.stockItemId, item.id));
 
-    res.json({ ...item, units });
+    // หาว่า unit ไหนอยู่ใน rack/container ไหนบ้าง
+    const unitIds = units.map((u) => u.id);
+    const links = unitIds.length
+      ? await db.select().from(containerUnits).where(inArray(containerUnits.stockUnitId, unitIds))
+      : [];
+
+    const containerIds = Array.from(new Set(links.map((l) => l.containerId)));
+    const containerRows = containerIds.length
+      ? await db.select({ id: containers.id, name: containers.name, type: containers.type })
+          .from(containers).where(inArray(containers.id, containerIds))
+      : [];
+
+    const containerMap = Object.fromEntries(containerRows.map((c) => [c.id, c]));
+    const unitContainerMap = Object.fromEntries(links.map((l) => [l.stockUnitId, l.containerId]));
+
+    const unitsWithContainer = units.map((u) => {
+      const cId = unitContainerMap[u.id] ?? null;
+      const c = cId ? containerMap[cId] : null;
+      return {
+        ...u,
+        containerId:   c?.id ?? null,
+        containerName: c?.name ?? null,
+        containerType: c?.type ?? null,
+      };
+    });
+
+    res.json({ ...item, units: unitsWithContainer });
   } catch {
     res.status(500).json({ message: "Failed to fetch stock item" });
   }

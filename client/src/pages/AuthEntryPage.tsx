@@ -1,4 +1,6 @@
 import { Building2, LogIn, Mail, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface AuthEntryPageProps {
   onLogin:    () => void;
@@ -6,8 +8,14 @@ interface AuthEntryPageProps {
 }
 
 export const AuthEntryPage = ({ onLogin, onRegister }: AuthEntryPageProps) => {
+  const { t } = useTranslation("auth");
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
+
       <div className="w-full max-w-sm space-y-6">
 
         {/* Branding */}
@@ -16,12 +24,12 @@ export const AuthEntryPage = ({ onLogin, onRegister }: AuthEntryPageProps) => {
             <span className="text-3xl font-black text-[#FFFF00] leading-none">S</span>
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">STAK</h1>
-          <p className="text-xs text-white/25">AV Rental Management · v2.0</p>
+          <p className="text-xs text-white/60">{t("tagline")}</p>
         </div>
 
         {/* ─── ฝั่งบริษัท ─── */}
         <div className="space-y-3">
-          <p className="text-[10px] text-white/20 uppercase tracking-widest text-center">มีบัญชีอยู่แล้ว</p>
+          <p className="text-[10px] text-white/60 uppercase tracking-widest text-center">{t("hasAccount")}</p>
 
           <button
             onClick={onLogin}
@@ -29,7 +37,7 @@ export const AuthEntryPage = ({ onLogin, onRegister }: AuthEntryPageProps) => {
           >
             <span className="flex items-center gap-2.5">
               <LogIn className="w-4 h-4" />
-              เข้าสู่ระบบ
+              {t("login")}
             </span>
             <ChevronRight className="w-4 h-4 opacity-50" />
           </button>
@@ -40,7 +48,7 @@ export const AuthEntryPage = ({ onLogin, onRegister }: AuthEntryPageProps) => {
           >
             <span className="flex items-center gap-2.5">
               <Building2 className="w-4 h-4" />
-              สร้างบริษัทใหม่
+              {t("createCompany")}
             </span>
             <ChevronRight className="w-4 h-4 opacity-30" />
           </button>
@@ -49,7 +57,7 @@ export const AuthEntryPage = ({ onLogin, onRegister }: AuthEntryPageProps) => {
         {/* Divider */}
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-white/[0.05]" />
-          <span className="text-[10px] text-white/15 uppercase tracking-widest">พนักงาน</span>
+          <span className="text-[10px] text-white/40 uppercase tracking-widest">{t("staff")}</span>
           <div className="flex-1 h-px bg-white/[0.05]" />
         </div>
 
@@ -59,11 +67,11 @@ export const AuthEntryPage = ({ onLogin, onRegister }: AuthEntryPageProps) => {
             <Mail className="w-4 h-4 text-[#FFFF00]/50" />
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-semibold text-white/50">ได้รับคำเชิญเข้าร่วมทีม?</p>
-            <p className="text-[11px] text-white/25 leading-relaxed">
-              ตรวจสอบอีเมลแล้วคลิก{" "}
-              <span className="text-[#FFFF00]/40 font-medium">"Accept Invite"</span>
-              {" "}เพื่อตั้งค่าบัญชีและเริ่มใช้งาน
+            <p className="text-xs font-semibold text-white/50">{t("inviteTitle")}</p>
+            <p className="text-[11px] text-white/60 leading-relaxed">
+              {t("inviteBodyPrefix")}{" "}
+              <span className="text-[#FFFF00]/40 font-medium">"{t("acceptInvite")}"</span>
+              {" "}{t("inviteBodySuffix")}
             </p>
           </div>
         </div>

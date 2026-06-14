@@ -48,6 +48,8 @@ module.exports = {
       },
       fontFamily: {
         sans: [
+          "Inter",
+          '"Noto Sans Thai"',
           "ui-sans-serif",
           "system-ui",
           "sans-serif",

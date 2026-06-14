@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Pencil, Trash2, Plus, Tag, Layers, GitBranch } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
 import { FileUploadField } from "@/components/FileUploadField";
@@ -32,17 +33,19 @@ interface BrandFormProps {
   onCancel: () => void;
 }
 const BrandForm = ({ companyId, initial, onSave, onCancel }: BrandFormProps) => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const [name, setName] = useState(initial?.name ?? "");
   const [logoUrl, setLogoUrl] = useState<string | null>(initial?.logoUrl ?? null);
   return (
     <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-white/40 uppercase tracking-wider">Brand Name</label>
+        <label className="text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.brandName")}</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Pioneer DJ"
-          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
+          placeholder={t("brandCategory.brandNamePlaceholder")}
+          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
         />
       </div>
       <FileUploadField label="Brand Logo" folder="brands" companyId={companyId} value={logoUrl} onChange={setLogoUrl} />
@@ -51,14 +54,14 @@ const BrandForm = ({ companyId, initial, onSave, onCancel }: BrandFormProps) => 
           onClick={onCancel}
           className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
         >
-          Cancel
+          {tc("cancel")}
         </button>
         <button
           onClick={() => onSave({ name, logoUrl })}
           className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
           style={{ backgroundColor: "#FFFF00" }}
         >
-          Save
+          {tc("save")}
         </button>
       </div>
     </div>
@@ -71,6 +74,7 @@ interface AddFormProps {
   onCancel: () => void;
 }
 const AddForm = ({ fields, onSave, onCancel }: AddFormProps) => {
+  const { t: tc } = useTranslation("common");
   const [vals, setVals] = useState<Record<string, string>>(
     Object.fromEntries(fields.map((f) => [f.key, ""]))
   );
@@ -78,12 +82,12 @@ const AddForm = ({ fields, onSave, onCancel }: AddFormProps) => {
     <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
       {fields.map((f) => (
         <div key={f.key} className="flex flex-col gap-1">
-          <label className="text-[10px] text-white/40 uppercase tracking-wider">{f.label}</label>
+          <label className="text-[10px] text-white/60 uppercase tracking-wider">{f.label}</label>
           <input
             value={vals[f.key]}
             onChange={(e) => setVals((p) => ({ ...p, [f.key]: e.target.value }))}
             placeholder={f.placeholder}
-            className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
+            className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
           />
         </div>
       ))}
@@ -92,14 +96,14 @@ const AddForm = ({ fields, onSave, onCancel }: AddFormProps) => {
           onClick={onCancel}
           className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
         >
-          Cancel
+          {tc("cancel")}
         </button>
         <button
           onClick={() => { onSave(vals); }}
           className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
           style={{ backgroundColor: "#FFFF00" }}
         >
-          Save
+          {tc("save")}
         </button>
       </div>
     </div>
@@ -113,6 +117,8 @@ interface SubCategoryFormProps {
   onCancel: () => void;
 }
 const SubCategoryForm = ({ categoryOptions, initial, onSave, onCancel }: SubCategoryFormProps) => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const [name, setName] = useState(initial?.name ?? "");
   const [parentCategory, setParentCategory] = useState(initial?.parentCategory ?? "");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -124,23 +130,23 @@ const SubCategoryForm = ({ categoryOptions, initial, onSave, onCancel }: SubCate
   return (
     <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-white/40 uppercase tracking-wider">Sub-Category Name</label>
+        <label className="text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.subCategoryName")}</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Line Array"
-          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
+          placeholder={t("brandCategory.subCategoryNamePlaceholder")}
+          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
         />
       </div>
       <div className="flex flex-col gap-1 relative">
-        <label className="text-[10px] text-white/40 uppercase tracking-wider">Parent Category</label>
+        <label className="text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.parentCategory")}</label>
         <input
           value={parentCategory}
           onChange={(e) => setParentCategory(e.target.value)}
           onFocus={() => setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-          placeholder="Select or type to search…"
-          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
+          placeholder={t("brandCategory.parentCategoryPlaceholder")}
+          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
         />
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-36 overflow-y-auto">
@@ -161,14 +167,14 @@ const SubCategoryForm = ({ categoryOptions, initial, onSave, onCancel }: SubCate
           onClick={onCancel}
           className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
         >
-          Cancel
+          {tc("cancel")}
         </button>
         <button
           onClick={() => onSave({ name, parentCategory })}
           className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
           style={{ backgroundColor: "#FFFF00" }}
         >
-          Save
+          {tc("save")}
         </button>
       </div>
     </div>
@@ -180,6 +186,7 @@ interface BrandCategoryModalProps {
 }
 
 export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.Element => {
+  const { t } = useTranslation("modals");
   const { token, companyId } = useAppStore();
   const qc = useQueryClient();
 
@@ -273,11 +280,11 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFFF00" }}>
               <Tag className="w-4 h-4 text-black" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-wide">Brand &amp; Category Management</h2>
+            <h2 className="text-lg font-bold text-white tracking-wide">{t("brandCategory.title")}</h2>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -289,8 +296,8 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
           <div className="flex-1 flex flex-col border-r border-white/10 p-4 overflow-hidden">
             <div className="flex items-center gap-2 mb-3">
               <Tag className="w-3.5 h-3.5 text-[#FFFF00]" />
-              <h3 className="text-sm font-bold text-white tracking-wide">Brand Management</h3>
-              <span className="ml-auto text-[10px] text-white/25 uppercase tracking-wider">{brands.length} brands</span>
+              <h3 className="text-sm font-bold text-white tracking-wide">{t("brandCategory.brandManagement")}</h3>
+              <span className="ml-auto text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.brandsCount", { count: brands.length })}</span>
             </div>
 
             <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
@@ -314,13 +321,13 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
                     </div>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        className="p-1 rounded text-white/30 hover:text-[#FFFF00] transition-colors"
+                        className="p-1 rounded text-white/60 hover:text-[#FFFF00] transition-colors"
                         onClick={() => { setEditingBrandId(b.id); setShowAddBrand(false); }}
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
                       <button
-                        className="p-1 rounded text-white/30 hover:text-red-400 transition-colors"
+                        className="p-1 rounded text-white/60 hover:text-red-400 transition-colors"
                         onClick={() => deleteBrand.mutate(b.id)}
                       >
                         <Trash2 className="w-3 h-3" />
@@ -342,10 +349,10 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
             {!showAddBrand && (
               <button
                 onClick={() => { setShowAddBrand(true); setEditingBrandId(null); }}
-                className="mt-3 w-full h-9 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/30 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
+                className="mt-3 w-full h-9 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/60 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Add New Brand
+                {t("brandCategory.addNewBrand")}
               </button>
             )}
           </div>
@@ -354,8 +361,8 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
           <div className="flex-1 flex flex-col border-r border-white/10 p-4 overflow-hidden">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="w-3.5 h-3.5 text-[#FFFF00]" />
-              <h3 className="text-sm font-bold text-white tracking-wide">Category Management</h3>
-              <span className="ml-auto text-[10px] text-white/25 uppercase tracking-wider">{categories.length} cats</span>
+              <h3 className="text-sm font-bold text-white tracking-wide">{t("brandCategory.categoryManagement")}</h3>
+              <span className="ml-auto text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.categoriesCount", { count: categories.length })}</span>
             </div>
 
             <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
@@ -373,7 +380,7 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
                   <span className="text-sm font-medium text-white flex-1 truncate">{c.name}</span>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      className="p-1 rounded text-white/30 hover:text-red-400 transition-colors"
+                      className="p-1 rounded text-white/60 hover:text-red-400 transition-colors"
                       onClick={() => deleteCategory.mutate(c.id)}
                     >
                       <Trash2 className="w-3 h-3" />
@@ -385,7 +392,7 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
               {showAddCategory && (
                 <AddForm
                   fields={[
-                    { key: "name", label: "Category Name", placeholder: "e.g. Lighting" },
+                    { key: "name", label: t("brandCategory.categoryNameLabel"), placeholder: t("brandCategory.categoryNamePlaceholder") },
                   ]}
                   onSave={addCategory}
                   onCancel={() => setShowAddCategory(false)}
@@ -396,10 +403,10 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
             {!showAddCategory && (
               <button
                 onClick={() => setShowAddCategory(true)}
-                className="mt-3 w-full h-9 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/30 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
+                className="mt-3 w-full h-9 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/60 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Add New Category
+                {t("brandCategory.addNewCategory")}
               </button>
             )}
           </div>
@@ -408,8 +415,8 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
           <div className="flex-1 flex flex-col p-4 overflow-hidden">
             <div className="flex items-center gap-2 mb-3">
               <GitBranch className="w-3.5 h-3.5 text-[#FFFF00]" />
-              <h3 className="text-sm font-bold text-white tracking-wide">Sub-Category</h3>
-              <span className="ml-auto text-[10px] text-white/25 uppercase tracking-wider">{subCategories.length} subs</span>
+              <h3 className="text-sm font-bold text-white tracking-wide">{t("brandCategory.subCategoryManagement")}</h3>
+              <span className="ml-auto text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.subsCount", { count: subCategories.length })}</span>
             </div>
 
             <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
@@ -423,14 +430,14 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
                     <span className="text-sm font-medium text-white flex-1 truncate">{s.name}</span>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        className="p-1 rounded text-white/30 hover:text-red-400 transition-colors"
+                        className="p-1 rounded text-white/60 hover:text-red-400 transition-colors"
                         onClick={() => deleteSubCategory.mutate(s.id)}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
-                  <span className="text-[10px] text-white/25 pl-3.5">↳ {s.parentCategory}</span>
+                  <span className="text-[10px] text-white/60 pl-3.5">↳ {s.parentCategory}</span>
                 </div>
               ))}
 
@@ -446,10 +453,10 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
             {!showAddSub && (
               <button
                 onClick={() => setShowAddSub(true)}
-                className="mt-3 w-full h-9 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/30 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
+                className="mt-3 w-full h-9 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/60 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Add New Sub-Category
+                {t("brandCategory.addNewSubCategory")}
               </button>
             )}
           </div>

@@ -33,10 +33,8 @@ type AppStore = {
   setActivePage: (page: string) => void;
 
   // ---- Containers UI state ----
-  expandedContainers:   string[];
-  checkedOutContainers: Set<string>;
-  toggleContainer:  (id: string) => void;
-  toggleCheckout:   (id: string) => void;
+  expandedContainers: string[];
+  toggleContainer:    (id: string) => void;
 };
 
 export const useAppStore = create<AppStore>()(
@@ -79,8 +77,7 @@ export const useAppStore = create<AppStore>()(
       setActivePage: (page) => set({ activePage: page }),
 
       // ---- Containers UI ----
-      expandedContainers:   ["C1"],
-      checkedOutContainers: new Set(),
+      expandedContainers: ["C1"],
 
       toggleContainer: (id) =>
         set((state) => ({
@@ -88,13 +85,6 @@ export const useAppStore = create<AppStore>()(
             ? state.expandedContainers.filter((r) => r !== id)
             : [...state.expandedContainers, id],
         })),
-
-      toggleCheckout: (id) =>
-        set((state) => {
-          const next = new Set(state.checkedOutContainers);
-          if (next.has(id)) next.delete(id); else next.add(id);
-          return { checkedOutContainers: next };
-        }),
     }),
     {
       name: "stak-store",

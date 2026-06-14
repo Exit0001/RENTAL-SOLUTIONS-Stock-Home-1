@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { containers, containerUnits, stockUnits, stockItems, insertContainerSchema } from "@shared/schema";
+import { containers, containerUnits, stockUnits, stockItems, jobContainers, jobs, insertContainerSchema } from "@shared/schema";
 
 export const containersRouter = Router();
 
@@ -16,13 +16,32 @@ containersRouter.get("/", async (req, res) => {
     if (result.length === 0) return res.json([]);
 
     const containerIds = result.map((c) => c.id);
+
+    // หา job ที่ container แต่ละตัวถูก assign อยู่ (ถ้ามี)
+    const jobLinks = await db
+      .select()
+      .from(jobContainers)
+      .where(inArray(jobContainers.containerId, containerIds));
+
+    const linkedJobIds = Array.from(new Set(jobLinks.map((l) => l.jobId)));
+    const jobRows = linkedJobIds.length
+      ? await db.select({ id: jobs.id, name: jobs.name }).from(jobs).where(inArray(jobs.id, linkedJobIds))
+      : [];
+    const jobNameMap = Object.fromEntries(jobRows.map((j) => [j.id, j.name]));
+    const containerJobMap = Object.fromEntries(jobLinks.map((l) => [l.containerId, l.jobId]));
+
+    const withJobInfo = (c: typeof result[number]) => ({
+      jobId:   containerJobMap[c.id] ?? null,
+      jobName: containerJobMap[c.id] ? (jobNameMap[containerJobMap[c.id]] ?? null) : null,
+    });
+
     const links = await db
       .select()
       .from(containerUnits)
       .where(inArray(containerUnits.containerId, containerIds));
 
     if (links.length === 0) {
-      return res.json(result.map((c) => ({ ...c, items: [] })));
+      return res.json(result.map((c) => ({ ...c, ...withJobInfo(c), items: [] })));
     }
 
     const unitIds = Array.from(new Set(links.map((l) => l.stockUnitId)));
@@ -42,6 +61,7 @@ containersRouter.get("/", async (req, res) => {
 
     res.json(result.map((c) => ({
       ...c,
+      ...withJobInfo(c),
       items: links
         .filter((l) => l.containerId === c.id)
         .map((l) => unitMap[l.stockUnitId])
@@ -85,9 +105,16 @@ containersRouter.put("/:id/checkout", async (req, res) => {
 
     if (!current) return res.status(404).json({ message: "Container not found" });
 
+    const nextIsOut = !current.isOut;
+
+    // ถ้ากำลัง check in ให้ล้างการผูกกับ job ด้วย
+    if (!nextIsOut) {
+      await db.delete(jobContainers).where(eq(jobContainers.containerId, req.params.id));
+    }
+
     const [updated] = await db
       .update(containers)
-      .set({ isOut: !current.isOut })
+      .set({ isOut: nextIsOut })
       .where(eq(containers.id, req.params.id))
       .returning();
 

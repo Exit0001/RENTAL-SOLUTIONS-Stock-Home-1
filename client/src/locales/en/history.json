@@ -1,0 +1,20 @@
+{
+  "pageTitle": "History & Analytics",
+  "allActivity": "All Activity",
+  "searchPlaceholder": "Search activity...",
+  "activityLogLabel": "Activity Log",
+  "entriesCount": "{{count}} entries",
+  "noActivityMatching": "No activity matching your filters",
+
+  "utilizationByCategory": "Utilization by Category",
+  "fleetHealth": "Fleet Health",
+  "overallHealth": "Overall Health",
+  "assetsOut": "Assets Out",
+  "inMaintenanceLabel": "In Maintenance",
+  "noDataYet": "No data yet",
+
+  "revenueTrend6m": "Revenue Trend (6M)",
+  "revenueLegend": "Revenue",
+  "profitLegend": "Profit",
+  "noRevenueDataYet": "No revenue data yet"
+}

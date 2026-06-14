@@ -2,8 +2,8 @@ import { Router } from "express";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
-  jobs, jobStock, jobCrew, jobUnits, pullSheets, incidents, insertJobSchema,
-  users, activityLog, stockUnits, stockItems,
+  jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, incidents, insertJobSchema,
+  users, activityLog, stockUnits, stockItems, containers, containerUnits,
 } from "@shared/schema";
 
 export const jobsRouter = Router();
@@ -292,6 +292,91 @@ jobsRouter.post("/:id/units", async (req, res) => {
     res.json({ message: "Units updated" });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/jobs/:id/containers — racks/containers ที่ assign ให้ job นี้
+jobsRouter.get("/:id/containers", async (req, res) => {
+  try {
+    const links = await db
+      .select()
+      .from(jobContainers)
+      .where(eq(jobContainers.jobId, req.params.id));
+
+    if (links.length === 0) return res.json([]);
+
+    const containerIds = links.map((l) => l.containerId);
+    const conts = await db
+      .select()
+      .from(containers)
+      .where(inArray(containers.id, containerIds));
+
+    const unitLinks = await db
+      .select()
+      .from(containerUnits)
+      .where(inArray(containerUnits.containerId, containerIds));
+
+    const itemCounts: Record<string, number> = {};
+    for (const l of unitLinks) {
+      itemCounts[l.containerId] = (itemCounts[l.containerId] ?? 0) + 1;
+    }
+
+    res.json(conts.map((c) => ({ ...c, itemCount: itemCounts[c.id] ?? 0 })));
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job containers" });
+  }
+});
+
+// POST /api/jobs/:id/containers — เพิ่ม rack/container เข้า job (ดึง units ที่อยู่ในแร็คเข้า job_units ด้วย)
+jobsRouter.post("/:id/containers", async (req, res) => {
+  try {
+    const { containerId }: { containerId: string } = req.body;
+    if (!containerId) return res.status(400).json({ message: "containerId is required" });
+
+    // container ออกได้กับ job เดียวในเวลาเดียวกัน — ลบการผูกเดิม (ถ้ามี) ก่อน
+    await db.delete(jobContainers).where(eq(jobContainers.containerId, containerId));
+    await db.insert(jobContainers).values({ jobId: req.params.id, containerId });
+    await db.update(containers).set({ isOut: true }).where(eq(containers.id, containerId));
+
+    // ดึงของทั้งหมดที่อยู่ในแร็คตอนนี้ เข้า job_units (ไม่ซ้ำของที่ assign อยู่แล้ว)
+    const unitLinks = await db
+      .select()
+      .from(containerUnits)
+      .where(eq(containerUnits.containerId, containerId));
+
+    if (unitLinks.length > 0) {
+      const unitIds = unitLinks.map((l) => l.stockUnitId);
+      const existing = await db
+        .select()
+        .from(jobUnits)
+        .where(and(eq(jobUnits.jobId, req.params.id), inArray(jobUnits.stockUnitId, unitIds)));
+
+      const existingIds = new Set(existing.map((e) => e.stockUnitId));
+      const newIds = unitIds.filter((id) => !existingIds.has(id));
+
+      if (newIds.length > 0) {
+        await db.insert(jobUnits).values(newIds.map((stockUnitId) => ({ jobId: req.params.id, stockUnitId })));
+      }
+    }
+
+    res.status(201).json({ message: "Container assigned" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// DELETE /api/jobs/:id/containers/:containerId — check rack กลับเข้าคลัง
+jobsRouter.delete("/:id/containers/:containerId", async (req, res) => {
+  try {
+    await db
+      .delete(jobContainers)
+      .where(and(eq(jobContainers.jobId, req.params.id), eq(jobContainers.containerId, req.params.containerId)));
+
+    await db.update(containers).set({ isOut: false }).where(eq(containers.id, req.params.containerId));
+
+    res.json({ message: "Container removed from job" });
+  } catch {
+    res.status(500).json({ message: "Failed to remove container from job" });
   }
 });
 

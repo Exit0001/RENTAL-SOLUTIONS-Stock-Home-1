@@ -1,0 +1,20 @@
+{
+  "pageTitle": "ประวัติและการวิเคราะห์",
+  "allActivity": "กิจกรรมทั้งหมด",
+  "searchPlaceholder": "ค้นหากิจกรรม...",
+  "activityLogLabel": "บันทึกกิจกรรม",
+  "entriesCount": "{{count}} รายการ",
+  "noActivityMatching": "ไม่พบกิจกรรมที่ตรงกับตัวกรอง",
+
+  "utilizationByCategory": "การใช้งานตามหมวดหมู่",
+  "fleetHealth": "สุขภาพของกองอุปกรณ์",
+  "overallHealth": "สุขภาพโดยรวม",
+  "assetsOut": "อุปกรณ์ที่ออกใช้งาน",
+  "inMaintenanceLabel": "อยู่ระหว่างซ่อมบำรุง",
+  "noDataYet": "ยังไม่มีข้อมูล",
+
+  "revenueTrend6m": "แนวโน้มรายรับ (6 เดือน)",
+  "revenueLegend": "รายรับ",
+  "profitLegend": "กำไร",
+  "noRevenueDataYet": "ยังไม่มีข้อมูลรายได้"
+}

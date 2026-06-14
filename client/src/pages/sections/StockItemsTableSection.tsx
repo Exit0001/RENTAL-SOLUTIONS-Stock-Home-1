@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon } from "lucide-react";
+import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon, Layers } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Table,
   TableBody,
@@ -11,11 +12,13 @@ import {
 } from "@/components/ui/table";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
+import type { StockUnitWithContainer } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
 
 type StockItemWithCount = StockItem & { unitCount: number; availableCount: number };
 
 const AvailabilityBadge = ({ available, total }: { available: number; total: number }) => {
+  const { t } = useTranslation("stock");
   const allAvailable  = available === total && total > 0;
   const noneAvailable = available === 0;
   const partial       = !allAvailable && !noneAvailable;
@@ -27,7 +30,7 @@ const AvailabilityBadge = ({ available, total }: { available: number; total: num
     : "bg-red-950/60 text-red-400 border-red-800/40";
 
   const dot = allAvailable ? "bg-emerald-400" : partial ? "bg-amber-400" : "bg-red-400";
-  const label = allAvailable ? "All Available" : noneAvailable ? "Unavailable" : `${available} / ${total}`;
+  const label = allAvailable ? t("allAvailable") : noneAvailable ? t("unavailable") : t("availableOfTotal", { available, total });
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${color}`}>
@@ -37,26 +40,30 @@ const AvailabilityBadge = ({ available, total }: { available: number; total: num
   );
 };
 
-const ActionIcons = ({ onView, onEdit }: { onView?: () => void; onEdit?: () => void }) => (
-  <div className="flex items-center gap-1">
-    <button onClick={(e) => { e.stopPropagation(); onView?.(); }}
-      className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors" title="View details">
-      <Eye className="w-4 h-4" />
-    </button>
-    <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-      className="p-1.5 rounded-md text-white/60 hover:bg-white/10 transition-colors" title="Edit"
-      style={{ color: "inherit" }}
-      onMouseEnter={e => (e.currentTarget.style.color = "#FFFF00")}
-      onMouseLeave={e => (e.currentTarget.style.color = "")}
-    >
-      <Pencil className="w-4 h-4" />
-    </button>
-    <button onClick={(e) => e.stopPropagation()}
-      className="p-1.5 rounded-md text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title="Delete">
-      <Trash2 className="w-4 h-4" />
-    </button>
-  </div>
-);
+const ActionIcons = ({ onView, onEdit }: { onView?: () => void; onEdit?: () => void }) => {
+  const { t } = useTranslation("stock");
+  const { t: tc } = useTranslation("common");
+  return (
+    <div className="flex items-center gap-1">
+      <button onClick={(e) => { e.stopPropagation(); onView?.(); }}
+        className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors" title={t("viewDetails")}>
+        <Eye className="w-4 h-4" />
+      </button>
+      <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+        className="p-1.5 rounded-md text-white/60 hover:bg-white/10 transition-colors" title={tc("edit")}
+        style={{ color: "inherit" }}
+        onMouseEnter={e => (e.currentTarget.style.color = "#FFFF00")}
+        onMouseLeave={e => (e.currentTarget.style.color = "")}
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
+      <button onClick={(e) => e.stopPropagation()}
+        className="p-1.5 rounded-md text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title={tc("delete")}>
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
 
 const toInputDate = (d: string | Date | null | undefined) => {
   if (!d) return "";
@@ -73,6 +80,8 @@ const fmtDate = (d: string | Date | null | undefined) => {
 };
 
 const UnitRows = ({ itemId }: { itemId: string }) => {
+  const { t } = useTranslation("stock");
+  const { t: tc } = useTranslation("common");
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -128,19 +137,19 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
     return (
       <TableRow className="bg-[#0e0e0e] hover:bg-[#0e0e0e]">
         <TableCell colSpan={6} className="py-3 pl-16">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-white/60" />
         </TableCell>
       </TableRow>
     );
   }
 
-  const units: StockUnit[] = data?.units ?? [];
+  const units: StockUnitWithContainer[] = data?.units ?? [];
 
   if (units.length === 0) {
     return (
       <TableRow className="bg-[#0e0e0e] hover:bg-[#0e0e0e]">
-        <TableCell colSpan={6} className="py-2.5 pl-16 text-xs text-white/20 italic">
-          ยังไม่มี units — ใช้ "Add Individual Unit" เพื่อเพิ่ม
+        <TableCell colSpan={6} className="py-2.5 pl-16 text-xs text-white/60 italic">
+          {t("noUnitsRow")}
         </TableCell>
       </TableRow>
     );
@@ -153,15 +162,15 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
       {/* Sub-header */}
       <TableRow className="bg-[#0b0b0b] hover:bg-[#0b0b0b]">
         <TableCell colSpan={6} className="py-1.5 pl-16 pr-4">
-          <div className="grid gap-x-3 text-[10px] font-bold text-white/25 uppercase tracking-wider pr-20"
+          <div className="grid gap-x-3 text-[10px] font-bold text-white/60 uppercase tracking-wider pr-20"
             style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
-            <span>Unit Name</span>
-            <span>Serial No.</span>
-            <span>Barcode</span>
-            <span>Location</span>
-            <span>Purchased</span>
-            <span>Warranty Exp.</span>
-            <span>Status</span>
+            <span>{t("colUnitName")}</span>
+            <span>{t("colSerialNo")}</span>
+            <span>{tc("barcode")}</span>
+            <span>{tc("location")}</span>
+            <span>{t("colPurchased")}</span>
+            <span>{t("colWarrantyExp")}</span>
+            <span>{tc("status")}</span>
           </div>
         </TableCell>
       </TableRow>
@@ -187,23 +196,23 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
                 <div className="flex flex-col gap-2">
                   <div className="grid gap-x-3 items-center"
                     style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
-                    <input className={inputCls} value={form.name}              onChange={f("name")}              placeholder="Unit name" />
-                    <input className={`${inputCls} font-mono`} value={form.serialNumber}   onChange={f("serialNumber")}   placeholder="Serial no." />
-                    <input className={`${inputCls} font-mono`} value={form.barcode}        onChange={f("barcode")}        placeholder="Barcode" />
-                    <input className={inputCls} value={form.location}          onChange={f("location")}          placeholder="Location" />
+                    <input className={inputCls} value={form.name}              onChange={f("name")}              placeholder={t("unitNamePlaceholder")} />
+                    <input className={`${inputCls} font-mono`} value={form.serialNumber}   onChange={f("serialNumber")}   placeholder={t("serialNoPlaceholder")} />
+                    <input className={`${inputCls} font-mono`} value={form.barcode}        onChange={f("barcode")}        placeholder={tc("barcode")} />
+                    <input className={inputCls} value={form.location}          onChange={f("location")}          placeholder={tc("location")} />
                     <input type="date" className={`${inputCls} [color-scheme:dark]`} value={form.purchasedAt}  onChange={f("purchasedAt")} />
                     <input type="date" className={`${inputCls} [color-scheme:dark]`} value={form.warrantyExpiresAt} onChange={f("warrantyExpiresAt")} />
                     <select className={`${inputCls} appearance-none cursor-pointer`} value={form.status} onChange={f("status")}>
-                      <option value="available"   className="bg-[#111]">Available</option>
-                      <option value="out"         className="bg-[#111]">Out</option>
-                      <option value="maintenance" className="bg-[#111]">Maintenance</option>
-                      <option value="retired"     className="bg-[#111]">Retired</option>
+                      <option value="available"   className="bg-[#111]">{tc("statusEnum.available")}</option>
+                      <option value="out"         className="bg-[#111]">{tc("statusEnum.out")}</option>
+                      <option value="maintenance" className="bg-[#111]">{tc("statusEnum.maintenance")}</option>
+                      <option value="retired"     className="bg-[#111]">{tc("statusEnum.retired")}</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-2 justify-end">
                     <button onClick={() => setEditingId(null)}
-                      className="h-7 px-3 rounded text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 transition-colors">
-                      Cancel
+                      className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-colors">
+                      {tc("cancel")}
                     </button>
                     <button
                       onClick={() => saveEdit(unit.id)}
@@ -212,7 +221,7 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
                       style={{ backgroundColor: "#FFFF00" }}
                     >
                       {updateUnit.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                      Save
+                      {tc("save")}
                     </button>
                   </div>
                 </div>
@@ -225,37 +234,42 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
                     <span className="text-white/50 font-mono text-xs truncate">{unit.serialNumber ?? "—"}</span>
                     <span className="text-white/50 font-mono text-xs truncate">{unit.barcode ?? "—"}</span>
                     <span className="text-white/50 text-xs truncate">{unit.location ?? "—"}</span>
-                    <span className="text-white/45 text-xs">{fmtDate(wExp ? wExp : null) ? fmtDate((unit as any).purchasedAt) : <span className="text-white/20">—</span>}</span>
-                    <span className={`text-xs ${expired ? "text-red-400 font-semibold" : soon ? "text-amber-400 font-semibold" : "text-white/45"}`}>
+                    <span className="text-white/60 text-xs">{fmtDate(wExp ? wExp : null) ? fmtDate((unit as any).purchasedAt) : <span className="text-white/60">—</span>}</span>
+                    <span className={`text-xs ${expired ? "text-red-400 font-semibold" : soon ? "text-amber-400 font-semibold" : "text-white/60"}`}>
                       {wDate ? (
                         <>{fmtDate(wExp)}{expired && " ⚠"}{soon && " !"}</>
-                      ) : <span className="text-white/20">—</span>}
+                      ) : <span className="text-white/60">—</span>}
                     </span>
                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold w-fit
                       ${unit.status === "available"  ? "bg-emerald-950/60 text-emerald-400" :
                         unit.status === "maintenance" ? "bg-amber-950/60 text-amber-400" :
                         unit.status === "out"         ? "bg-blue-950/60 text-blue-400" :
-                        "bg-white/[0.06] text-white/40"}`}>
+                        "bg-white/[0.06] text-white/60"}`}>
                       <span className={`w-1 h-1 rounded-full ${
                         unit.status === "available"  ? "bg-emerald-400" :
                         unit.status === "maintenance" ? "bg-amber-400" :
                         unit.status === "out"         ? "bg-blue-400" : "bg-white/30"}`} />
-                      {unit.status.toUpperCase()}
+                      {tc(`statusEnum.${unit.status}`, { defaultValue: unit.status }).toUpperCase()}
                     </span>
                   </div>
                   {/* Edit button */}
                   <button
                     onClick={() => startEdit(unit)}
-                    className="flex-shrink-0 p-1.5 rounded text-white/30 hover:text-[#FFFF00] hover:bg-[#FFFF00]/10 transition-colors"
-                    title="Edit unit"
+                    className="flex-shrink-0 p-1.5 rounded text-white/60 hover:text-[#FFFF00] hover:bg-[#FFFF00]/10 transition-colors"
+                    title={t("editUnit")}
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
               {!isEditing && (
-                <div className="mt-0.5 text-[10px] text-white/15 pl-0">
-                  Added {fmtDate(unit.createdAt) ?? "—"}
+                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/40 pl-0">
+                  <span>{t("addedOn", { date: fmtDate(unit.createdAt) ?? "—" })}</span>
+                  {unit.containerName && (
+                    <span className="inline-flex items-center gap-1 text-[#FFFF00]/40">
+                      <Layers className="w-2.5 h-2.5" /> {t("inContainer", { name: unit.containerName })}
+                    </span>
+                  )}
                 </div>
               )}
             </TableCell>
@@ -281,6 +295,8 @@ export const StockItemsTableSection = ({
   onViewItem,
   selectedItemId,
 }: StockItemsTableProps): JSX.Element => {
+  const { t } = useTranslation("stock");
+  const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
   const [expandedRows, setExpandedRows]           = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -349,14 +365,14 @@ export const StockItemsTableSection = ({
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
         <Package className="w-5 h-5 text-[#FFFF00]" />
-        <h2 className="font-bold text-[#FFFF00] text-base tracking-widest uppercase">Stock Items</h2>
-        <div className="ml-auto flex items-center gap-3 text-xs text-white/30 font-medium">
-          {isFiltering && <span className="text-[#FFFF00]/50">filtered ·</span>}
-          <span>{grouped.length} {grouped.length === 1 ? "category" : "categories"}</span>
-          <span className="text-white/10">·</span>
-          <span>{totalItems} models</span>
-          <span className="text-white/10">·</span>
-          <span>{totalUnits} units</span>
+        <h2 className="font-bold text-[#FFFF00] text-base tracking-widest uppercase">{t("stockItems")}</h2>
+        <div className="ml-auto flex items-center gap-3 text-xs text-white/60 font-medium">
+          {isFiltering && <span className="text-[#FFFF00]/50">{t("filteredLabel")} ·</span>}
+          <span>{t("categoryCount", { count: grouped.length })}</span>
+          <span className="text-white/40">·</span>
+          <span>{t("modelsCount", { count: totalItems })}</span>
+          <span className="text-white/40">·</span>
+          <span>{t("unitsCount", { count: totalUnits })}</span>
         </div>
       </div>
 
@@ -373,12 +389,12 @@ export const StockItemsTableSection = ({
 
           <TableHeader>
             <TableRow className="border-white/10 hover:bg-transparent">
-              <TableHead className="py-3 pl-6 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">Name</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">Brand</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">Sub-Category</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">Qty</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">Status</TableHead>
-              <TableHead className="py-3 pr-6 text-right font-bold text-[#FFFF00] text-xs uppercase tracking-wider">Actions</TableHead>
+              <TableHead className="py-3 pl-6 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("name")}</TableHead>
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("brand")}</TableHead>
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{t("colSubCategory")}</TableHead>
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{t("colQty")}</TableHead>
+              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("status")}</TableHead>
+              <TableHead className="py-3 pr-6 text-right font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("actions")}</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -417,8 +433,8 @@ export const StockItemsTableSection = ({
               <TableRow>
                 <TableCell colSpan={6} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <Package className="w-8 h-8 text-white/10" />
-                    <p className="text-white/30 text-sm">No items match your filters</p>
+                    <Package className="w-8 h-8 text-white/40" />
+                    <p className="text-white/60 text-sm">{t("noItemsMatchFilters")}</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -448,15 +464,15 @@ export const StockItemsTableSection = ({
                         )}
                         <Boxes className="w-3.5 h-3.5 text-[#FFFF00]/40 flex-shrink-0" />
                         <span className="font-bold text-sm text-[#FFFF00]">{category}</span>
-                        <span className="text-xs text-white/30 ml-1">
-                          {items.length} models · {catTotalUnits} units
+                        <span className="text-xs text-white/60 ml-1">
+                          {t("modelsCount", { count: items.length })} · {t("unitsCount", { count: catTotalUnits })}
                         </span>
                         <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold
                           ${allAvail  ? "bg-emerald-950/40 text-emerald-500" :
                             noneAvail ? "bg-red-950/40 text-red-500" :
                             "bg-amber-950/40 text-amber-500"}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${allAvail ? "bg-emerald-500" : noneAvail ? "bg-red-500" : "bg-amber-500"}`} />
-                          {allAvail ? "All Available" : noneAvail ? "None Available" : `${catAvail} available`}
+                          {allAvail ? t("allAvailable") : noneAvail ? t("noneAvailable") : t("countAvailable", { count: catAvail })}
                         </span>
                       </div>
                     </TableCell>
@@ -480,7 +496,7 @@ export const StockItemsTableSection = ({
                             <div className="flex items-center gap-2">
                               <ChevronRightIcon
                                 className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${
-                                  isExpanded ? "rotate-90 text-[#FFFF00]" : "text-white/30"
+                                  isExpanded ? "rotate-90 text-[#FFFF00]" : "text-white/60"
                                 }`}
                               />
                               <span className={`font-medium text-sm truncate ${isSelected ? "text-[#FFFF00]" : "text-white/90"}`}>

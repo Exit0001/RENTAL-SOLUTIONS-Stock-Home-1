@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Layers, Hash, Trash2, Package } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, catalogApi } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
@@ -28,14 +29,14 @@ const InputField = ({
   label: string; placeholder: string; value: string; onChange: (v: string) => void;
 }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">{label}</label>
+    <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3
-        placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+        placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
     />
   </div>
 );
@@ -58,6 +59,8 @@ interface Props {
 }
 
 export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Element => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
 
   const { data: stockItems = [] } = useQuery({
@@ -84,12 +87,12 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
   const generateUnits = () => {
     const q = parseInt(qty) || 1;
     const start = parseInt(startNum) || 1;
-    const baseName = parentItemName || "Unit";
+    const baseName = parentItemName || t("addIndividualUnit.unitFallback");
     const newUnits: DraftUnit[] = Array.from({ length: q }, (_, i) => {
       const num = String(start + i).padStart(2, "0");
       return {
         id: Date.now() + i,
-        unitName: `${baseName} - Unit ${num}`,
+        unitName: t("addIndividualUnit.generatedUnitName", { base: baseName, num }),
         serialNumber: "",
         barcodeNumber: `${prefix}-${num}`,
         storageLocation: defaultLocation,
@@ -136,13 +139,13 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
               <Layers className="w-4 h-4 text-black" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Add Individual Units</h2>
-              <p className="text-[10px] text-white/30">Generate and configure individual unit records</p>
+              <h2 className="text-base font-bold text-white">{t("addIndividualUnit.title")}</h2>
+              <p className="text-[10px] text-white/60">{t("addIndividualUnit.subtitle")}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -153,16 +156,16 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
 
           {/* Parent Item search */}
           <div className="flex flex-col gap-1.5 relative">
-            <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Parent Item</label>
+            <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("addIndividualUnit.parentItem")}</label>
             <input
               type="text"
               value={parentItemName}
               onChange={(e) => { setParentItemName(e.target.value); setParentItemId(null); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              placeholder="Type or select a parent item…"
+              placeholder={t("addIndividualUnit.parentItemPlaceholder")}
               className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3
-                placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
             />
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-44">
@@ -182,13 +185,13 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
           {/* Generation controls */}
           <div className="flex items-end gap-3">
             <div className="w-24">
-              <InputField label="Quantity" placeholder="1" value={qty} onChange={setQty} />
+              <InputField label={tc("quantity")} placeholder="1" value={qty} onChange={setQty} />
             </div>
             <div className="w-36">
-              <InputField label="Barcode Prefix" placeholder="e.g. DBJ8" value={prefix} onChange={setPrefix} />
+              <InputField label={t("addIndividualUnit.barcodePrefix")} placeholder={t("addIndividualUnit.barcodePrefixPlaceholder")} value={prefix} onChange={setPrefix} />
             </div>
             <div className="w-32">
-              <InputField label="Start Number" placeholder="1" value={startNum} onChange={setStartNum} />
+              <InputField label={t("addIndividualUnit.startNumber")} placeholder="1" value={startNum} onChange={setStartNum} />
             </div>
             <button
               onClick={generateUnits}
@@ -197,11 +200,11 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
               style={{ backgroundColor: "#FFFF00" }}
             >
               <Hash className="w-3.5 h-3.5" />
-              Generate
+              {t("addIndividualUnit.generate")}
             </button>
           </div>
           {!parentItemId && (
-            <p className="text-[10px] text-white/20 -mt-3">Select an existing parent item from the suggestions to generate units.</p>
+            <p className="text-[10px] text-white/60 -mt-3">{t("addIndividualUnit.selectParentHint")}</p>
           )}
 
           {/* Units table */}
@@ -211,13 +214,13 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
                 className="grid text-[10px] text-[#FFFF00]/40 uppercase tracking-wider font-semibold bg-black/20 px-3 py-2"
                 style={{ gridTemplateColumns: "2fr 1.2fr 1.2fr 1.4fr 1.1fr 1.1fr 1.1fr 32px" }}
               >
-                <span>Unit Name</span>
-                <span>Serial No.</span>
-                <span>Barcode</span>
-                <span>Location</span>
-                <span>Purchased</span>
-                <span>Warranty Exp.</span>
-                <span>Status</span>
+                <span>{t("addIndividualUnit.colUnitName")}</span>
+                <span>{t("addIndividualUnit.colSerialNo")}</span>
+                <span>{tc("barcode")}</span>
+                <span>{tc("location")}</span>
+                <span>{t("addIndividualUnit.colPurchased")}</span>
+                <span>{t("addIndividualUnit.colWarrantyExp")}</span>
+                <span>{tc("status")}</span>
                 <span />
               </div>
               <div className="max-h-72 overflow-y-auto">
@@ -272,12 +275,12 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
                           : "bg-red-950/50 border-red-800/40 text-red-400"
                       }`}
                     >
-                      <option value="available" className="bg-[#111] text-white">Available</option>
-                      <option value="maintenance" className="bg-[#111] text-white">Maintenance</option>
+                      <option value="available" className="bg-[#111] text-white">{tc("statusEnum.available")}</option>
+                      <option value="maintenance" className="bg-[#111] text-white">{tc("statusEnum.maintenance")}</option>
                     </select>
                     <button
                       onClick={() => removeUnit(u.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center rounded text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -286,9 +289,9 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-14 text-white/15 border border-dashed border-white/[0.06] rounded-xl">
+            <div className="flex flex-col items-center justify-center py-14 text-white/40 border border-dashed border-white/[0.06] rounded-xl">
               <Package className="w-9 h-9 mb-2" />
-              <p className="text-sm">Select a parent item, set quantity and click Generate</p>
+              <p className="text-sm">{t("addIndividualUnit.emptyStateHint")}</p>
             </div>
           )}
         </div>
@@ -297,12 +300,12 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
         <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] flex-shrink-0">
           <button
             onClick={onClose}
-            className="h-9 px-4 rounded-lg border border-white/10 text-sm text-white/40 hover:text-white hover:border-white/20 transition-colors"
+            className="h-9 px-4 rounded-lg border border-white/10 text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors"
           >
-            Cancel
+            {tc("cancel")}
           </button>
-          <div className="text-xs text-white/20">
-            {units.length > 0 ? `${units.length} unit${units.length !== 1 ? "s" : ""} ready to save` : "No units added yet"}
+          <div className="text-xs text-white/60">
+            {units.length > 0 ? t("addIndividualUnit.unitsReady", { count: units.length }) : t("addIndividualUnit.noUnitsAddedYet")}
           </div>
           <button
             onClick={handleSave}
@@ -310,7 +313,7 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
             className="h-9 px-6 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-30 disabled:pointer-events-none"
             style={{ backgroundColor: "#FFFF00" }}
           >
-            Save Units
+            {t("addIndividualUnit.saveUnits")}
           </button>
         </div>
       </div>

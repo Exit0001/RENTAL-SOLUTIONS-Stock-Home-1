@@ -29,37 +29,41 @@ import { StockFilterControlsSection } from "./StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./StockFilterSidebarSection";
 import { StockItemsTableSection } from "./StockItemsTableSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { containersApi, maintenanceApi, stockApi } from "@/api";
 import type { ContainerWithItems } from "@/api";
 
 type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
 
-const stockTabs: { key: StockTab; label: string; icon: typeof Package }[] = [
-  { key: "inventory",  label: "Inventory",   icon: Package },
-  { key: "containers", label: "Containers",  icon: Box },
-  { key: "maintenance",label: "Maintenance", icon: Wrench },
-  { key: "subrentals", label: "Sub-Rentals", icon: ArrowRightLeft },
+const stockTabs: { key: StockTab; labelKey: string; icon: typeof Package }[] = [
+  { key: "inventory",  labelKey: "tabInventory",   icon: Package },
+  { key: "containers", labelKey: "tabContainers",  icon: Box },
+  { key: "maintenance",labelKey: "tabMaintenance", icon: Wrench },
+  { key: "subrentals", labelKey: "tabSubRentals",  icon: ArrowRightLeft },
 ];
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   available:   { bg: "bg-emerald-950/60", text: "text-emerald-400", dot: "bg-emerald-400" },
   out:         { bg: "bg-blue-950/60",    text: "text-blue-400",    dot: "bg-blue-400" },
   maintenance: { bg: "bg-amber-950/60",   text: "text-amber-400",   dot: "bg-amber-400" },
-  retired:     { bg: "bg-white/5",        text: "text-white/30",    dot: "bg-white/20" },
+  retired:     { bg: "bg-white/5",        text: "text-white/60",    dot: "bg-white/20" },
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
+  const { t } = useTranslation("common");
   const s = statusColors[status] || statusColors.available;
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${s.bg} ${s.text} border border-current/20`}>
       <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${s.dot}`} />
-      {status}
+      {t(`statusEnum.${status}`, { defaultValue: status })}
     </span>
   );
 };
 
 export const StockPage = (): JSX.Element => {
+  const { t } = useTranslation("stock");
+  const { t: tc } = useTranslation("common");
   // state ที่ยังเป็น local อยู่ (เฉพาะหน้านี้ ไม่จำเป็นต้อง share)
   const [activeTab, setActiveTab] = useState<StockTab>("inventory");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -77,7 +81,7 @@ export const StockPage = (): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  const { token, expandedContainers, checkedOutContainers, toggleContainer, toggleCheckout } = useAppStore();
+  const { token, expandedContainers, toggleContainer } = useAppStore();
   const qc = useQueryClient();
 
   // ดึง containers จาก API (token ถูกส่งอัตโนมัติจาก api client)
@@ -91,6 +95,12 @@ export const StockPage = (): JSX.Element => {
   const createContainer = useMutation({
     mutationFn: (data: Parameters<typeof containersApi.create>[0]) =>
       containersApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+  });
+
+  // Mutation สำหรับ check in/out container
+  const toggleContainerCheckout = useMutation({
+    mutationFn: (id: string) => containersApi.toggleCheckout(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
   });
 
@@ -222,9 +232,9 @@ export const StockPage = (): JSX.Element => {
       )}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
-        {stockTabs.map((t) => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === t.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/30 hover:text-white/50"}`} data-testid={`tab-stock-${t.key}`}>
-            <t.icon className="w-3.5 h-3.5" />{t.label}
+        {stockTabs.map((tab) => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"}`} data-testid={`tab-stock-${tab.key}`}>
+            <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -281,47 +291,51 @@ export const StockPage = (): JSX.Element => {
           {/* Action bar */}
           <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
             <ScanLine className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
-            <span className="text-sm text-white/30">Scan a container barcode to instantly view all contents</span>
+            <span className="text-sm text-white/60">{t("scanContainerHint")}</span>
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => setAddContainerOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "#FFFF00" }}
               >
-                <Plus className="w-4 h-4" /> Add Container
+                <Plus className="w-4 h-4" /> {t("addContainer")}
               </button>
             </div>
           </div>
 
           <div className="flex-1 overflow-auto p-6 space-y-3">
           {containers.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-white/15">
+            <div className="flex flex-col items-center justify-center py-20 text-white/40">
               <Layers className="w-10 h-10 mb-3" />
-              <p className="text-sm">No containers yet — add your first one above</p>
+              <p className="text-sm">{t("noContainersYet")}</p>
             </div>
           )}
 
           {containers.map((c) => {
             const expanded = expandedContainers.includes(c.id);
-            const isOut = checkedOutContainers.has(c.id);
+            const isOut = c.isOut;
             const readyCount = c.items.filter((i) => i.status === "available").length;
             return (
               <div key={c.id} className={`bg-[#111] border rounded-xl overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-white/[0.06]"}`} data-testid={`container-${c.id}`}>
                 <div className="flex items-center gap-3 px-4 py-3">
                   <div onClick={() => toggleContainer(c.id)} className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity">
-                    <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${expanded ? "rotate-90 text-[#FFFF00]" : "text-white/30"}`} />
+                    <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${expanded ? "rotate-90 text-[#FFFF00]" : "text-white/60"}`} />
                     <Layers className={`w-4 h-4 ${isOut ? "text-blue-400/60" : "text-[#FFFF00]/60"}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-white/90 text-sm">{c.name}</span>
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isOut ? "bg-blue-500/15 text-blue-400" : "bg-[#FFFF00]/10 text-[#FFFF00]/70"}`}>{c.type}</span>
-                        {isOut && <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400">Out on Job</span>}
+                        {isOut && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400">
+                            {c.jobName ? t("outOnJob", { jobName: c.jobName }) : t("checkedOut")}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-white/30 mt-0.5">
+                      <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
                         <span>{c.location}</span>
                         <span className="font-mono">{c.barcode}</span>
-                        {c.items.length > 0 && <span>{readyCount}/{c.items.length} ready</span>}
-                        {c.items.length === 0 && <span className="italic">Empty — assign items below</span>}
+                        {c.items.length > 0 && <span>{t("readyOfTotal", { ready: readyCount, total: c.items.length })}</span>}
+                        {c.items.length === 0 && <span className="italic">{t("emptyAssignBelow")}</span>}
                       </div>
                     </div>
                   </div>
@@ -329,36 +343,37 @@ export const StockPage = (): JSX.Element => {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => setAssignContainer(c)}
-                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-white/10 text-[11px] text-white/40 hover:text-white hover:border-white/20 transition-colors"
-                      title="Assign items to this container"
+                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-white/10 text-[11px] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                      title={t("assignItemsTooltip")}
                     >
-                      <PackagePlus className="w-3 h-3" /> Assign
+                      <PackagePlus className="w-3 h-3" /> {t("assign")}
                     </button>
                     <button
-                      onClick={() => toggleCheckout(c.id)}
-                      className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-all ${
+                      onClick={() => toggleContainerCheckout.mutate(c.id)}
+                      disabled={toggleContainerCheckout.isPending}
+                      className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-40 ${
                         isOut
                           ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
                           : "bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20"
                       }`}
                     >
-                      {isOut ? <><LogIn className="w-3 h-3" /> Check In</> : <><LogOut className="w-3 h-3" /> Check Out</>}
+                      {isOut ? <><LogIn className="w-3 h-3" /> {t("checkIn")}</> : <><LogOut className="w-3 h-3" /> {t("checkOut")}</>}
                     </button>
                   </div>
                 </div>
                 {expanded && (
                   <div className="border-t border-white/[0.04]">
                     {c.items.length === 0 ? (
-                      <div className="flex items-center gap-2 px-12 py-4 text-xs text-white/20 italic">
+                      <div className="flex items-center gap-2 px-12 py-4 text-xs text-white/60 italic">
                         <PackagePlus className="w-3.5 h-3.5" />
-                        No items assigned — click Assign to add items from inventory
+                        {t("noItemsAssigned")}
                       </div>
                     ) : (
                       c.items.map((item, i) => (
                         <div key={item.id} className="animate-slide-down flex items-center gap-3 px-4 py-2 pl-12 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
                           <span className="text-sm text-white/60 flex-1">{item.name}</span>
-                          <span className="text-[10px] text-white/25">{item.category}</span>
-                          <span className="text-xs font-mono text-white/30">{item.serialNumber ?? "—"}</span>
+                          <span className="text-[10px] text-white/60">{item.category}</span>
+                          <span className="text-xs font-mono text-white/60">{item.serialNumber ?? "—"}</span>
                           <StatusBadge status={item.status} />
                         </div>
                       ))
@@ -377,15 +392,15 @@ export const StockPage = (): JSX.Element => {
           {/* Action bar */}
           <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
             <Wrench className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
-            <span className="text-sm font-semibold text-white/50">Maintenance Log</span>
-            <span className="text-xs text-white/20">{maintenanceLogs.length} records</span>
+            <span className="text-sm font-semibold text-white/50">{t("maintenanceLog")}</span>
+            <span className="text-xs text-white/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
             <div className="ml-auto">
               <button
                 onClick={() => setAddMaintenanceLogOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "#FFFF00" }}
               >
-                <Plus className="w-4 h-4" /> Add Log
+                <Plus className="w-4 h-4" /> {t("addLog")}
               </button>
             </div>
           </div>
@@ -394,19 +409,19 @@ export const StockPage = (): JSX.Element => {
           <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
               <Wrench className="w-4 h-4 text-[#FFFF00]" />
-              <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">Maintenance Log</span>
-              <span className="text-[10px] text-white/20">{maintenanceLogs.length} records</span>
+              <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("maintenanceLog")}</span>
+              <span className="text-[10px] text-white/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
             </div>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
-                  <th className="py-2.5 pl-4 text-left font-semibold">Asset</th>
-                  <th className="py-2.5 text-left font-semibold">Type</th>
-                  <th className="py-2.5 text-left font-semibold">Description</th>
-                  <th className="py-2.5 text-left font-semibold">Date</th>
-                  <th className="py-2.5 text-left font-semibold">Tech</th>
-                  <th className="py-2.5 text-left font-semibold">Cost</th>
-                  <th className="py-2.5 pr-4 text-right font-semibold">Status</th>
+                  <th className="py-2.5 pl-4 text-left font-semibold">{t("colAsset")}</th>
+                  <th className="py-2.5 text-left font-semibold">{t("colType")}</th>
+                  <th className="py-2.5 text-left font-semibold">{tc("description")}</th>
+                  <th className="py-2.5 text-left font-semibold">{tc("date")}</th>
+                  <th className="py-2.5 text-left font-semibold">{t("colTech")}</th>
+                  <th className="py-2.5 text-left font-semibold">{t("colCost")}</th>
+                  <th className="py-2.5 pr-4 text-right font-semibold">{tc("status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -427,18 +442,18 @@ export const StockPage = (): JSX.Element => {
                     <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{log.stockUnitId ?? "—"}</td>
                     <td className="py-2.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        log.type === "repair" ? "bg-red-500/10 text-red-400" : log.type === "preventive" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/40"
-                      }`}>{log.type}</span>
+                        log.type === "repair" ? "bg-red-500/10 text-red-400" : log.type === "preventive" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/60"
+                      }`}>{tc(`statusEnum.${log.type}`, { defaultValue: log.type })}</span>
                     </td>
                     <td className="py-2.5 text-white/50 max-w-[250px] truncate">{log.description}</td>
-                    <td className="py-2.5 text-white/30 text-xs">{new Date(log.date).toLocaleDateString("en-GB")}</td>
+                    <td className="py-2.5 text-white/60 text-xs">{new Date(log.date).toLocaleDateString("en-GB")}</td>
                     <td className="py-2.5 text-white/50">{log.techId ?? "—"}</td>
                     <td className="py-2.5 text-white/60 font-semibold">
                       <span className="inline-flex items-center gap-1.5">
                         {log.cost ? `£${log.cost}` : "—"}
                         {log.receiptUrl && (
                           <a href={log.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
-                            className="text-white/20 hover:text-[#FFFF00] transition-colors">
+                            className="text-white/60 hover:text-[#FFFF00] transition-colors">
                             <Receipt className="w-3 h-3" />
                           </a>
                         )}
@@ -447,7 +462,7 @@ export const StockPage = (): JSX.Element => {
                     <td className="py-2.5 pr-4 text-right">
                       <span className={`inline-flex items-center gap-1 text-xs font-medium ${log.status === "completed" ? "text-emerald-400" : "text-amber-400"}`}>
                         {log.status === "completed" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                        {log.status}
+                        {tc(`statusEnum.${log.status}`, { defaultValue: log.status })}
                       </span>
                     </td>
                   </tr>
@@ -464,11 +479,11 @@ export const StockPage = (): JSX.Element => {
           {/* Action bar */}
           <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
             <ArrowRightLeft className="w-4 h-4 text-purple-400/70 flex-shrink-0" />
-            <span className="text-sm font-semibold text-white/50">Sub-Rentals</span>
-            <span className="text-xs text-white/20">{subRentals.length} active</span>
+            <span className="text-sm font-semibold text-white/50">{t("tabSubRentals")}</span>
+            <span className="text-xs text-white/60">{t("activeCount", { count: subRentals.length })}</span>
             <span className="flex items-center gap-1.5 text-xs text-purple-400/50 ml-2">
               <Shield className="w-3 h-3" />
-              Color-coded separately from company stock
+              {t("colorCodedNote")}
             </span>
             <div className="ml-auto">
               <button
@@ -476,7 +491,7 @@ export const StockPage = (): JSX.Element => {
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "#FFFF00" }}
               >
-                <Plus className="w-4 h-4" /> Add Sub-Rental
+                <Plus className="w-4 h-4" /> {t("addSubRental")}
               </button>
             </div>
           </div>
@@ -485,8 +500,8 @@ export const StockPage = (): JSX.Element => {
           <div className="bg-[#111] border border-purple-500/15 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-purple-500/10 flex items-center gap-2">
               <ArrowRightLeft className="w-4 h-4 text-purple-400" />
-              <span className="font-bold text-purple-400 text-xs tracking-widest uppercase">Sub-Rentals</span>
-              <span className="text-[10px] text-white/20">{subRentals.length} active</span>
+              <span className="font-bold text-purple-400 text-xs tracking-widest uppercase">{t("tabSubRentals")}</span>
+              <span className="text-[10px] text-white/60">{t("activeCount", { count: subRentals.length })}</span>
             </div>
             <div className="divide-y divide-white/[0.04]">
               {subRentalsLoading ? (
@@ -512,11 +527,11 @@ export const StockPage = (): JSX.Element => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-white/80">{sr.itemName}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "active" ? "bg-purple-500/15 text-purple-400" : "bg-amber-500/15 text-amber-400"}`}>{sr.status}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "active" ? "bg-purple-500/15 text-purple-400" : "bg-amber-500/15 text-amber-400"}`}>{tc(`statusEnum.${sr.status}`, { defaultValue: sr.status })}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-white/30 mt-0.5">
-                      <span>From: {sr.partner}</span>
-                      <span>Job ID: {sr.jobId ?? "—"}</span>
+                    <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
+                      <span>{t("fromPartner", { partner: sr.partner })}</span>
+                      <span>{t("jobIdLabel", { id: sr.jobId ?? "—" })}</span>
                     </div>
                   </div>
                   <div className="text-right">
@@ -524,12 +539,12 @@ export const StockPage = (): JSX.Element => {
                       {sr.dailyRate ? `£${sr.dailyRate}/day` : "—"}
                       {sr.receiptUrl && (
                         <a href={sr.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
-                          className="text-white/20 hover:text-purple-300 transition-colors">
+                          className="text-white/60 hover:text-purple-300 transition-colors">
                           <Receipt className="w-3 h-3" />
                         </a>
                       )}
                     </p>
-                    <p className="text-[10px] text-white/25 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />Due: {new Date(sr.dueBack).toLocaleDateString("en-GB")}</p>
+                    <p className="text-[10px] text-white/60 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />{t("dueLabel", { date: new Date(sr.dueBack).toLocaleDateString("en-GB") })}</p>
                   </div>
                 </div>
               ))}

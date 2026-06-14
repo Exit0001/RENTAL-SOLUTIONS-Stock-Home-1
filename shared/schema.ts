@@ -25,7 +25,6 @@ import { z } from "zod";
 export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const userRoleEnum = pgEnum("user_role", ["admin", "manager", "crew"]);
 export const stockUnitStatusEnum = pgEnum("stock_unit_status", ["available", "out", "maintenance", "retired"]);
-export const containerTypeEnum = pgEnum("container_type", ["rack", "case", "bag", "box", "other"]);
 export const jobStatusEnum = pgEnum("job_status", ["draft", "scheduled", "active", "completed", "cancelled"]);
 export const pullSheetStatusEnum = pgEnum("pull_sheet_status", ["draft", "pending", "dispatched", "returned"]);
 export const maintenanceTypeEnum = pgEnum("maintenance_type", ["repair", "preventive", "inspection"]);
@@ -141,7 +140,7 @@ export const containers = pgTable("containers", {
   id:        uuid("id").primaryKey().defaultRandom(),
   companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
   name:      text("name").notNull(),
-  type:      containerTypeEnum("type").notNull(),
+  type:      text("type").notNull(),
   location:  text("location"),
   barcode:   text("barcode"),
   isOut:     boolean("is_out").default(false).notNull(),  // check out ไปแล้วหรือยัง
@@ -205,6 +204,16 @@ export const jobUnits = pgTable("job_units", {
   id:          uuid("id").primaryKey().defaultRandom(),
   jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "cascade" }).notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 10c. JOB CONTAINERS — rack/case ที่ assign ให้งาน (ทั้งแร็คออกไปกับงานนี้)
+// ─────────────────────────────────────────────
+
+export const jobContainers = pgTable("job_containers", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  containerId: uuid("container_id").references(() => containers.id, { onDelete: "cascade" }).notNull(),
 });
 
 // ─────────────────────────────────────────────
@@ -361,6 +370,17 @@ export const locations = pgTable("locations", {
 });
 
 // ─────────────────────────────────────────────
+// 19. CONTAINER TYPES — ประเภท container ที่กำหนดเองได้ (จัดการได้จากหน้า Stock)
+// ─────────────────────────────────────────────
+
+export const containerTypes = pgTable("container_types", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
 // RELATIONS — บอก Drizzle ว่าแต่ละ table เชื่อมกับใคร
 // ใช้สำหรับ query แบบ JOIN ที่ type-safe
 // ─────────────────────────────────────────────
@@ -395,6 +415,7 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
   company:     one(companies, { fields: [jobs.companyId], references: [companies.id] }),
   stock:       many(jobStock),
   units:       many(jobUnits),
+  containers:  many(jobContainers),
   crew:        many(jobCrew),
   pullSheets:  many(pullSheets),
   subRentals:  many(subRentals),
@@ -406,6 +427,11 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
 export const jobUnitsRelations = relations(jobUnits, ({ one }) => ({
   job:       one(jobs,       { fields: [jobUnits.jobId],       references: [jobs.id] }),
   stockUnit: one(stockUnits, { fields: [jobUnits.stockUnitId], references: [stockUnits.id] }),
+}));
+
+export const jobContainersRelations = relations(jobContainers, ({ one }) => ({
+  job:       one(jobs,       { fields: [jobContainers.jobId],       references: [jobs.id] }),
+  container: one(containers, { fields: [jobContainers.containerId], references: [containers.id] }),
 }));
 
 // ─────────────────────────────────────────────
@@ -427,7 +453,9 @@ export const insertBrandSchema        = createInsertSchema(brands).omit({ id: tr
 export const insertCategorySchema     = createInsertSchema(categories).omit({ id: true, createdAt: true });
 export const insertSubCategorySchema  = createInsertSchema(subCategories).omit({ id: true, createdAt: true });
 export const insertLocationSchema     = createInsertSchema(locations).omit({ id: true, createdAt: true });
+export const insertContainerTypeSchema = createInsertSchema(containerTypes).omit({ id: true, createdAt: true });
 export const insertJobUnitSchema      = createInsertSchema(jobUnits).omit({ id: true });
+export const insertJobContainerSchema = createInsertSchema(jobContainers).omit({ id: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -453,6 +481,9 @@ export type InsertJob = z.infer<typeof insertJobSchema>;
 
 export type JobUnit       = typeof jobUnits.$inferSelect;
 export type InsertJobUnit = z.infer<typeof insertJobUnitSchema>;
+
+export type JobContainer       = typeof jobContainers.$inferSelect;
+export type InsertJobContainer = z.infer<typeof insertJobContainerSchema>;
 
 export type MaintenanceLog       = typeof maintenanceLogs.$inferSelect;
 export type InsertMaintenanceLog = z.infer<typeof insertMaintenanceLogSchema>;
@@ -480,3 +511,6 @@ export type InsertSubCategory = z.infer<typeof insertSubCategorySchema>;
 
 export type Location       = typeof locations.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
+
+export type ContainerType       = typeof containerTypes.$inferSelect;
+export type InsertContainerType = z.infer<typeof insertContainerTypeSchema>;

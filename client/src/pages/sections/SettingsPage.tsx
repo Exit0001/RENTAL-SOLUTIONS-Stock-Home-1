@@ -1,26 +1,21 @@
 import { useState } from "react";
 import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
 
 type SettingsTab = "general" | "team" | "profile";
 
-const tabs: { key: SettingsTab; label: string; icon: typeof Building2 }[] = [
-  { key: "general", label: "บริษัท",  icon: Building2 },
-  { key: "team",    label: "ทีมงาน",  icon: Users },
-  { key: "profile", label: "โปรไฟล์", icon: User },
+const tabs: { key: SettingsTab; labelKey: string; icon: typeof Building2 }[] = [
+  { key: "general", labelKey: "tabCompany", icon: Building2 },
+  { key: "team",    labelKey: "tabTeam",    icon: Users },
+  { key: "profile", labelKey: "tabProfile", icon: User },
 ];
-
-const roleLabels: Record<string, string> = {
-  admin:   "Admin",
-  manager: "Manager",
-  crew:    "Crew",
-};
 
 const roleColors: Record<string, string> = {
   admin:   "bg-[#FFFF00]/10 text-[#FFFF00]",
   manager: "bg-blue-500/10 text-blue-400",
-  crew:    "bg-white/5 text-white/40",
+  crew:    "bg-white/5 text-white/60",
 };
 
 // Mock team data — จะเชื่อมกับ API จริงใน Step ถัดไป
@@ -31,6 +26,8 @@ const mockTeam = [
 ];
 
 export const SettingsPage = (): JSX.Element => {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const { companyName, userName, userInitials, userRole, token, clearAuth } = useAppStore();
   const [activeTab, setActiveTab]   = useState<SettingsTab>("general");
   const [editName, setEditName]     = useState(companyName || "");
@@ -46,7 +43,7 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   const handleInvite = async () => {
-    if (!inviteEmail) { setInviteMsg("กรุณากรอก email"); return; }
+    if (!inviteEmail) { setInviteMsg(t("pleaseEnterEmail")); return; }
     setInviteLoading(true); setInviteMsg("");
     try {
       const res = await fetch("/api/auth/invite", {
@@ -72,23 +69,23 @@ export const SettingsPage = (): JSX.Element => {
     <div className="flex-1 overflow-auto p-6 max-w-3xl" data-testid="page-settings">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">Settings</h1>
-          <p className="text-xs text-white/30 mt-0.5">จัดการบริษัท ทีมงาน และโปรไฟล์</p>
+          <h1 className="text-xl font-bold text-white">{t("pageTitle")}</h1>
+          <p className="text-xs text-white/60 mt-0.5">{t("pageSubtitle")}</p>
         </div>
         <button onClick={handleLogout}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.08] text-xs text-white/40 hover:text-red-400 hover:border-red-400/20 transition-all">
-          <LogOut className="w-3.5 h-3.5" /> ออกจากระบบ
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.08] text-xs text-white/60 hover:text-red-400 hover:border-red-400/20 transition-all">
+          <LogOut className="w-3.5 h-3.5" /> {tc("logout")}
         </button>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-white/[0.06] mb-6">
-        {tabs.map((t) => (
-          <button key={t.key} onClick={() => setActiveTab(t.key)}
+        {tabs.map((tab) => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === t.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/30 hover:text-white/50"
+              activeTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"
             }`}>
-            <t.icon className="w-3.5 h-3.5" />{t.label}
+            <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -97,21 +94,21 @@ export const SettingsPage = (): JSX.Element => {
       {activeTab === "general" && (
         <div className="space-y-4">
           <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white/70">ข้อมูลบริษัท</h3>
+            <h3 className="text-sm font-semibold text-white/70">{t("companyInformation")}</h3>
             <div>
-              <label className="block text-xs text-white/40 mb-1.5">ชื่อบริษัท</label>
+              <label className="block text-xs text-white/60 mb-1.5">{t("companyName")}</label>
               <input value={editName} onChange={(e) => setEditName(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-[#FFFF00]/40" />
             </div>
             <div>
-              <label className="block text-xs text-white/40 mb-1.5">แพลน</label>
+              <label className="block text-xs text-white/60 mb-1.5">{t("planLabel")}</label>
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#FFFF00]/10 text-[#FFFF00]">FREE</span>
-                <span className="text-xs text-white/25">อัปเกรดเป็น Pro เพื่อ feature เพิ่มเติม</span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#FFFF00]/10 text-[#FFFF00]">{t("freeBadge")}</span>
+                <span className="text-xs text-white/60">{t("upgradeHint")}</span>
               </div>
             </div>
             <button className="px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors">
-              บันทึกการเปลี่ยนแปลง
+              {tc("saveChanges")}
             </button>
           </div>
         </div>
@@ -123,27 +120,27 @@ export const SettingsPage = (): JSX.Element => {
           {/* Invite */}
           {userRole === "admin" && (
             <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-white/70 mb-3">เชิญสมาชิกใหม่</h3>
+              <h3 className="text-sm font-semibold text-white/70 mb-3">{t("inviteNewMember")}</h3>
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <input value={inviteName} onChange={(e) => setInviteName(e.target.value)}
-                    placeholder="ชื่อสมาชิก (optional)"
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40" />
+                    placeholder={t("memberNamePlaceholder")}
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
                 </div>
                 <div className="flex gap-2">
                   <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="อีเมลสมาชิก"
+                    placeholder={t("memberEmailPlaceholder")}
                     type="email"
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40" />
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
                   <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as any)}
-                    className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white/70 focus:outline-none">
-                    <option value="crew">Crew</option>
-                    <option value="manager">Manager</option>
+                    className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white/70 focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer">
+                    <option value="crew" className="bg-[#111]">{t("roles.crew")}</option>
+                    <option value="manager" className="bg-[#111]">{t("roles.manager")}</option>
                   </select>
                   <button onClick={handleInvite} disabled={inviteLoading}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00] text-black text-xs font-bold hover:opacity-90 disabled:opacity-50">
                     {inviteLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    ส่ง
+                    {tc("send")}
                   </button>
                 </div>
                 {inviteMsg && (
@@ -159,8 +156,8 @@ export const SettingsPage = (): JSX.Element => {
           <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
               <Shield className="w-4 h-4 text-[#FFFF00]" />
-              <span className="text-xs font-bold text-[#FFFF00] tracking-widest uppercase">สมาชิกทั้งหมด</span>
-              <span className="ml-auto text-[10px] text-white/20">{mockTeam.length} คน</span>
+              <span className="text-xs font-bold text-[#FFFF00] tracking-widest uppercase">{t("allMembers")}</span>
+              <span className="ml-auto text-[10px] text-white/60">{t("membersCount", { count: mockTeam.length })}</span>
             </div>
             <div className="divide-y divide-white/[0.04]">
               {mockTeam.map((member) => (
@@ -170,13 +167,13 @@ export const SettingsPage = (): JSX.Element => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white/80">{member.name}</p>
-                    <p className="text-xs text-white/25">{member.email}</p>
+                    <p className="text-xs text-white/60">{member.email}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${roleColors[member.role]}`}>
-                    {roleLabels[member.role]}
+                    {t(`roles.${member.role}`)}
                   </span>
                   {userRole === "admin" && member.role !== "admin" && (
-                    <button className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors">
+                    <button className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -187,11 +184,11 @@ export const SettingsPage = (): JSX.Element => {
 
           {/* Role guide */}
           <div className="bg-[#111] border border-white/[0.06] rounded-xl p-4">
-            <p className="text-xs font-semibold text-white/50 mb-2">สิทธิ์แต่ละ Role</p>
-            <div className="space-y-1.5 text-xs text-white/30">
-              <div className="flex gap-2"><span className="text-[#FFFF00] font-semibold w-16">Admin</span>เข้าถึงทุกอย่าง รวมถึง Settings และจัดการทีม</div>
-              <div className="flex gap-2"><span className="text-blue-400 font-semibold w-16">Manager</span>Stock, Jobs, Finance — ไม่สามารถจัดการ Settings</div>
-              <div className="flex gap-2"><span className="text-white/40 font-semibold w-16">Crew</span>เฉพาะหน้า Jobs — Check in/out และรายงาน Incident</div>
+            <p className="text-xs font-semibold text-white/50 mb-2">{t("roleGuideTitle")}</p>
+            <div className="space-y-1.5 text-xs text-white/60">
+              <div className="flex gap-2"><span className="text-[#FFFF00] font-semibold w-16">{t("roles.admin")}</span>{t("roleAdminDesc")}</div>
+              <div className="flex gap-2"><span className="text-blue-400 font-semibold w-16">{t("roles.manager")}</span>{t("roleManagerDesc")}</div>
+              <div className="flex gap-2"><span className="text-white/60 font-semibold w-16">{t("roles.crew")}</span>{t("roleCrewDesc")}</div>
             </div>
           </div>
         </div>
@@ -208,29 +205,29 @@ export const SettingsPage = (): JSX.Element => {
               <div>
                 <p className="font-semibold text-white">{userName}</p>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${roleColors[userRole || "crew"]}`}>
-                  {roleLabels[userRole || "crew"]}
+                  {t(`roles.${userRole || "crew"}`)}
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs text-white/40 mb-1.5">ชื่อ-สกุล</label>
+              <label className="block text-xs text-white/60 mb-1.5">{t("fullName")}</label>
               <input defaultValue={userName || ""}
                 className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-[#FFFF00]/40" />
             </div>
 
             <div className="pt-3 border-t border-white/[0.06]">
-              <label className="block text-xs text-white/40 mb-1.5">เปลี่ยนรหัสผ่าน</label>
+              <label className="block text-xs text-white/60 mb-1.5">{t("changePassword")}</label>
               <div className="space-y-2">
-                <input type="password" placeholder="รหัสผ่านใหม่"
-                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40" />
-                <input type="password" placeholder="ยืนยันรหัสผ่านใหม่"
-                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40" />
+                <input type="password" placeholder={t("newPasswordPlaceholder")}
+                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+                <input type="password" placeholder={t("confirmPasswordPlaceholder")}
+                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
               </div>
             </div>
 
             <button className="px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors">
-              บันทึก
+              {tc("save")}
             </button>
           </div>
         </div>

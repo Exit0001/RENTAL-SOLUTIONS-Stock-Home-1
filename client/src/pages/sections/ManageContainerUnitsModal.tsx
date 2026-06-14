@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { X, Layers, Search, Loader2, Check, Save, ChevronDown, ChevronRight, Boxes, Package } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, containersApi } from "@/api";
 import type { StockItemWithUnits, ContainerWithItems } from "@/api";
@@ -19,6 +20,8 @@ const statusDot: Record<string, string> = {
 };
 
 export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.Element => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
   const qc = useQueryClient();
 
@@ -123,7 +126,7 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
       qc.invalidateQueries({ queryKey: ["containers"] });
       onClose();
     } catch (err: any) {
-      setError(err.message ?? "บันทึกไม่สำเร็จ");
+      setError(err.message ?? t("manageContainerUnits.errorSaveFailed"));
       setSaving(false);
     }
   };
@@ -143,12 +146,12 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
               <Layers className="w-4 h-4 text-[#FFFF00]" />
             </div>
             <div>
-              <h2 className="font-bold text-white text-sm">จัดของใน Container</h2>
-              <p className="text-[10px] text-white/30 truncate max-w-[220px]">{container.name}</p>
+              <h2 className="font-bold text-white text-sm">{t("manageContainerUnits.title")}</h2>
+              <p className="text-[10px] text-white/60 truncate max-w-[220px]">{container.name}</p>
             </div>
           </div>
           <button onClick={onClose}
-            className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.06] transition-colors">
+            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -156,10 +159,10 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
         {/* Search + count */}
         <div className="px-5 pt-4 pb-2 flex-shrink-0 space-y-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/25" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60" />
             <input
               autoFocus
-              placeholder="ค้นหา unit, serial, barcode..."
+              placeholder={t("manageContainerUnits.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full h-9 pl-9 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white
@@ -167,15 +170,15 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
             />
           </div>
           <div className="flex items-center justify-between px-0.5">
-            <span className="text-[10px] text-white/25">
-              เลือกแล้ว <span className="text-[#FFFF00]/60 font-medium">{selectedIds.size}</span> units
+            <span className="text-[10px] text-white/60">
+              {t("manageContainerUnits.selectedCount", { count: selectedIds.size })}
             </span>
             {selectedIds.size > 0 && (
               <button
                 onClick={() => setSelectedIds(new Set())}
-                className="text-[10px] text-white/25 hover:text-red-400 transition-colors"
+                className="text-[10px] text-white/60 hover:text-red-400 transition-colors"
               >
-                ล้างทั้งหมด
+                {tc("clearAll")}
               </button>
             )}
           </div>
@@ -184,8 +187,8 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
         {/* List */}
         <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2">
           {isLoading && (
-            <div className="flex items-center justify-center gap-2 py-12 text-white/30">
-              <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">Loading...</span>
+            <div className="flex items-center justify-center gap-2 py-12 text-white/60">
+              <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">{tc("loading")}</span>
             </div>
           )}
 
@@ -205,13 +208,13 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
                     ? <Boxes className="w-3.5 h-3.5 text-[#FFFF00]/40 flex-shrink-0" />
                     : catOpen
                       ? <ChevronDown className="w-3.5 h-3.5 text-[#FFFF00]/60 flex-shrink-0" />
-                      : <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                      : <ChevronRight className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
                   }
                   <span className="text-xs font-bold text-[#FFFF00] uppercase tracking-wider">{category}</span>
-                  <span className="text-[10px] text-white/25">{groups.length} models · {catUnits} units</span>
+                  <span className="text-[10px] text-white/60">{t("manageContainerUnits.modelsUnitsCount", { models: groups.length, units: catUnits })}</span>
                   {catSelected > 0 && (
                     <span className="ml-auto text-[10px] font-bold text-[#FFFF00]/60 px-1.5 py-0.5 rounded bg-[#FFFF00]/10">
-                      {catSelected} selected
+                      {t("manageContainerUnits.selectedBadge", { count: catSelected })}
                     </span>
                   )}
                 </div>
@@ -249,7 +252,7 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
 
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
-                    <p className="text-[10px] text-white/30">{groupUnits.length} units</p>
+                    <p className="text-[10px] text-white/60">{t("manageContainerUnits.unitsCount", { count: groupUnits.length })}</p>
                   </div>
 
                   {selectedInGroup > 0 && (
@@ -259,15 +262,15 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
                   )}
 
                   {isExpanded
-                    ? <ChevronDown className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-                    : <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                    ? <ChevronDown className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
+                    : <ChevronRight className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
                   }
                 </div>
 
                 {/* Units */}
                 {isExpanded && groupUnits.length === 0 && (
-                  <div className="px-10 py-3 text-xs text-white/20 italic border-t border-white/[0.04]">
-                    ไม่มี units — เพิ่มก่อนผ่านหน้า Stock
+                  <div className="px-10 py-3 text-xs text-white/60 italic border-t border-white/[0.04]">
+                    {t("manageContainerUnits.noUnitsHint")}
                   </div>
                 )}
 
@@ -290,18 +293,18 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
                         <p className={`text-xs truncate ${isSelected ? "text-white/90" : "text-white/50"}`}>
                           {unit.name}
                         </p>
-                        <p className="text-[10px] text-white/25 font-mono">
+                        <p className="text-[10px] text-white/60 font-mono">
                           {unit.serialNumber ? `SN: ${unit.serialNumber}` : ""}
                           {unit.serialNumber && unit.barcode ? "  ·  " : ""}
                           {unit.barcode ? `BC: ${unit.barcode}` : ""}
-                          {!unit.serialNumber && !unit.barcode ? "ไม่มี serial / barcode" : ""}
+                          {!unit.serialNumber && !unit.barcode ? t("manageContainerUnits.noSerialBarcode") : ""}
                         </p>
                       </div>
 
                       {/* Status dot */}
-                      <span className="flex items-center gap-1.5 text-[10px] text-white/25 flex-shrink-0">
+                      <span className="flex items-center gap-1.5 text-[10px] text-white/60 flex-shrink-0">
                         <span className={`w-1.5 h-1.5 rounded-full ${statusDot[unit.status] ?? "bg-white/20"}`} />
-                        {unit.status}
+                        {tc(`statusEnum.${unit.status}`, { defaultValue: unit.status })}
                       </span>
                     </div>
                   );
@@ -317,8 +320,8 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
 
           {!isLoading && filteredGroups.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <Package className="w-8 h-8 text-white/10" />
-              <p className="text-xs text-white/25">ไม่พบสินค้า</p>
+              <Package className="w-8 h-8 text-white/40" />
+              <p className="text-xs text-white/60">{t("manageContainerUnits.noItemsFound")}</p>
             </div>
           )}
         </div>
@@ -332,8 +335,8 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] flex-shrink-0 gap-3">
           <button onClick={onClose}
-            className="h-9 px-4 rounded-lg text-sm text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors">
-            Cancel
+            className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+            {tc("cancel")}
           </button>
           <button
             onClick={handleSave}
@@ -342,7 +345,7 @@ export const ManageContainerUnitsModal = ({ container, onClose }: Props): JSX.El
             style={{ backgroundColor: "#FFFF00" }}
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {saving ? "Saving..." : `Save${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`}
+            {saving ? tc("saving") : selectedIds.size > 0 ? t("manageContainerUnits.saveWithCount", { count: selectedIds.size }) : tc("save")}
           </button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X, Briefcase, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { jobsApi } from "@/api";
 import type { InsertJob } from "@shared/schema";
 
@@ -12,7 +13,7 @@ const InputField = ({
   label, required, ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string; required?: boolean }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">
+    <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">
       {label}{required && <span className="text-[#FFFF00]/60 ml-0.5">*</span>}
     </label>
     <input
@@ -24,6 +25,8 @@ const InputField = ({
 );
 
 export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState<string | null>(null);
 
@@ -53,7 +56,7 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
       onCreated();
       onClose();
     } catch (err: any) {
-      setError(err.message ?? "สร้าง job ไม่สำเร็จ");
+      setError(err.message ?? t("addJob.errorCreateFailed"));
     } finally {
       setSaving(false);
     }
@@ -74,33 +77,33 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
               <Briefcase className="w-4 h-4 text-[#FFFF00]" />
             </div>
             <div>
-              <h2 className="font-bold text-white text-sm">Add Job</h2>
-              <p className="text-[10px] text-white/30">กรอกรายละเอียดงาน — เพิ่มของทีหลังได้</p>
+              <h2 className="font-bold text-white text-sm">{t("addJob.title")}</h2>
+              <p className="text-[10px] text-white/60">{t("addJob.subtitle")}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.06] transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
-          <InputField label="Job Name" required placeholder="e.g. Music Festival 2026"
+          <InputField label={t("addJob.jobName")} required placeholder={t("addJob.jobNamePlaceholder")}
             value={name} onChange={(e) => setName(e.target.value)} />
-          <InputField label="Client" required placeholder="e.g. Event Co. Ltd."
+          <InputField label={t("addJob.clientLabel")} required placeholder={t("addJob.clientPlaceholder")}
             value={client} onChange={(e) => setClient(e.target.value)} />
-          <InputField label="Location" placeholder="e.g. BITEC Bangkok"
+          <InputField label={tc("location")} placeholder={t("addJob.locationPlaceholder")}
             value={location} onChange={(e) => setLocation(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
-            <InputField label="Start Date" required type="date"
+            <InputField label={t("addJob.startDate")} required type="date"
               value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            <InputField label="End Date" required type="date"
+            <InputField label={t("addJob.endDate")} required type="date"
               value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
 
           {/* Status */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Status</label>
+            <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{tc("status")}</label>
             <div className="flex gap-2">
               {(["draft", "scheduled"] as const).map((s) => (
                 <button
@@ -109,10 +112,10 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
                   className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition-all capitalize ${
                     status === s
                       ? "border-[#FFFF00]/40 bg-[#FFFF00]/10 text-[#FFFF00]"
-                      : "border-white/[0.08] text-white/30 hover:text-white/50"
+                      : "border-white/[0.08] text-white/60 hover:text-white"
                   }`}
                 >
-                  {s}
+                  {tc(`statusEnum.${s}`, { defaultValue: s })}
                 </button>
               ))}
             </div>
@@ -124,8 +127,8 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] gap-3">
           <button onClick={onClose}
-            className="h-9 px-4 rounded-lg text-sm text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors">
-            Cancel
+            className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+            {tc("cancel")}
           </button>
           <button
             onClick={handleCreate}
@@ -134,7 +137,7 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
             style={{ backgroundColor: "#FFFF00" }}
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Briefcase className="w-3.5 h-3.5" />}
-            {saving ? "Creating..." : "Create Job"}
+            {saving ? tc("creating") : t("addJob.createJob")}
           </button>
         </div>
       </div>

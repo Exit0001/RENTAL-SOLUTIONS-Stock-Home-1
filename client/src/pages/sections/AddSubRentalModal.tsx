@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ArrowRightLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi } from "@/api";
 import { FileUploadField } from "@/components/FileUploadField";
@@ -12,32 +13,35 @@ const InputField = ({ label, value, onChange, type = "text", placeholder }: {
   label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
 }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">{label}</label>
+    <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+      className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
     />
   </div>
 );
 
 const SelectField = ({ label, value, onChange, options }: {
   label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[];
-}) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] text-white/35 uppercase tracking-wider font-medium">{label}</label>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
-    >
-      <option value="" className="bg-[#111]">Select…</option>
-      {options.map((o) => <option key={o.value} value={o.value} className="bg-[#111]">{o.label}</option>)}
-    </select>
-  </div>
-);
+}) => {
+  const { t: tc } = useTranslation("common");
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
+      >
+        <option value="" className="bg-[#111]">{tc("selectPlaceholder")}</option>
+        {options.map((o) => <option key={o.value} value={o.value} className="bg-[#111]">{o.label}</option>)}
+      </select>
+    </div>
+  );
+};
 
 interface AddSubRentalModalProps {
   onClose: () => void;
@@ -45,6 +49,8 @@ interface AddSubRentalModalProps {
 }
 
 export const AddSubRentalModal = ({ onClose, onSubmit }: AddSubRentalModalProps): JSX.Element => {
+  const { t } = useTranslation("modals");
+  const { t: tc } = useTranslation("common");
   const { token, companyId } = useAppStore();
 
   const [itemName, setItemName] = useState("");
@@ -87,47 +93,47 @@ export const AddSubRentalModal = ({ onClose, onSubmit }: AddSubRentalModalProps)
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFFF00" }}>
               <ArrowRightLeft className="w-3.5 h-3.5 text-black" />
             </div>
-            <h2 className="text-sm font-bold text-white">Add Sub-Rental</h2>
+            <h2 className="text-sm font-bold text-white">{t("addSubRental.title")}</h2>
           </div>
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/25 hover:text-white hover:bg-white/[0.06] transition-colors">
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
-            <InputField label="Item Name" value={itemName} onChange={setItemName} placeholder="e.g. 24x J8 Line Array" />
-            <InputField label="Partner Company" value={partner} onChange={setPartner} placeholder="e.g. SoundHire Ltd" />
+            <InputField label={t("addSubRental.itemNameLabel")} value={itemName} onChange={setItemName} placeholder={t("addSubRental.itemNamePlaceholder")} />
+            <InputField label={t("addSubRental.partnerCompany")} value={partner} onChange={setPartner} placeholder={t("addSubRental.partnerCompanyPlaceholder")} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <InputField label="Due Back" type="date" value={dueBack} onChange={setDueBack} />
-            <InputField label="Daily Rate (£)" type="number" value={dailyRate} onChange={setDailyRate} placeholder="e.g. 350.00" />
+            <InputField label={t("addSubRental.dueBack")} type="date" value={dueBack} onChange={setDueBack} />
+            <InputField label={t("addSubRental.dailyRateLabel")} type="number" value={dailyRate} onChange={setDailyRate} placeholder={t("addSubRental.dailyRatePlaceholder")} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <SelectField label="Status" value={status} onChange={setStatus}
-              options={STATUSES.map((s) => ({ value: s, label: s }))} />
-            <SelectField label="Linked Job (optional)" value={jobId} onChange={setJobId}
+            <SelectField label={tc("status")} value={status} onChange={setStatus}
+              options={STATUSES.map((s) => ({ value: s, label: tc(`statusEnum.${s}`, { defaultValue: s }) }))} />
+            <SelectField label={t("addSubRental.linkedJobOptional")} value={jobId} onChange={setJobId}
               options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.title ?? j.id }))} />
           </div>
 
           {companyId && (
-            <FileUploadField label="Receipt / Bill" folder="subrentals" companyId={companyId}
+            <FileUploadField label={t("shared.receiptBill")} folder="subrentals" companyId={companyId}
               value={receiptUrl} onChange={setReceiptUrl} />
           )}
         </div>
 
         <div className="flex gap-2 px-5 pb-5">
           <button onClick={onClose}
-            className="flex-1 h-9 rounded-lg border border-white/10 text-sm text-white/40 hover:text-white hover:border-white/20 transition-colors">
-            Cancel
+            className="flex-1 h-9 rounded-lg border border-white/10 text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors">
+            {tc("cancel")}
           </button>
           <button onClick={handleSave} disabled={!itemName.trim() || !partner.trim() || !dueBack}
             className="flex-1 h-9 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ backgroundColor: "#FFFF00" }}>
-            Save Sub-Rental
+            {t("addSubRental.saveSubRental")}
           </button>
         </div>
       </div>

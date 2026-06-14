@@ -14,6 +14,7 @@ import type {
   Category, InsertCategory,
   SubCategory, InsertSubCategory,
   Location, InsertLocation,
+  ContainerType, InsertContainerType,
   Quote, Invoice,
 } from "@shared/schema";
 
@@ -27,7 +28,12 @@ export const companiesApi = {
 // ─── Stock ────────────────────────────────────────────────
 
 export type ScannedUnit    = StockUnit & { itemName: string; category: string };
-export type StockItemWithUnits = StockItem & { units: StockUnit[] };
+export type StockUnitWithContainer = StockUnit & {
+  containerId:   string | null;
+  containerName: string | null;
+  containerType: string | null;
+};
+export type StockItemWithUnits = StockItem & { units: StockUnitWithContainer[] };
 export type AssignedUnit   = StockUnit & { itemName: string };
 
 export const stockApi = {
@@ -48,7 +54,11 @@ export const stockApi = {
 // ─── Containers ───────────────────────────────────────────
 
 export type ContainerUnit     = StockUnit & { itemName: string; category: string };
-export type ContainerWithItems = Container & { items: ContainerUnit[] };
+export type ContainerWithItems = Container & {
+  items: ContainerUnit[];
+  jobId: string | null;
+  jobName: string | null;
+};
 
 export const containersApi = {
   getAll:         () => api.get<ContainerWithItems[]>("/containers"),
@@ -109,6 +119,7 @@ export type CrewData = {
 
 export type JobStockItem = { stockItemId: string; itemName: string; itemCategory: string; quantity: number };
 export type JobDetail = Job & { stock: JobStockItem[]; crew: unknown[]; pullSheets: unknown[] };
+export type JobContainerRow = Container & { itemCount: number };
 
 export const jobsApi = {
   getAll:        () => api.get<Job[]>("/jobs"),
@@ -125,6 +136,11 @@ export const jobsApi = {
   getIncidents:  () => api.get<Incident[]>("/jobs/all/incidents"),
   createIncident:(jobId: string, data: Omit<InsertIncident, "companyId" | "jobId">) =>
                    api.post<Incident>(`/jobs/${jobId}/incidents`, data),
+  getContainers: (jobId: string) => api.get<JobContainerRow[]>(`/jobs/${jobId}/containers`),
+  addContainer:  (jobId: string, containerId: string) =>
+                   api.post<void>(`/jobs/${jobId}/containers`, { containerId }),
+  removeContainer: (jobId: string, containerId: string) =>
+                   api.delete<void>(`/jobs/${jobId}/containers/${containerId}`),
 };
 
 // ─── Finance ──────────────────────────────────────────────
@@ -233,4 +249,8 @@ export const catalogApi = {
   getLocations:     () => api.get<Location[]>("/catalog/locations"),
   createLocation:   (data: Omit<InsertLocation, "companyId">) => api.post<Location>("/catalog/locations", data),
   deleteLocation:   (id: string) => api.delete<void>(`/catalog/locations/${id}`),
+
+  getContainerTypes:   () => api.get<ContainerType[]>("/catalog/container-types"),
+  createContainerType: (data: Omit<InsertContainerType, "companyId">) => api.post<ContainerType>("/catalog/container-types", data),
+  deleteContainerType: (id: string) => api.delete<void>(`/catalog/container-types/${id}`),
 };

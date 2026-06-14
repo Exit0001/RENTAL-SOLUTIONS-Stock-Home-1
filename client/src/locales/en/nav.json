@@ -1,0 +1,19 @@
+{
+  "home": "Home",
+  "stock": "Stock",
+  "jobs": "Jobs",
+  "finance": "Finance",
+  "history": "History",
+  "settings": "Settings",
+  "language": "Language",
+  "switchToThai": "Switch to Thai",
+  "switchToEnglish": "Switch to English",
+  "pageTitles": {
+    "Home": "Dashboard",
+    "Stock": "Stock Management",
+    "Finance": "Finance & Billing",
+    "Jobs": "Job Management",
+    "History": "History & Analytics",
+    "Settings": "Settings"
+  }
+}

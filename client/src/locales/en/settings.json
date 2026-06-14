@@ -1,0 +1,35 @@
+{
+  "pageTitle": "Settings",
+  "pageSubtitle": "Manage company, team, and profile",
+  "tabCompany": "Company",
+  "tabTeam": "Team",
+  "tabProfile": "Profile",
+
+  "roles": {
+    "admin": "Admin",
+    "manager": "Manager",
+    "crew": "Crew"
+  },
+
+  "companyInformation": "Company Information",
+  "companyName": "Company Name",
+  "planLabel": "Plan",
+  "freeBadge": "FREE",
+  "upgradeHint": "Upgrade to Pro for more features",
+
+  "inviteNewMember": "Invite New Member",
+  "memberNamePlaceholder": "Member name (optional)",
+  "memberEmailPlaceholder": "Member email",
+  "pleaseEnterEmail": "Please enter an email",
+  "allMembers": "All Members",
+  "membersCount": "{{count}} people",
+  "roleGuideTitle": "Permissions by Role",
+  "roleAdminDesc": "Full access, including Settings and team management",
+  "roleManagerDesc": "Stock, Jobs, Finance — cannot manage Settings",
+  "roleCrewDesc": "Jobs page only — check in/out and report incidents",
+
+  "fullName": "Full Name",
+  "changePassword": "Change Password",
+  "newPasswordPlaceholder": "New password",
+  "confirmPasswordPlaceholder": "Confirm new password"
+}

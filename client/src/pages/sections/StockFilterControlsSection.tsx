@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Search, SlidersHorizontal, Plus, Tag, Layers, MapPin } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, Tag, Layers, MapPin, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface StockFilterControlsProps {
   filterOpen: boolean;
@@ -22,6 +23,8 @@ export const StockFilterControlsSection = ({
   searchQuery,
   onSearchChange,
 }: StockFilterControlsProps): JSX.Element => {
+  const { t } = useTranslation("stock");
+  const { t: tc } = useTranslation("common");
   return (
     <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in" style={{ animationDelay: "150ms" }}>
       <Button
@@ -35,7 +38,7 @@ export const StockFilterControlsSection = ({
         variant="ghost"
       >
         <SlidersHorizontal className="w-4 h-4" />
-        Filter
+        {tc("filter")}
       </Button>
 
       <div className="relative flex items-center h-9 flex-1 max-w-xs bg-[#FFFF00]/10 border border-[#FFFF00]/20 rounded-lg focus-within:border-[#FFFF00]/50 transition-colors">
@@ -44,15 +47,15 @@ export const StockFilterControlsSection = ({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search for items..."
-          className="w-full h-full bg-transparent pl-9 pr-3 text-sm text-white/70 placeholder:text-white/30 focus:outline-none focus:text-white transition-colors"
+          placeholder={t("searchItemsPlaceholder")}
+          className="w-full h-full bg-transparent pl-9 pr-3 text-sm text-white/70 placeholder:text-white/60 focus:outline-none focus:text-white transition-colors"
         />
         {searchQuery && (
           <button
             onClick={() => onSearchChange("")}
-            className="absolute right-3 text-white/30 hover:text-white transition-colors text-xs"
+            className="absolute right-3 text-white/60 hover:text-white transition-colors"
           >
-            ✕
+            <X className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
@@ -64,7 +67,7 @@ export const StockFilterControlsSection = ({
           variant="ghost"
         >
           <Tag className="w-4 h-4" />
-          Add Brand &amp; Category
+          {t("addBrandCategory")}
         </Button>
 
         <Button
@@ -73,7 +76,7 @@ export const StockFilterControlsSection = ({
           variant="ghost"
         >
           <MapPin className="w-4 h-4" />
-          Add Location
+          {t("addLocation")}
         </Button>
 
         <Button
@@ -83,7 +86,7 @@ export const StockFilterControlsSection = ({
           variant="ghost"
         >
           <Plus className="w-4 h-4" />
-          Add New Item
+          {t("addNewItem")}
         </Button>
 
         <Button
@@ -92,7 +95,7 @@ export const StockFilterControlsSection = ({
           variant="ghost"
         >
           <Layers className="w-4 h-4" />
-          Add Individual Unit
+          {t("addIndividualUnit")}
         </Button>
       </div>
     </div>
