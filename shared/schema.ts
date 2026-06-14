@@ -35,6 +35,10 @@ export const invoiceStatusEnum = pgEnum("invoice_status", ["pending", "paid", "o
 export const incidentSeverityEnum = pgEnum("incident_severity", ["low", "medium", "high"]);
 export const incidentStatusEnum = pgEnum("incident_status", ["open", "resolved"]);
 export const activityTypeEnum = pgEnum("activity_type", ["stock", "finance", "maintenance", "jobs"]);
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "job_assigned", "job_removed", "job_updated",
+  "pullsheet_assigned", "maintenance_assigned", "stock_added",
+]);
 
 // ─────────────────────────────────────────────
 // 1. COMPANIES — บริษัทที่ใช้แอป (แต่ละแถว = 1 บริษัท)
@@ -61,6 +65,7 @@ export const users = pgTable("users", {
   name:      text("name").notNull(),
   initials:  text("initials").notNull(),
   role:      userRoleEnum("role").default("crew").notNull(),
+  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -331,6 +336,22 @@ export const activityLog = pgTable("activity_log", {
 });
 
 // ─────────────────────────────────────────────
+// 16b. NOTIFICATIONS — แจ้งเตือนรายบุคคล (per-user)
+// ─────────────────────────────────────────────
+
+export const notifications = pgTable("notifications", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  userId:    uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),  // ผู้รับแจ้งเตือน
+  actorId:   uuid("actor_id").references(() => users.id, { onDelete: "set null" }),          // ผู้ทำให้เกิดการแจ้งเตือน
+  type:      notificationTypeEnum("type").notNull(),
+  meta:      jsonb("meta").$type<Record<string, string | number>>().default({}),  // { jobName, status, itemName, actorName, count, ... }
+  link:      text("link"),  // ชื่อหน้าสำหรับ setActivePage() เช่น "Jobs" | "Stock" | "Maintenance"
+  isRead:    boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
 // 17. CATALOG — Brand / Category / Sub-Category (จัดการได้จากหน้า Stock)
 // ─────────────────────────────────────────────
 
@@ -463,6 +484,10 @@ export const insertLocationSchema     = createInsertSchema(locations).omit({ id:
 export const insertContainerTypeSchema = createInsertSchema(containerTypes).omit({ id: true, createdAt: true });
 export const insertJobUnitSchema      = createInsertSchema(jobUnits).omit({ id: true });
 export const insertJobContainerSchema = createInsertSchema(jobContainers).omit({ id: true });
+export const insertJobCrewSchema      = createInsertSchema(jobCrew).omit({ id: true });
+export const insertPullSheetSchema    = createInsertSchema(pullSheets)
+  .omit({ id: true, createdAt: true, companyId: true, createdById: true, status: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -491,6 +516,12 @@ export type InsertJobUnit = z.infer<typeof insertJobUnitSchema>;
 
 export type JobContainer       = typeof jobContainers.$inferSelect;
 export type InsertJobContainer = z.infer<typeof insertJobContainerSchema>;
+
+export type JobCrew       = typeof jobCrew.$inferSelect;
+export type InsertJobCrew = z.infer<typeof insertJobCrewSchema>;
+
+export type PullSheet       = typeof pullSheets.$inferSelect;
+export type InsertPullSheet = z.infer<typeof insertPullSheetSchema>;
 
 export type MaintenanceLog       = typeof maintenanceLogs.$inferSelect;
 export type InsertMaintenanceLog = z.infer<typeof insertMaintenanceLogSchema>;
@@ -522,3 +553,7 @@ export type InsertLocation = z.infer<typeof insertLocationSchema>;
 
 export type ContainerType       = typeof containerTypes.$inferSelect;
 export type InsertContainerType = z.infer<typeof insertContainerTypeSchema>;
+
+export type Notification       = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type NotificationType   = Notification["type"];

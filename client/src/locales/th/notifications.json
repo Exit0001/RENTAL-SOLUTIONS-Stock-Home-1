@@ -1,0 +1,23 @@
+{
+  "title": "การแจ้งเตือน",
+  "markAllRead": "อ่านทั้งหมด",
+  "empty": "ยังไม่มีการแจ้งเตือน",
+  "justNow": "เมื่อสักครู่",
+  "minutesAgo": "{{count}} นาทีที่แล้ว",
+  "hoursAgo": "{{count}} ชั่วโมงที่แล้ว",
+  "daysAgo": "{{count}} วันที่แล้ว",
+
+  "title.job_assigned": "ได้รับมอบหมายงาน",
+  "title.job_removed": "ถอนออกจากงาน",
+  "title.job_updated": "งานมีการเปลี่ยนแปลง",
+  "title.pullsheet_assigned": "ได้รับมอบหมายใบเบิกอุปกรณ์",
+  "title.maintenance_assigned": "ได้รับมอบหมายงานซ่อมบำรุง",
+  "title.stock_added": "มีการเพิ่มสต็อกใหม่",
+
+  "body.job_assigned": "คุณได้รับมอบหมายให้เข้าร่วมงาน \"{{jobName}}\"",
+  "body.job_removed": "คุณถูกถอนออกจากงาน \"{{jobName}}\"",
+  "body.job_updated": "งาน \"{{jobName}}\" มีการเปลี่ยนแปลง — สถานะ: {{status}}",
+  "body.pullsheet_assigned": "คุณได้รับมอบหมายใบเบิกอุปกรณ์สำหรับงาน \"{{jobName}}\"",
+  "body.maintenance_assigned": "คุณได้รับมอบหมายงานซ่อมบำรุง {{count}} รายการ",
+  "body.stock_added": "{{actorName}} เพิ่ม \"{{itemName}}\" เข้าสต็อก"
+}

@@ -25,6 +25,11 @@
   "noUnitsAssignedHint": "ยังไม่มีอุปกรณ์ — กด \"{{editUnits}}\" เพื่อเลือก",
   "snLabel": "SN: {{serial}}",
 
+  "crewLabel": "ทีมงาน",
+  "assignCrew": "เพิ่มทีมงาน",
+  "noCrewAssigned": "ยังไม่มีทีมงานที่กำหนดให้งานนี้",
+  "removeFromJob": "เอาออกจากงาน",
+
   "pullSheetsHint": "ใบเบิกอุปกรณ์สามารถแชร์ผ่าน LINE หรือส่งออกเป็น PDF เพื่อลดการใช้กระดาษ",
   "colPullSheet": "ใบเบิกอุปกรณ์",
   "colCreated": "สร้างเมื่อ",
@@ -32,6 +37,9 @@
   "shareViaLine": "แชร์ผ่าน LINE",
   "exportPdf": "ส่งออก PDF",
   "sendToCrew": "ส่งให้ทีมงาน",
+  "createPullSheet": "สร้างใบเบิกอุปกรณ์",
+  "noPullSheetsYet": "ยังไม่มีใบเบิกอุปกรณ์ — สร้างได้ที่ด้านบน",
+  "deletePullSheet": "ลบใบเบิกอุปกรณ์",
 
   "crewNotificationHint": "ตารางงานและภารกิจจะถูกส่งให้ทีมงานโดยตรงผ่านระบบแจ้งเตือน",
   "crewAndAssignments": "ทีมงานและการมอบหมาย",

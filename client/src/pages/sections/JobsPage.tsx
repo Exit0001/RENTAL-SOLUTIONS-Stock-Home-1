@@ -23,6 +23,8 @@ import {
   Check,
   Layers,
   X,
+  Trash2,
+  UserPlus,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -33,6 +35,8 @@ import { AddJobModal } from "./AddJobModal";
 import { ScanModal } from "./ScanModal";
 import { ManageJobStockModal } from "./ManageJobStockModal";
 import { AssignContainerModal } from "./AssignContainerModal";
+import { AssignCrewModal } from "./AssignCrewModal";
+import { CreatePullSheetModal } from "./CreatePullSheetModal";
 
 type JobTab = "jobs" | "pullsheets" | "crew" | "incidents";
 
@@ -86,6 +90,7 @@ const JobDetailRow = ({ job }: { job: any }) => {
   const { token } = useAppStore();
   const qc = useQueryClient();
   const [assignContainerOpen, setAssignContainerOpen] = useState(false);
+  const [assignCrewOpen, setAssignCrewOpen] = useState(false);
 
   const { data: assignedUnits = [], isLoading } = useQuery({
     queryKey: ["job-units", job.id],
@@ -99,11 +104,25 @@ const JobDetailRow = ({ job }: { job: any }) => {
     enabled: !!token,
   });
 
+  const { data: jobCrew = [], isLoading: crewLoading } = useQuery({
+    queryKey: ["job-crew", job.id],
+    queryFn:  () => jobsApi.getJobCrew(job.id),
+    enabled: !!token,
+  });
+
   const removeContainer = useMutation({
     mutationFn: (containerId: string) => jobsApi.removeContainer(job.id, containerId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job-containers", job.id] });
       qc.invalidateQueries({ queryKey: ["containers"] });
+    },
+  });
+
+  const removeCrew = useMutation({
+    mutationFn: (userId: string) => jobsApi.unassignCrew(job.id, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["job-crew", job.id] });
+      qc.invalidateQueries({ queryKey: ["crew"] });
     },
   });
 
@@ -186,6 +205,48 @@ const JobDetailRow = ({ job }: { job: any }) => {
           )}
         </div>
 
+        {/* Crew */}
+        <div className="px-6 py-3 border-b border-white/[0.04]">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="w-3 h-3" /> {t("crewLabel")}
+            </p>
+            <button
+              onClick={() => setAssignCrewOpen(true)}
+              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+            >
+              <UserPlus className="w-3 h-3" /> {t("assignCrew")}
+            </button>
+          </div>
+          {crewLoading ? (
+            <div className="flex items-center gap-2 text-white/60 text-xs py-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
+            </div>
+          ) : jobCrew.length === 0 ? (
+            <p className="text-xs text-white/60 italic">{t("noCrewAssigned")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {jobCrew.map((c) => (
+                <div key={c.userId} className="flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                  <div className="w-5 h-5 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-[9px] font-bold text-[#FFFF00]/70 flex-shrink-0">
+                    {c.initials}
+                  </div>
+                  <span className="text-xs text-white/70">{c.name}</span>
+                  <span className="text-[10px] text-white/60 capitalize">{c.role}</span>
+                  <button
+                    onClick={() => removeCrew.mutate(c.userId)}
+                    disabled={removeCrew.isPending}
+                    title={t("removeFromJob")}
+                    className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Checklist */}
         <div className="px-6 py-4">
           {isLoading ? (
@@ -243,6 +304,9 @@ const JobDetailRow = ({ job }: { job: any }) => {
         {assignContainerOpen && (
           <AssignContainerModal jobId={job.id} onClose={() => setAssignContainerOpen(false)} />
         )}
+        {assignCrewOpen && (
+          <AssignCrewModal jobId={job.id} onClose={() => setAssignCrewOpen(false)} />
+        )}
       </td>
     </tr>
   );
@@ -257,6 +321,8 @@ export const JobsPage = (): JSX.Element => {
   const [addJobOpen, setAddJobOpen] = useState(false);
   const [scanJob, setScanJob]       = useState<any>(null);
   const [manageJob, setManageJob]   = useState<any>(null);
+  const [createPullSheetOpen, setCreatePullSheetOpen] = useState(false);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const { token } = useAppStore();
   const qc = useQueryClient();
 
@@ -299,6 +365,35 @@ export const JobsPage = (): JSX.Element => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
+  const createPullSheet = useMutation({
+    mutationFn: ({ jobId, data }: { jobId: string; data: Parameters<typeof jobsApi.createPullSheet>[1] }) =>
+      jobsApi.createPullSheet(jobId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pull-sheets"] }),
+  });
+
+  const deletePullSheet = useMutation({
+    mutationFn: (id: string) => jobsApi.deletePullSheet(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pull-sheets"] }),
+  });
+
+  const handleExportPdf = async (ps: { id: string; jobId: string | null; job: string }) => {
+    if (!ps.jobId) return;
+    setDownloadingPdfId(ps.id);
+    try {
+      const blob = await jobsApi.downloadPullSheetPdf(ps.jobId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pullsheet-${ps.job}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
   const toggleJob = (id: string) =>
     setExpandedJobs((p) => p.includes(id) ? p.filter((r) => r !== id) : [...p, id]);
 
@@ -322,6 +417,12 @@ export const JobsPage = (): JSX.Element => {
           jobId={manageJob.id}
           jobName={manageJob.name}
           onClose={() => setManageJob(null)}
+        />
+      )}
+      {createPullSheetOpen && (
+        <CreatePullSheetModal
+          onClose={() => setCreatePullSheetOpen(false)}
+          onSubmit={(jobId, data) => createPullSheet.mutate({ jobId, data })}
         />
       )}
 
@@ -448,9 +549,19 @@ export const JobsPage = (): JSX.Element => {
 
       {activeTab === "pullsheets" && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 p-3 bg-[#FFFF00]/5 border border-[#FFFF00]/10 rounded-lg">
-            <Smartphone className="w-4 h-4 text-[#FFFF00]" />
-            <span className="text-xs text-[#FFFF00]/70">{t("pullSheetsHint")}</span>
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 rounded-lg">
+            <Smartphone className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
+            <span className="text-sm text-white/60">{t("pullSheetsHint")}</span>
+            <div className="ml-auto">
+              <button
+                onClick={() => setCreatePullSheetOpen(true)}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#FFFF00" }}
+                data-testid="button-create-pullsheet"
+              >
+                <Plus className="w-4 h-4" /> {t("createPullSheet")}
+              </button>
+            </div>
           </div>
           <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
             <table className="w-full text-sm">
@@ -466,6 +577,11 @@ export const JobsPage = (): JSX.Element => {
                 </tr>
               </thead>
               <tbody>
+                {pullSheets.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-sm text-white/40">{t("noPullSheetsYet")}</td>
+                  </tr>
+                )}
                 {pullSheets.map((ps) => (
                   <tr key={ps.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-pullsheet-${ps.id}`}>
                     <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{ps.id}</td>
@@ -477,8 +593,26 @@ export const JobsPage = (): JSX.Element => {
                     <td className="py-2.5 pr-4 text-right">
                       <div className="flex items-center gap-1 justify-end">
                         <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors" title={t("shareViaLine")} data-testid={`button-share-line-${ps.id}`}><MessageSquare className="w-3.5 h-3.5" /></button>
-                        <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-white transition-colors" title={t("exportPdf")} data-testid={`button-export-pdf-${ps.id}`}><FileText className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() => handleExportPdf(ps)}
+                          disabled={downloadingPdfId === ps.id}
+                          className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-white transition-colors disabled:opacity-50"
+                          title={t("exportPdf")}
+                          data-testid={`button-export-pdf-${ps.id}`}
+                        >
+                          {downloadingPdfId === ps.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <FileText className="w-3.5 h-3.5" />}
+                        </button>
                         <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-emerald-400 transition-colors" title={t("sendToCrew")} data-testid={`button-send-crew-${ps.id}`}><Send className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() => deletePullSheet.mutate(ps.id)}
+                          className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-red-400 transition-colors"
+                          title={t("deletePullSheet")}
+                          data-testid={`button-delete-pullsheet-${ps.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>

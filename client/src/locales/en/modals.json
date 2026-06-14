@@ -96,6 +96,14 @@
     "itemsCount": "{{count}} items"
   },
 
+  "assignCrew": {
+    "title": "Assign Crew",
+    "searchPlaceholder": "Search team members...",
+    "noUsersAvailable": "All team members are already assigned to this job",
+    "noUsersFound": "No matching team members found",
+    "errorAssignFailed": "Failed to assign crew member"
+  },
+
   "brandCategory": {
     "title": "Brand & Category Management",
     "brandManagement": "Brand Management",
@@ -141,6 +149,13 @@
 
   "manageJobStock": {
     "title": "Select Equipment"
+  },
+
+  "createPullSheet": {
+    "title": "Create Pull Sheet",
+    "jobLabel": "Job",
+    "assigneeLabel": "Assignee (optional)",
+    "createButton": "Create Pull Sheet"
   },
 
   "addJob": {

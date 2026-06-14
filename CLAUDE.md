@@ -22,6 +22,8 @@ npm run db:studio    # Open Drizzle Studio (visual DB browser)
 
 **Windows note:** `npm run dev` uses `cross-env` to set `NODE_ENV=development`. If port 5000 is busy: `Stop-Process -Name "node" -Force`
 
+**Windows note (dev script):** `dev` runs via `node --import tsx --watch server/index.ts` (NOT `tsx watch`). `tsx watch`'s own watcher/IPC deadlocks with the esbuild service spawned by the dynamic `await import("./vite")` in `server/index.ts` — the process hangs forever right after "Migration skipped", never reaching "serving on port 5000", with a stuck `esbuild.exe --service --ping` child (0% CPU). `node --watch` + `--import tsx` uses Node's native watch/restart instead and avoids this deadlock.
+
 **Database note:** Supabase direct connection (port 5432) is blocked by IPv6. Use the **Session Pooler** URL (`aws-1-ap-northeast-1.pooler.supabase.com:5432`) in `.env`. Running migrations via SQL Editor in Supabase dashboard works as an alternative to `npm run db:migrate`.
 
 ## Architecture
@@ -95,13 +97,40 @@ All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, 
 - Company in DB: `"test1"` (single tenant for now)
 
 ### Pending DB Migration ⚠️
-`stock_units` needs 2 new columns — run in **Supabase SQL Editor**:
+`stock_units` needs 2 new columns, and `users` needs 1 new column — run in **Supabase SQL Editor**:
 ```sql
 ALTER TABLE stock_units ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMP;
 ALTER TABLE stock_units ADD COLUMN IF NOT EXISTS warranty_expires_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 ```
-These are already in `shared/schema.ts` and `migrations/0004_medical_stone_men.sql`.
-Until run, `GET /api/stock/:id` (fetch units) will fail → unit sub-rows won't show in Inventory.
+These are already in `shared/schema.ts` and `migrations/0004_medical_stone_men.sql` /
+`migrations/0007_lonely_famine.sql`.
+Until run, `GET /api/stock/:id` (fetch units) will fail → unit sub-rows won't show in Inventory,
+and `PUT /api/auth/me` (header profile/avatar update) will fail.
+
+Also pending — new `notifications` table + `notification_type` enum (per-user notifications,
+e.g. job assign/remove/update, pull sheet assign, maintenance assign, stock added), already in
+`shared/schema.ts` and `migrations/0008_dark_blink.sql`:
+```sql
+CREATE TYPE "public"."notification_type" AS ENUM('job_assigned', 'job_removed', 'job_updated', 'pullsheet_assigned', 'maintenance_assigned', 'stock_added');
+
+CREATE TABLE "notifications" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "company_id" uuid NOT NULL,
+    "user_id" uuid NOT NULL,
+    "actor_id" uuid,
+    "type" "notification_type" NOT NULL,
+    "meta" jsonb DEFAULT '{}'::jsonb,
+    "link" text,
+    "is_read" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+```
+Until run, `/api/notifications/*` endpoints and the header Bell dropdown will fail (table doesn't exist).
 
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.

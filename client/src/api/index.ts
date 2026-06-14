@@ -1,6 +1,6 @@
 // API functions — ทุกอย่างส่ง token อัตโนมัติจาก client.ts
 // server อ่าน company_id จาก JWT เอง ไม่ต้องส่งแยก
-import { api } from "./client";
+import { api, fetchBlob } from "./client";
 import type {
   Company, InsertCompany,
   StockItem, InsertStockItem,
@@ -16,6 +16,9 @@ import type {
   Location, InsertLocation,
   ContainerType, InsertContainerType,
   Quote, Invoice,
+  PullSheet, InsertPullSheet,
+  JobCrew,
+  Notification,
 } from "@shared/schema";
 
 // ─── Companies (ไม่ต้องการ auth) ─────────────────────────
@@ -23,6 +26,35 @@ import type {
 export const companiesApi = {
   create:  (data: InsertCompany) => api.post<Company>("/companies", data),
   getById: (id: string)          => api.get<Company>(`/companies/${id}`),
+};
+
+// ─── Auth / Profile ───────────────────────────────────────
+
+export type Me = {
+  id: string;
+  name: string;
+  initials: string;
+  role: string;
+  companyId: string;
+  companyName: string;
+  avatarUrl: string | null;
+};
+
+export type TeamMember = {
+  id: string;
+  name: string;
+  initials: string;
+  role: "admin" | "manager" | "crew";
+  email: string;
+  avatarUrl: string | null;
+};
+
+export const authApi = {
+  getMe:    () => api.get<Me>("/auth/me"),
+  updateMe: (data: { name?: string; avatarUrl?: string | null }) => api.put<Me>("/auth/me", data),
+  getTeam:  () => api.get<TeamMember[]>("/auth/team"),
+  removeMember: (userId: string) => api.delete<{ message: string }>(`/auth/team/${userId}`),
+  updateCompany: (data: { name: string }) => api.put<Company>("/auth/company", data),
 };
 
 // ─── Stock ────────────────────────────────────────────────
@@ -120,6 +152,7 @@ export type CrewData = {
 export type JobStockItem = { stockItemId: string; itemName: string; itemCategory: string; quantity: number };
 export type JobDetail = Job & { stock: JobStockItem[]; crew: unknown[]; pullSheets: unknown[] };
 export type JobContainerRow = Container & { itemCount: number };
+export type JobCrewMember = { userId: string; name: string; initials: string; role: string };
 
 export const jobsApi = {
   getAll:        () => api.get<Job[]>("/jobs"),
@@ -132,6 +165,10 @@ export const jobsApi = {
   setUnits:      (jobId: string, unitIds: string[]) =>
                    api.post<void>(`/jobs/${jobId}/units`, { unitIds }),
   getPullSheets: () => api.get<PullSheetRow[]>("/jobs/pullsheets"),
+  createPullSheet: (jobId: string, data: Omit<InsertPullSheet, "jobId">) =>
+                   api.post<PullSheet>(`/jobs/${jobId}/pullsheets`, data),
+  deletePullSheet: (id: string) => api.delete<void>(`/jobs/pullsheets/${id}`),
+  downloadPullSheetPdf: (jobId: string) => fetchBlob(`/jobs/${jobId}/pullsheet/pdf`),
   getCrew:       () => api.get<CrewData>("/jobs/crew"),
   getIncidents:  () => api.get<Incident[]>("/jobs/all/incidents"),
   createIncident:(jobId: string, data: Omit<InsertIncident, "companyId" | "jobId">) =>
@@ -141,6 +178,9 @@ export const jobsApi = {
                    api.post<void>(`/jobs/${jobId}/containers`, { containerId }),
   removeContainer: (jobId: string, containerId: string) =>
                    api.delete<void>(`/jobs/${jobId}/containers/${containerId}`),
+  getJobCrew:    (jobId: string) => api.get<JobCrewMember[]>(`/jobs/${jobId}/crew`),
+  assignCrew:    (jobId: string, userId: string) => api.post<JobCrew>(`/jobs/${jobId}/crew`, { userId }),
+  unassignCrew:  (jobId: string, userId: string) => api.delete<void>(`/jobs/${jobId}/crew/${userId}`),
 };
 
 // ─── Finance ──────────────────────────────────────────────
@@ -253,4 +293,15 @@ export const catalogApi = {
   getContainerTypes:   () => api.get<ContainerType[]>("/catalog/container-types"),
   createContainerType: (data: Omit<InsertContainerType, "companyId">) => api.post<ContainerType>("/catalog/container-types", data),
   deleteContainerType: (id: string) => api.delete<void>(`/catalog/container-types/${id}`),
+};
+
+// ─── Notifications ────────────────────────────────────────
+
+export type AppNotification = Notification;
+
+export const notificationsApi = {
+  getAll:         () => api.get<AppNotification[]>("/notifications"),
+  getUnreadCount: () => api.get<{ count: number }>("/notifications/unread-count"),
+  markRead:       (id: string) => api.put<AppNotification>(`/notifications/${id}/read`, {}),
+  markAllRead:    () => api.put<{ message: string }>("/notifications/read-all", {}),
 };

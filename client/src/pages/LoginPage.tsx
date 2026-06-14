@@ -45,6 +45,7 @@ export const LoginPage = ({ onBack }: LoginPageProps) => {
         userRole:     me.role,
         companyId:    me.companyId,
         companyName:  me.companyName,
+        avatarUrl:    me.avatarUrl ?? null,
       });
     } catch (err: any) {
       setError(err.message || t("invalidCredentials"));

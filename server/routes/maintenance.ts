@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db";
 import { maintenanceLogs, subRentals, insertMaintenanceLogBatchSchema } from "@shared/schema";
+import { notify } from "../lib/notify";
 
 export const maintenanceRouter = Router();
 
@@ -36,6 +37,23 @@ maintenanceRouter.post("/batch", async (req, res) => {
     }));
 
     const logs = await db.insert(maintenanceLogs).values(rows).returning();
+
+    // แจ้งเตือนช่างที่ถูก assign งานซ่อมบำรุง
+    const techCounts = new Map<string, number>();
+    for (const log of logs) {
+      if (log.techId) techCounts.set(log.techId, (techCounts.get(log.techId) ?? 0) + 1);
+    }
+    for (const [techId, taskCount] of Array.from(techCounts.entries())) {
+      await notify({
+        companyId: req.companyId,
+        userIds: [techId],
+        actorId: req.userId,
+        type: "maintenance_assigned",
+        meta: { count: taskCount },
+        link: "Maintenance",
+      });
+    }
+
     res.status(201).json(logs);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

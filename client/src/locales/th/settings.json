@@ -13,6 +13,7 @@
 
   "companyInformation": "ข้อมูลบริษัท",
   "companyName": "ชื่อบริษัท",
+  "companySaved": "บันทึกชื่อบริษัทแล้ว",
   "planLabel": "แพลน",
   "freeBadge": "FREE",
   "upgradeHint": "อัปเกรดเป็น Pro เพื่อ feature เพิ่มเติม",
@@ -31,5 +32,6 @@
   "fullName": "ชื่อ-สกุล",
   "changePassword": "เปลี่ยนรหัสผ่าน",
   "newPasswordPlaceholder": "รหัสผ่านใหม่",
-  "confirmPasswordPlaceholder": "ยืนยันรหัสผ่านใหม่"
+  "confirmPasswordPlaceholder": "ยืนยันรหัสผ่านใหม่",
+  "profileSaved": "บันทึกโปรไฟล์แล้ว"
 }

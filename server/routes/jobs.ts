@@ -3,10 +3,52 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import {
   jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, incidents, insertJobSchema,
-  users, activityLog, stockUnits, stockItems, containers, containerUnits,
+  insertPullSheetSchema, insertJobCrewSchema, users, activityLog, stockUnits, stockItems, containers, containerUnits, companies,
 } from "@shared/schema";
+import { generatePullSheetPdf } from "../lib/pullsheetPdf";
+import { notify } from "../lib/notify";
 
 export const jobsRouter = Router();
+
+// รวมอุปกรณ์ของ job จากทั้ง job_stock (กำหนด quantity ตรง) และ job_units (unit ที่ assign จริง ผ่าน Edit Units / scan)
+// แล้ว group ตาม stock item พร้อมชื่อและหมวดหมู่
+async function getJobEquipment(jobId: string) {
+  const [rawStock, assignedUnits] = await Promise.all([
+    db.select().from(jobStock).where(eq(jobStock.jobId, jobId)),
+    db.select().from(jobUnits).where(eq(jobUnits.jobId, jobId)),
+  ]);
+
+  const counts: Record<string, number> = {};
+  for (const s of rawStock) {
+    counts[s.stockItemId] = (counts[s.stockItemId] ?? 0) + s.quantity;
+  }
+
+  if (assignedUnits.length > 0) {
+    const unitIds = assignedUnits.map((a) => a.stockUnitId);
+    const units = await db
+      .select({ id: stockUnits.id, stockItemId: stockUnits.stockItemId })
+      .from(stockUnits)
+      .where(inArray(stockUnits.id, unitIds));
+
+    for (const u of units) {
+      counts[u.stockItemId] = (counts[u.stockItemId] ?? 0) + 1;
+    }
+  }
+
+  const itemIds = Object.keys(counts);
+  const itemRows = itemIds.length
+    ? await db.select({ id: stockItems.id, name: stockItems.name, category: stockItems.category })
+        .from(stockItems).where(inArray(stockItems.id, itemIds))
+    : [];
+  const itemMap = Object.fromEntries(itemRows.map((i) => [i.id, i]));
+
+  return itemIds.map((id) => ({
+    stockItemId: id,
+    category:    itemMap[id]?.category ?? "Uncategorized",
+    itemName:    itemMap[id]?.name     ?? "Unknown",
+    quantity:    counts[id],
+  }));
+}
 
 // GET /api/jobs — ดึงงานทั้งหมด เรียงจากใหม่ไปเก่า
 jobsRouter.get("/", async (req, res) => {
@@ -52,11 +94,11 @@ jobsRouter.get("/pullsheets", async (req, res) => {
       : [];
     const userNameMap: Record<string, string> = Object.fromEntries(userRows.map((u) => [u.id, u.name]));
 
-    // 4. นับ items จาก jobStock
+    // 4. นับ items จาก job_stock + job_units
     const stockCounts: Record<string, number> = {};
     for (const jid of jobIds) {
-      const stock = await db.select({ qty: jobStock.quantity }).from(jobStock).where(eq(jobStock.jobId, jid));
-      stockCounts[jid] = stock.reduce((s, s2) => s + s2.qty, 0);
+      const equipment = await getJobEquipment(jid);
+      stockCounts[jid] = equipment.reduce((s, e) => s + e.quantity, 0);
     }
 
     res.json(sheets.map((s) => ({
@@ -70,6 +112,21 @@ jobsRouter.get("/pullsheets", async (req, res) => {
     })));
   } catch (err: any) {
     res.status(500).json({ message: err?.message ?? "Failed to fetch pull sheets" });
+  }
+});
+
+// DELETE /api/jobs/pullsheets/:id — ลบ pull sheet
+jobsRouter.delete("/pullsheets/:id", async (req, res) => {
+  try {
+    const [deleted] = await db
+      .delete(pullSheets)
+      .where(and(eq(pullSheets.id, req.params.id), eq(pullSheets.companyId, req.companyId)))
+      .returning();
+
+    if (!deleted) return res.status(404).json({ message: "Pull sheet not found" });
+    res.json({ message: "Pull sheet deleted" });
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to delete pull sheet" });
   }
 });
 
@@ -97,7 +154,8 @@ jobsRouter.get("/crew", async (req, res) => {
         .orderBy(jobs.startDate);
 
       const currentJob = assignments.find((a) => a.jobStatus === "active");
-      const nextJob    = assignments.find((a) => a.jobStatus === "scheduled");
+      // นับ job ที่ยังเป็น draft ด้วย เพราะ job ใหม่จะมี status เป็น draft โดย default
+      const nextJob    = assignments.find((a) => a.jobStatus === "scheduled" || a.jobStatus === "draft");
 
       let items = 0;
       if (currentJob) {
@@ -380,6 +438,101 @@ jobsRouter.delete("/:id/containers/:containerId", async (req, res) => {
   }
 });
 
+// GET /api/jobs/:id/crew — ทีมงานที่ assign ให้ job นี้
+jobsRouter.get("/:id/crew", async (req, res) => {
+  try {
+    const assigned = await db
+      .select()
+      .from(jobCrew)
+      .where(eq(jobCrew.jobId, req.params.id));
+
+    if (assigned.length === 0) return res.json([]);
+
+    const userIds = assigned.map((a) => a.userId);
+    const userRows = await db
+      .select({ id: users.id, name: users.name, initials: users.initials, role: users.role })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    const userMap = Object.fromEntries(userRows.map((u) => [u.id, u]));
+
+    res.json(assigned.map((a) => ({
+      userId:   a.userId,
+      name:     userMap[a.userId]?.name     ?? "Unknown",
+      initials: userMap[a.userId]?.initials ?? "?",
+      role:     userMap[a.userId]?.role     ?? "crew",
+    })));
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job crew" });
+  }
+});
+
+// POST /api/jobs/:id/crew — assign ทีมงานคนหนึ่งเข้า job
+jobsRouter.post("/:id/crew", async (req, res) => {
+  try {
+    const [job] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const { userId }: { userId: string } = req.body;
+    if (!userId) return res.status(400).json({ message: "userId is required" });
+
+    const existing = await db
+      .select()
+      .from(jobCrew)
+      .where(and(eq(jobCrew.jobId, req.params.id), eq(jobCrew.userId, userId)));
+
+    if (existing.length > 0) return res.status(409).json({ message: "User already assigned to this job" });
+
+    const data = insertJobCrewSchema.parse({ jobId: req.params.id, userId, role: null });
+    const [row] = await db.insert(jobCrew).values(data).returning();
+
+    await notify({
+      companyId: req.companyId,
+      userIds: [userId],
+      actorId: req.userId,
+      type: "job_assigned",
+      meta: { jobName: job.name },
+      link: "Jobs",
+    });
+
+    res.status(201).json(row);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// DELETE /api/jobs/:id/crew/:userId — เอาทีมงานออกจาก job
+jobsRouter.delete("/:id/crew/:userId", async (req, res) => {
+  try {
+    const [job] = await db
+      .select({ name: jobs.name })
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+
+    await db
+      .delete(jobCrew)
+      .where(and(eq(jobCrew.jobId, req.params.id), eq(jobCrew.userId, req.params.userId)));
+
+    if (job) {
+      await notify({
+        companyId: req.companyId,
+        userIds: [req.params.userId],
+        actorId: req.userId,
+        type: "job_removed",
+        meta: { jobName: job.name },
+        link: "Jobs",
+      });
+    }
+
+    res.json({ message: "Crew member removed from job" });
+  } catch {
+    res.status(500).json({ message: "Failed to remove crew member from job" });
+  }
+});
+
 // POST /api/jobs/:id/stock — batch set stock items สำหรับ job (replace all)
 jobsRouter.post("/:id/stock", async (req, res) => {
   try {
@@ -403,9 +556,88 @@ jobsRouter.post("/:id/stock", async (req, res) => {
   }
 });
 
+// POST /api/jobs/:id/pullsheets — สร้าง pull sheet ใหม่สำหรับ job
+jobsRouter.post("/:id/pullsheets", async (req, res) => {
+  try {
+    const [job] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const data = insertPullSheetSchema.parse({
+      jobId: req.params.id,
+      assigneeId: req.body.assigneeId || null,
+    });
+
+    const [sheet] = await db
+      .insert(pullSheets)
+      .values({
+        ...data,
+        companyId: req.companyId,
+        createdById: req.userId,
+        status: "draft",
+      })
+      .returning();
+
+    if (sheet.assigneeId) {
+      await notify({
+        companyId: req.companyId,
+        userIds: [sheet.assigneeId],
+        actorId: req.userId,
+        type: "pullsheet_assigned",
+        meta: { jobName: job.name },
+        link: "Jobs",
+      });
+    }
+
+    res.status(201).json(sheet);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/jobs/:id/pullsheet/pdf — generate ใบเบิกอุปกรณ์เป็น PDF (สร้างใหม่ทุกครั้ง สะท้อนข้อมูลล่าสุด)
+jobsRouter.get("/:id/pullsheet/pdf", async (req, res) => {
+  try {
+    const [job] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const [company] = await db
+      .select({ name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, req.companyId));
+
+    const equipment = await getJobEquipment(job.id);
+    const items = equipment.map(({ category, itemName, quantity }) => ({ category, itemName, quantity }));
+
+    const doc = generatePullSheetPdf({ companyName: company?.name ?? "Company", job, items });
+
+    const safeName = job.name.replace(/[^a-z0-9-_]+/gi, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="pullsheet-${safeName}.pdf"`);
+    doc.pipe(res);
+    doc.end();
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to generate pull sheet PDF" });
+  }
+});
+
 // PUT /api/jobs/:id — อัปเดตงาน (เช่น เปลี่ยน status)
 jobsRouter.put("/:id", async (req, res) => {
   try {
+    const [before] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+
+    if (!before) return res.status(404).json({ message: "Job not found" });
+
     const [job] = await db
       .update(jobs)
       .set(req.body)
@@ -415,7 +647,27 @@ jobsRouter.put("/:id", async (req, res) => {
       ))
       .returning();
 
-    if (!job) return res.status(404).json({ message: "Job not found" });
+    // แจ้งเตือนทีมงานที่ถูก assign ถ้าสถานะหรือกำหนดการของงานเปลี่ยน
+    const statusChanged = req.body.status !== undefined && job.status !== before.status;
+    const dateChanged =
+      (req.body.startDate !== undefined && new Date(job.startDate).getTime() !== new Date(before.startDate).getTime()) ||
+      (req.body.endDate !== undefined && new Date(job.endDate).getTime() !== new Date(before.endDate).getTime());
+
+    if (statusChanged || dateChanged) {
+      const crewRows = await db.select({ userId: jobCrew.userId }).from(jobCrew).where(eq(jobCrew.jobId, job.id));
+
+      if (crewRows.length > 0) {
+        await notify({
+          companyId: req.companyId,
+          userIds: crewRows.map((c) => c.userId),
+          actorId: req.userId,
+          type: "job_updated",
+          meta: { jobName: job.name, status: job.status },
+          link: "Jobs",
+        });
+      }
+    }
+
     res.json(job);
   } catch {
     res.status(500).json({ message: "Failed to update job" });

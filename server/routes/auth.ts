@@ -13,8 +13,12 @@ const supabase = createClient(
 );
 
 // Supabase Admin client สำหรับ invite users (ต้องใช้ service_role key)
-const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(process.env.VITE_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY)
+// service_role key เป็น JWT (ASCII ล้วน) — ถ้ายังเป็นค่า placeholder ภาษาไทยใน .env
+// ให้ถือว่ายังไม่ได้ตั้งค่า ไม่งั้น header "Bearer <key>" จะมีอักขระไทยและทำให้ fetch throw
+// "Cannot convert argument to a ByteString" ตอนเรียก inviteUserByEmail
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = serviceRoleKey && /^[\x00-\x7F]+$/.test(serviceRoleKey)
+  ? createClient(process.env.VITE_SUPABASE_URL!, serviceRoleKey)
   : null;
 
 // POST /api/auth/register — สร้าง company + user ครั้งแรก
@@ -168,6 +172,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
         role:        users.role,
         companyId:   users.companyId,
         companyName: companies.name,
+        avatarUrl:   users.avatarUrl,
       })
       .from(users)
       .leftJoin(companies, eq(users.companyId, companies.id))
@@ -177,5 +182,116 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     res.json(user);
   } catch {
     res.status(500).json({ message: "Failed to fetch user" });
+  }
+});
+
+// PUT /api/auth/me — อัปเดตข้อมูลโปรไฟล์ของตัวเอง (ชื่อ / รูปโปรไฟล์)
+authRouter.put("/me", requireAuth, async (req, res) => {
+  try {
+    const { name, avatarUrl }: { name?: string; avatarUrl?: string | null } = req.body;
+
+    const updates: Partial<typeof users.$inferInsert> = {};
+    if (name !== undefined) {
+      updates.name = name;
+      updates.initials = name.split(" ").map((n: string) => n[0] ?? "").join("").toUpperCase().slice(0, 2);
+    }
+    if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
+
+    await db.update(users).set(updates).where(eq(users.id, req.userId));
+
+    const [user] = await db
+      .select({
+        id:          users.id,
+        name:        users.name,
+        initials:    users.initials,
+        role:        users.role,
+        companyId:   users.companyId,
+        companyName: companies.name,
+        avatarUrl:   users.avatarUrl,
+      })
+      .from(users)
+      .leftJoin(companies, eq(users.companyId, companies.id))
+      .where(eq(users.id, req.userId));
+
+    res.json(user);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PUT /api/auth/company — Admin แก้ไขชื่อบริษัท
+authRouter.put("/company", requireAuth, async (req, res) => {
+  if (req.userRole !== "admin") {
+    return res.status(403).json({ message: "เฉพาะ Admin เท่านั้น" });
+  }
+
+  const { name }: { name?: string } = req.body;
+  if (!name?.trim()) {
+    return res.status(400).json({ message: "กรุณากรอกชื่อบริษัท" });
+  }
+
+  try {
+    const [company] = await db
+      .update(companies)
+      .set({ name: name.trim() })
+      .where(eq(companies.id, req.companyId))
+      .returning();
+
+    res.json(company);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/auth/team — รายชื่อสมาชิกทั้งหมดในบริษัท
+authRouter.get("/team", requireAuth, async (req, res) => {
+  try {
+    const team = await db
+      .select({
+        id:        users.id,
+        name:      users.name,
+        initials:  users.initials,
+        role:      users.role,
+        email:     users.username,
+        avatarUrl: users.avatarUrl,
+      })
+      .from(users)
+      .where(eq(users.companyId, req.companyId));
+
+    res.json(team);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/auth/team/:userId — Admin ลบสมาชิกออกจากบริษัท
+authRouter.delete("/team/:userId", requireAuth, async (req, res) => {
+  const targetUserId = req.params.userId as string;
+
+  if (req.userRole !== "admin") {
+    return res.status(403).json({ message: "เฉพาะ Admin เท่านั้น" });
+  }
+  if (targetUserId === req.userId) {
+    return res.status(400).json({ message: "ไม่สามารถลบบัญชีตัวเองได้" });
+  }
+
+  try {
+    const [target] = await db.select().from(users).where(eq(users.id, targetUserId));
+    if (!target || target.companyId !== req.companyId) {
+      return res.status(404).json({ message: "ไม่พบสมาชิก" });
+    }
+    if (target.role === "admin") {
+      return res.status(400).json({ message: "ไม่สามารถลบ Admin ได้" });
+    }
+
+    await db.delete(users).where(eq(users.id, targetUserId));
+
+    if (supabaseAdmin && target.authId) {
+      await supabaseAdmin.auth.admin.deleteUser(target.authId).catch(() => {});
+    }
+
+    res.json({ message: "ลบสมาชิกแล้ว" });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 });

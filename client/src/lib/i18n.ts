@@ -11,6 +11,7 @@ import enFinance from "@/locales/en/finance.json";
 import enHistory from "@/locales/en/history.json";
 import enSettings from "@/locales/en/settings.json";
 import enModals from "@/locales/en/modals.json";
+import enNotifications from "@/locales/en/notifications.json";
 
 import thCommon from "@/locales/th/common.json";
 import thNav from "@/locales/th/nav.json";
@@ -22,6 +23,7 @@ import thFinance from "@/locales/th/finance.json";
 import thHistory from "@/locales/th/history.json";
 import thSettings from "@/locales/th/settings.json";
 import thModals from "@/locales/th/modals.json";
+import thNotifications from "@/locales/th/notifications.json";
 
 export const STORAGE_KEY = "stak-language";
 export type Language = "en" | "th";
@@ -34,10 +36,10 @@ const getInitialLanguage = (): Language => {
 
 i18n.use(initReactI18next).init({
   resources: {
-    en: { common: enCommon, nav: enNav, auth: enAuth, home: enHome, stock: enStock, jobs: enJobs, finance: enFinance, history: enHistory, settings: enSettings, modals: enModals },
-    th: { common: thCommon, nav: thNav, auth: thAuth, home: thHome, stock: thStock, jobs: thJobs, finance: thFinance, history: thHistory, settings: thSettings, modals: thModals },
+    en: { common: enCommon, nav: enNav, auth: enAuth, home: enHome, stock: enStock, jobs: enJobs, finance: enFinance, history: enHistory, settings: enSettings, modals: enModals, notifications: enNotifications },
+    th: { common: thCommon, nav: thNav, auth: thAuth, home: thHome, stock: thStock, jobs: thJobs, finance: thFinance, history: thHistory, settings: thSettings, modals: thModals, notifications: thNotifications },
   },
-  ns: ["common", "nav", "auth", "home", "stock", "jobs", "finance", "history", "settings", "modals"],
+  ns: ["common", "nav", "auth", "home", "stock", "jobs", "finance", "history", "settings", "modals", "notifications"],
   defaultNS: "common",
   lng: getInitialLanguage(),
   fallbackLng: "th",

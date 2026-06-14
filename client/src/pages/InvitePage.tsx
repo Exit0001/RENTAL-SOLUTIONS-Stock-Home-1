@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
-export const InvitePage = () => {
+export const InvitePage = ({ onDone }: { onDone: () => void }) => {
   const { setAuth } = useAppStore();
   const { t } = useTranslation("auth");
   const [name, setName]         = useState("");
@@ -65,9 +65,12 @@ export const InvitePage = () => {
         userRole:     me.role,
         companyId:    me.companyId,
         companyName:  me.companyName,
+        avatarUrl:    null,
       });
 
       setDone(true);
+      // แสดงข้อความสำเร็จสักครู่ แล้วเข้าสู่หน้า dashboard
+      setTimeout(onDone, 1200);
     } catch (err: any) {
       setError(err.message || t("genericError"));
     } finally {

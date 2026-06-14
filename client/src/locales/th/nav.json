@@ -8,6 +8,9 @@
   "language": "ภาษา",
   "switchToThai": "เปลี่ยนเป็นภาษาไทย",
   "switchToEnglish": "เปลี่ยนเป็นภาษาอังกฤษ",
+  "userMenu": {
+    "viewProfile": "ดูโปรไฟล์"
+  },
   "pageTitles": {
     "Home": "แดชบอร์ด",
     "Stock": "จัดการสต็อก",

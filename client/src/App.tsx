@@ -40,8 +40,8 @@ function AuthGate() {
     return () => subscription.unsubscribe();
   }, [updateToken]);
 
-  // พนักงานคลิก invite link จากอีเมล
-  if (isInvite && !token) return <InvitePage />;
+  // พนักงานคลิก invite link จากอีเมล — แสดงหน้านี้เสมอ ไม่ว่าเบราว์เซอร์จะมี session เก่าค้างอยู่หรือไม่
+  if (isInvite) return <InvitePage onDone={() => setIsInvite(false)} />;
 
   if (!token) {
     if (view === "login")    return <LoginPage    onBack={() => setView("entry")} />;

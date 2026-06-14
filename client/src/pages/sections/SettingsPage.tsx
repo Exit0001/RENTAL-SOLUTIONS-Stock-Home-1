@@ -1,8 +1,11 @@
-import { useState } from "react";
-import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2, Camera } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
+import { authApi } from "@/api";
+import { uploadAttachment } from "@/components/FileUploadField";
 
 type SettingsTab = "general" | "team" | "profile";
 
@@ -18,29 +21,76 @@ const roleColors: Record<string, string> = {
   crew:    "bg-white/5 text-white/60",
 };
 
-// Mock team data — จะเชื่อมกับ API จริงใน Step ถัดไป
-const mockTeam = [
-  { id: "1", name: "Yossapon T.",  initials: "YT", role: "admin",   email: "admin@tyaa.com" },
-  { id: "2", name: "James Wilson", initials: "JW", role: "manager", email: "james@tyaa.com" },
-  { id: "3", name: "Sarah Chen",   initials: "SC", role: "crew",    email: "sarah@tyaa.com" },
-];
-
 export const SettingsPage = (): JSX.Element => {
   const { t } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
-  const { companyName, userName, userInitials, userRole, token, clearAuth } = useAppStore();
-  const [activeTab, setActiveTab]   = useState<SettingsTab>("general");
+  const {
+    companyName, companyId, userName, userInitials, userRole, avatarUrl,
+    token, clearAuth, settingsTab, setSettingsTab, updateProfile, updateCompanyName,
+  } = useAppStore();
+  const qc = useQueryClient();
   const [editName, setEditName]     = useState(companyName || "");
+  const [companyMsg, setCompanyMsg] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName]   = useState("");
   const [inviteRole, setInviteRole]   = useState<"manager" | "crew">("crew");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteMsg, setInviteMsg]     = useState("");
 
+  // Profile tab
+  const [profileName, setProfileName]           = useState(userName || "");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(avatarUrl);
+  const [avatarUploading, setAvatarUploading]   = useState(false);
+  const [profileMsg, setProfileMsg]             = useState("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: team = [], isLoading: teamLoading } = useQuery({
+    queryKey: ["team"], queryFn: authApi.getTeam, enabled: !!token,
+  });
+
+  const removeMember = useMutation({
+    mutationFn: (userId: string) => authApi.removeMember(userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["team"] }),
+  });
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     clearAuth();
   };
+
+  const handleAvatarFile = async (file: File | undefined) => {
+    if (!file || !companyId) return;
+    setAvatarUploading(true);
+    setProfileMsg("");
+    try {
+      const url = await uploadAttachment(file, "avatars", companyId);
+      setProfileAvatarUrl(url);
+    } catch (err: any) {
+      setProfileMsg(`✗ ${err.message}`);
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const saveCompany = useMutation({
+    mutationFn: () => authApi.updateCompany({ name: editName }),
+    onSuccess: (res) => {
+      updateCompanyName(res.name);
+      setEditName(res.name);
+      setCompanyMsg(`✓ ${t("companySaved")}`);
+    },
+    onError: (err: any) => setCompanyMsg(`✗ ${err.message}`),
+  });
+
+  const saveProfile = useMutation({
+    mutationFn: () => authApi.updateMe({ name: profileName, avatarUrl: profileAvatarUrl }),
+    onSuccess: (res) => {
+      updateProfile({ userName: res.name, userInitials: res.initials, avatarUrl: res.avatarUrl });
+      setProfileMsg(`✓ ${t("profileSaved")}`);
+    },
+    onError: (err: any) => setProfileMsg(`✗ ${err.message}`),
+  });
 
   const handleInvite = async () => {
     if (!inviteEmail) { setInviteMsg(t("pleaseEnterEmail")); return; }
@@ -81,9 +131,9 @@ export const SettingsPage = (): JSX.Element => {
       {/* Tabs */}
       <div className="flex gap-1 border-b border-white/[0.06] mb-6">
         {tabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+          <button key={tab.key} onClick={() => setSettingsTab(tab.key)}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"
+              settingsTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"
             }`}>
             <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
           </button>
@@ -91,7 +141,7 @@ export const SettingsPage = (): JSX.Element => {
       </div>
 
       {/* ─── General ─────────────────────────────────────── */}
-      {activeTab === "general" && (
+      {settingsTab === "general" && (
         <div className="space-y-4">
           <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-semibold text-white/70">{t("companyInformation")}</h3>
@@ -107,7 +157,16 @@ export const SettingsPage = (): JSX.Element => {
                 <span className="text-xs text-white/60">{t("upgradeHint")}</span>
               </div>
             </div>
-            <button className="px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors">
+
+            {companyMsg && (
+              <p className={`text-xs px-3 py-2 rounded-lg ${companyMsg.startsWith("✓") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+                {companyMsg}
+              </p>
+            )}
+
+            <button onClick={() => saveCompany.mutate()} disabled={saveCompany.isPending || !editName.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+              {saveCompany.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {tc("saveChanges")}
             </button>
           </div>
@@ -115,7 +174,7 @@ export const SettingsPage = (): JSX.Element => {
       )}
 
       {/* ─── Team ────────────────────────────────────────── */}
-      {activeTab === "team" && (
+      {settingsTab === "team" && (
         <div className="space-y-4">
           {/* Invite */}
           {userRole === "admin" && (
@@ -157,14 +216,21 @@ export const SettingsPage = (): JSX.Element => {
             <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
               <Shield className="w-4 h-4 text-[#FFFF00]" />
               <span className="text-xs font-bold text-[#FFFF00] tracking-widest uppercase">{t("allMembers")}</span>
-              <span className="ml-auto text-[10px] text-white/60">{t("membersCount", { count: mockTeam.length })}</span>
+              <span className="ml-auto text-[10px] text-white/60">{t("membersCount", { count: team.length })}</span>
             </div>
             <div className="divide-y divide-white/[0.04]">
-              {mockTeam.map((member) => (
+              {teamLoading && (
+                <div className="px-4 py-6 text-center text-xs text-white/60">{tc("loading")}</div>
+              )}
+              {team.map((member) => (
                 <div key={member.id} className="flex items-center gap-4 px-4 py-3">
-                  <div className="w-8 h-8 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-xs font-bold text-[#FFFF00]/70">
-                    {member.initials}
-                  </div>
+                  {member.avatarUrl ? (
+                    <img src={member.avatarUrl} alt={member.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-xs font-bold text-[#FFFF00]/70 flex-shrink-0">
+                      {member.initials}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white/80">{member.name}</p>
                     <p className="text-xs text-white/60">{member.email}</p>
@@ -173,8 +239,12 @@ export const SettingsPage = (): JSX.Element => {
                     {t(`roles.${member.role}`)}
                   </span>
                   {userRole === "admin" && member.role !== "admin" && (
-                    <button className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
+                    <button onClick={() => removeMember.mutate(member.id)}
+                      disabled={removeMember.isPending && removeMember.variables === member.id}
+                      className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50">
+                      {removeMember.isPending && removeMember.variables === member.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
                   )}
                 </div>
@@ -195,13 +265,25 @@ export const SettingsPage = (): JSX.Element => {
       )}
 
       {/* ─── Profile ─────────────────────────────────────── */}
-      {activeTab === "profile" && (
+      {settingsTab === "profile" && (
         <div className="space-y-4">
           <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-lg font-bold text-[#FFFF00]">
-                {userInitials || "?"}
-              </div>
+              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => handleAvatarFile(e.target.files?.[0])} />
+              <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={avatarUploading}
+                className="relative w-14 h-14 rounded-full group cursor-pointer disabled:cursor-wait flex-shrink-0">
+                {profileAvatarUrl ? (
+                  <img src={profileAvatarUrl} alt={userName || ""} className="w-14 h-14 rounded-full object-cover" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-lg font-bold text-[#FFFF00]">
+                    {userInitials || "?"}
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {avatarUploading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Camera className="w-4 h-4 text-white" />}
+                </div>
+              </button>
               <div>
                 <p className="font-semibold text-white">{userName}</p>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${roleColors[userRole || "crew"]}`}>
@@ -212,7 +294,7 @@ export const SettingsPage = (): JSX.Element => {
 
             <div>
               <label className="block text-xs text-white/60 mb-1.5">{t("fullName")}</label>
-              <input defaultValue={userName || ""}
+              <input value={profileName} onChange={(e) => setProfileName(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-[#FFFF00]/40" />
             </div>
 
@@ -226,7 +308,15 @@ export const SettingsPage = (): JSX.Element => {
               </div>
             </div>
 
-            <button className="px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors">
+            {profileMsg && (
+              <p className={`text-xs px-3 py-2 rounded-lg ${profileMsg.startsWith("✓") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+                {profileMsg}
+              </p>
+            )}
+
+            <button onClick={() => saveProfile.mutate()} disabled={saveProfile.isPending}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+              {saveProfile.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {tc("save")}
             </button>
           </div>

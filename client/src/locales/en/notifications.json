@@ -1,0 +1,23 @@
+{
+  "title": "Notifications",
+  "markAllRead": "Mark all as read",
+  "empty": "No notifications yet",
+  "justNow": "Just now",
+  "minutesAgo": "{{count}}m ago",
+  "hoursAgo": "{{count}}h ago",
+  "daysAgo": "{{count}}d ago",
+
+  "title.job_assigned": "Job assignment",
+  "title.job_removed": "Removed from job",
+  "title.job_updated": "Job updated",
+  "title.pullsheet_assigned": "Pull sheet assigned",
+  "title.maintenance_assigned": "Maintenance assigned",
+  "title.stock_added": "New stock added",
+
+  "body.job_assigned": "You've been assigned to \"{{jobName}}\"",
+  "body.job_removed": "You've been removed from \"{{jobName}}\"",
+  "body.job_updated": "\"{{jobName}}\" was updated — status: {{status}}",
+  "body.pullsheet_assigned": "You've been assigned a pull sheet for \"{{jobName}}\"",
+  "body.maintenance_assigned": "You've been assigned {{count}} maintenance task(s)",
+  "body.stock_added": "{{actorName}} added \"{{itemName}}\" to stock"
+}

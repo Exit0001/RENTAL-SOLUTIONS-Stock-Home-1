@@ -25,6 +25,11 @@
   "noUnitsAssignedHint": "No items yet — click \"{{editUnits}}\" to select",
   "snLabel": "SN: {{serial}}",
 
+  "crewLabel": "Crew",
+  "assignCrew": "Assign Crew",
+  "noCrewAssigned": "No crew assigned to this job yet",
+  "removeFromJob": "Remove from job",
+
   "pullSheetsHint": "Pull sheets can be shared via LINE or exported as PDF for paperless operations",
   "colPullSheet": "Pull Sheet",
   "colCreated": "Created",
@@ -32,6 +37,9 @@
   "shareViaLine": "Share via LINE",
   "exportPdf": "Export PDF",
   "sendToCrew": "Send to crew",
+  "createPullSheet": "Create Pull Sheet",
+  "noPullSheetsYet": "No pull sheets yet — create one above",
+  "deletePullSheet": "Delete pull sheet",
 
   "crewNotificationHint": "Schedules and tasks are sent directly to crew via the notification system",
   "crewAndAssignments": "Crew & Assignments",

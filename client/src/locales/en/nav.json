@@ -8,6 +8,9 @@
   "language": "Language",
   "switchToThai": "Switch to Thai",
   "switchToEnglish": "Switch to English",
+  "userMenu": {
+    "viewProfile": "View Profile"
+  },
   "pageTitles": {
     "Home": "Dashboard",
     "Stock": "Stock Management",

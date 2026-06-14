@@ -65,6 +65,7 @@ export const RegisterPage = ({ onBack }: RegisterPageProps) => {
         userRole:     "admin",
         companyId:    me.companyId,
         companyName,
+        avatarUrl:    null,
       });
     } catch (err: any) {
       setError(err.message || t("registerFailed"));

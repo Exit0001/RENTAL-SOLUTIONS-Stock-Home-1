@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { stockItems, stockUnits, containers, containerUnits, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
+import { stockItems, stockUnits, containers, containerUnits, users, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
+import { notifyCompany } from "../lib/notify";
 
 export const stockRouter = Router();
 
@@ -154,6 +155,16 @@ stockRouter.post("/", async (req, res) => {
     });
 
     const [item] = await db.insert(stockItems).values(data as typeof stockItems.$inferInsert).returning();
+
+    const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId));
+    await notifyCompany({
+      companyId: req.companyId,
+      actorId: req.userId,
+      type: "stock_added",
+      meta: { itemName: item.name, actorName: actor?.name ?? "" },
+      link: "Stock",
+    });
+
     res.status(201).json(item);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -228,6 +239,17 @@ stockRouter.post("/:id/units", async (req, res) => {
     });
 
     const [unit] = await db.insert(stockUnits).values(data).returning();
+
+    const [item] = await db.select({ name: stockItems.name }).from(stockItems).where(eq(stockItems.id, req.params.id));
+    const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId));
+    await notifyCompany({
+      companyId: req.companyId,
+      actorId: req.userId,
+      type: "stock_added",
+      meta: { itemName: item?.name ?? "", actorName: actor?.name ?? "" },
+      link: "Stock",
+    });
+
     res.status(201).json(unit);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

@@ -13,6 +13,7 @@
 
   "companyInformation": "Company Information",
   "companyName": "Company Name",
+  "companySaved": "Company name saved",
   "planLabel": "Plan",
   "freeBadge": "FREE",
   "upgradeHint": "Upgrade to Pro for more features",
@@ -31,5 +32,6 @@
   "fullName": "Full Name",
   "changePassword": "Change Password",
   "newPasswordPlaceholder": "New password",
-  "confirmPasswordPlaceholder": "Confirm new password"
+  "confirmPasswordPlaceholder": "Confirm new password",
+  "profileSaved": "Profile saved"
 }

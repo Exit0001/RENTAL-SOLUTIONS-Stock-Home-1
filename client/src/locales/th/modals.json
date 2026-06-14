@@ -96,6 +96,14 @@
     "itemsCount": "{{count}} รายการ"
   },
 
+  "assignCrew": {
+    "title": "เพิ่มทีมงานเข้างาน",
+    "searchPlaceholder": "ค้นหาทีมงาน...",
+    "noUsersAvailable": "ทีมงานทั้งหมดถูกกำหนดให้งานนี้แล้ว",
+    "noUsersFound": "ไม่พบทีมงานที่ค้นหา",
+    "errorAssignFailed": "เพิ่มทีมงานเข้างานไม่สำเร็จ"
+  },
+
   "brandCategory": {
     "title": "จัดการแบรนด์และหมวดหมู่",
     "brandManagement": "จัดการแบรนด์",
@@ -141,6 +149,13 @@
 
   "manageJobStock": {
     "title": "เลือกอุปกรณ์"
+  },
+
+  "createPullSheet": {
+    "title": "สร้างใบเบิกอุปกรณ์",
+    "jobLabel": "งาน",
+    "assigneeLabel": "ผู้รับผิดชอบ (ไม่บังคับ)",
+    "createButton": "สร้างใบเบิกอุปกรณ์"
   },
 
   "addJob": {
