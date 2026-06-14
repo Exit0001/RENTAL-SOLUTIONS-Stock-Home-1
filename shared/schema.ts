@@ -444,7 +444,14 @@ export const insertStockItemSchema = createInsertSchema(stockItems).omit({ id: t
 export const insertStockUnitSchema = createInsertSchema(stockUnits).omit({ id: true, createdAt: true });
 export const insertContainerSchema = createInsertSchema(containers).omit({ id: true, createdAt: true });
 export const insertJobSchema       = createInsertSchema(jobs).omit({ id: true, createdAt: true });
-export const insertMaintenanceLogSchema = createInsertSchema(maintenanceLogs).omit({ id: true, createdAt: true });
+export const insertMaintenanceLogSchema = createInsertSchema(maintenanceLogs, {
+  date: z.coerce.date(),
+}).omit({ id: true, createdAt: true });
+
+// บันทึกซ่อมหลายชิ้นพร้อมกัน — stockUnitIds: รายการ unit ที่ต้องซ่อม (ว่างได้ = บันทึกทั่วไป)
+export const insertMaintenanceLogBatchSchema = insertMaintenanceLogSchema
+  .omit({ companyId: true, stockUnitId: true })
+  .extend({ stockUnitIds: z.array(z.string()).default([]) });
 export const insertSubRentalSchema = createInsertSchema(subRentals).omit({ id: true, createdAt: true });
 export const insertQuoteSchema     = createInsertSchema(quotes).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema   = createInsertSchema(invoices).omit({ id: true, createdAt: true });
@@ -487,6 +494,7 @@ export type InsertJobContainer = z.infer<typeof insertJobContainerSchema>;
 
 export type MaintenanceLog       = typeof maintenanceLogs.$inferSelect;
 export type InsertMaintenanceLog = z.infer<typeof insertMaintenanceLogSchema>;
+export type InsertMaintenanceLogBatch = z.infer<typeof insertMaintenanceLogBatchSchema>;
 
 export type SubRental       = typeof subRentals.$inferSelect;
 export type InsertSubRental = z.infer<typeof insertSubRentalSchema>;

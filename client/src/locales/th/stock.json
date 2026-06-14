@@ -24,6 +24,7 @@
   "colType": "ประเภท",
   "colTech": "ช่างผู้ดูแล",
   "colCost": "ค่าใช้จ่าย",
+  "generalLog": "ทั่วไป",
 
   "activeCount": "{{count}} กำลังใช้งาน",
   "colorCodedNote": "แยกสีจากสต็อกของบริษัทอย่างชัดเจน",

@@ -7,7 +7,7 @@ import type {
   StockUnit, InsertStockUnit,
   Container, InsertContainer,
   Job, InsertJob,
-  MaintenanceLog, InsertMaintenanceLog,
+  MaintenanceLog, InsertMaintenanceLog, InsertMaintenanceLogBatch,
   SubRental, InsertSubRental,
   Incident, InsertIncident,
   Brand, InsertBrand,
@@ -192,7 +192,7 @@ export const financeApi = {
 
 export const maintenanceApi = {
   getAll:        () => api.get<MaintenanceLog[]>("/maintenance"),
-  create:        (data: Omit<InsertMaintenanceLog, "companyId">) => api.post<MaintenanceLog>("/maintenance", data),
+  createBatch:   (data: InsertMaintenanceLogBatch) => api.post<MaintenanceLog[]>("/maintenance/batch", data),
   update:        (id: string, data: Partial<InsertMaintenanceLog>) => api.put<MaintenanceLog>(`/maintenance/${id}`, data),
   getSubRentals: () => api.get<SubRental[]>("/maintenance/subrentals"),
   createSubRental:(data: Omit<InsertSubRental, "companyId">) => api.post<SubRental>("/maintenance/subrentals", data),

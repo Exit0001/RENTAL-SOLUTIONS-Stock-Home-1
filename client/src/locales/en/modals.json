@@ -63,8 +63,9 @@
 
   "addMaintenanceLog": {
     "title": "Add Maintenance Log",
-    "stockItem": "Stock Item",
-    "stockUnit": "Stock Unit",
+    "itemsToRepair": "Items to Repair",
+    "itemsToRepairHint": "Select one or more units (leave empty for a general log)",
+    "noItemsSelected": "No items selected",
     "typeLabel": "Type",
     "descriptionPlaceholder": "What needs to be done / was done…",
     "technician": "Technician",

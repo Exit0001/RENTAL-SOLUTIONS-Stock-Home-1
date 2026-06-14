@@ -24,6 +24,7 @@
   "colType": "Type",
   "colTech": "Tech",
   "colCost": "Cost",
+  "generalLog": "General",
 
   "activeCount": "{{count}} active",
   "colorCodedNote": "Color-coded separately from company stock",

@@ -63,8 +63,9 @@
 
   "addMaintenanceLog": {
     "title": "เพิ่มบันทึกซ่อมบำรุง",
-    "stockItem": "สินค้าคงคลัง",
-    "stockUnit": "หน่วยสินค้า",
+    "itemsToRepair": "รายการที่ต้องซ่อม",
+    "itemsToRepairHint": "เลือกหน่วยอุปกรณ์ที่ต้องซ่อมได้มากกว่า 1 รายการ (เว้นว่างได้หากเป็นบันทึกทั่วไป)",
+    "noItemsSelected": "ยังไม่ได้เลือกรายการ",
     "typeLabel": "ประเภท",
     "descriptionPlaceholder": "สิ่งที่ต้องทำ / ได้ดำเนินการไปแล้ว…",
     "technician": "ช่างเทคนิค",

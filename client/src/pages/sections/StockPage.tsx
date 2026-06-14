@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Package,
   ChevronRightIcon,
@@ -31,8 +31,8 @@ import { StockItemsTableSection } from "./StockItemsTableSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { containersApi, maintenanceApi, stockApi } from "@/api";
-import type { ContainerWithItems } from "@/api";
+import { containersApi, jobsApi, maintenanceApi, stockApi } from "@/api";
+import type { ContainerWithItems, CrewMember, StockItemWithUnits } from "@/api";
 
 type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
 
@@ -118,9 +118,37 @@ export const StockPage = (): JSX.Element => {
   });
 
   const createMaintenanceLog = useMutation({
-    mutationFn: (data: Parameters<typeof maintenanceApi.create>[0]) => maintenanceApi.create(data),
+    mutationFn: (data: Parameters<typeof maintenanceApi.createBatch>[0]) => maintenanceApi.createBatch(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["maintenance"] }),
   });
+
+  // ดึงรายการ stock + units และทีมงาน เพื่อใช้แสดงชื่ออุปกรณ์/ช่างในตารางซ่อมบำรุง
+  const { data: stockWithUnits = [] } = useQuery<StockItemWithUnits[]>({
+    queryKey: ["stock-with-units"],
+    queryFn: stockApi.getAllWithUnits,
+    enabled: !!token && activeTab === "maintenance",
+  });
+
+  const { data: crewData } = useQuery({
+    queryKey: ["crew"],
+    queryFn: jobsApi.getCrew,
+    enabled: !!token && activeTab === "maintenance",
+  });
+  const crew: CrewMember[] = crewData?.crew ?? [];
+
+  const unitLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of stockWithUnits) {
+      for (const unit of item.units) map.set(unit.id, unit.name);
+    }
+    return map;
+  }, [stockWithUnits]);
+
+  const crewLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of crew) map.set(member.id, member.name);
+    return map;
+  }, [crew]);
 
   const createSubRental = useMutation({
     mutationFn: (data: Parameters<typeof maintenanceApi.createSubRental>[0]) => maintenanceApi.createSubRental(data),
@@ -439,7 +467,9 @@ export const StockPage = (): JSX.Element => {
                   ))
                 ) : maintenanceLogs.map((log: any) => (
                   <tr key={log.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`maintenance-${log.id}`}>
-                    <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{log.stockUnitId ?? "—"}</td>
+                    <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">
+                      {log.stockUnitId ? (unitLookup.get(log.stockUnitId) ?? log.stockUnitId) : t("generalLog")}
+                    </td>
                     <td className="py-2.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                         log.type === "repair" ? "bg-red-500/10 text-red-400" : log.type === "preventive" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/60"
@@ -447,7 +477,7 @@ export const StockPage = (): JSX.Element => {
                     </td>
                     <td className="py-2.5 text-white/50 max-w-[250px] truncate">{log.description}</td>
                     <td className="py-2.5 text-white/60 text-xs">{new Date(log.date).toLocaleDateString("en-GB")}</td>
-                    <td className="py-2.5 text-white/50">{log.techId ?? "—"}</td>
+                    <td className="py-2.5 text-white/50">{log.techId ? (crewLookup.get(log.techId) ?? "—") : "—"}</td>
                     <td className="py-2.5 text-white/60 font-semibold">
                       <span className="inline-flex items-center gap-1.5">
                         {log.cost ? `£${log.cost}` : "—"}

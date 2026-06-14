@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db";
-import { maintenanceLogs, subRentals, insertMaintenanceLogSchema } from "@shared/schema";
+import { maintenanceLogs, subRentals, insertMaintenanceLogBatchSchema } from "@shared/schema";
 
 export const maintenanceRouter = Router();
 
@@ -21,16 +21,22 @@ maintenanceRouter.get("/", async (req, res) => {
   }
 });
 
-// POST /api/maintenance — บันทึกการซ่อมใหม่
-maintenanceRouter.post("/", async (req, res) => {
+// POST /api/maintenance/batch — บันทึกการซ่อมหลายชิ้นพร้อมกัน
+maintenanceRouter.post("/batch", async (req, res) => {
   try {
-    const data = insertMaintenanceLogSchema.parse({
-      ...req.body,
-      companyId: req.companyId,
-    });
+    const { stockUnitIds, ...rest } = insertMaintenanceLogBatchSchema.parse(req.body);
 
-    const [log] = await db.insert(maintenanceLogs).values(data).returning();
-    res.status(201).json(log);
+    const uniqueIds = Array.from(new Set(stockUnitIds));
+    const targetIds: (string | null)[] = uniqueIds.length > 0 ? uniqueIds : [null];
+
+    const rows = targetIds.map((stockUnitId) => ({
+      ...rest,
+      stockUnitId,
+      companyId: req.companyId,
+    }));
+
+    const logs = await db.insert(maintenanceLogs).values(rows).returning();
+    res.status(201).json(logs);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
