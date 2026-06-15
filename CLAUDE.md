@@ -132,17 +132,12 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_users_id_fk" 
 ```
 Until run, `/api/notifications/*` endpoints and the header Bell dropdown will fail (table doesn't exist).
 
-Also pending — `companies` needs 2 new columns for LINE group push notifications (Settings →
-General → LINE Notifications card, admin-only), already in `shared/schema.ts` and
-`migrations/0009_early_professor_monster.sql`:
-```sql
-ALTER TABLE companies ADD COLUMN IF NOT EXISTS line_channel_access_token TEXT;
-ALTER TABLE companies ADD COLUMN IF NOT EXISTS line_group_id TEXT;
-```
-Until run, `GET /api/auth/company` and the Settings LINE card will fail. Until an admin fills in
-both fields (Channel Access Token from a LINE Official Account's Messaging API settings, and the
-target group's Group ID), `sendLineMessage()` (`server/lib/line.ts`) is a no-op — no push is sent
-when a job is created.
+**Already applied** — `companies` columns for LINE group push notifications (Settings →
+General → LINE Notifications card, admin-only), in `shared/schema.ts` and
+`migrations/0009_early_professor_monster.sql`. Already created in Supabase, no action needed.
+Until an admin fills in both fields (Channel Access Token from a LINE Official Account's
+Messaging API settings, and the target group's Group ID), `sendLineMessage()`
+(`server/lib/line.ts`) is a no-op — no push is sent when a job is created.
 
 **Already applied** — `push_subscriptions` table for Web Push (Settings → Profile → Push
 Notifications card), in `shared/schema.ts` and `migrations/0010_ambiguous_miss_america.sql`.
