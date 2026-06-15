@@ -64,6 +64,13 @@
       "when": 1781440840971,
       "tag": "0008_dark_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781494849657,
+      "tag": "0009_early_professor_monster",
+      "breakpoints": true
     }
   ]
 }

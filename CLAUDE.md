@@ -132,6 +132,18 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_users_id_fk" 
 ```
 Until run, `/api/notifications/*` endpoints and the header Bell dropdown will fail (table doesn't exist).
 
+Also pending — `companies` needs 2 new columns for LINE group push notifications (Settings →
+General → LINE Notifications card, admin-only), already in `shared/schema.ts` and
+`migrations/0009_early_professor_monster.sql`:
+```sql
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS line_channel_access_token TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS line_group_id TEXT;
+```
+Until run, `GET /api/auth/company` and the Settings LINE card will fail. Until an admin fills in
+both fields (Channel Access Token from a LINE Official Account's Messaging API settings, and the
+target group's Group ID), `sendLineMessage()` (`server/lib/line.ts`) is a no-op — no push is sent
+when a job is created.
+
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
 

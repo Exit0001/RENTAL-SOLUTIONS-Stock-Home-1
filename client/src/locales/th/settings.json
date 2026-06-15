@@ -18,6 +18,12 @@
   "freeBadge": "FREE",
   "upgradeHint": "อัปเกรดเป็น Pro เพื่อ feature เพิ่มเติม",
 
+  "lineIntegration": "การแจ้งเตือนผ่าน LINE",
+  "lineHelpText": "ส่งข้อความแจ้งเข้ากลุ่ม LINE อัตโนมัติทุกครั้งที่มีการสร้างงานใหม่ — สร้าง LINE Official Account ที่ LINE Developers Console เปิดใช้ Messaging API แล้วคัดลอก Channel Access Token มาวางด้านล่าง จากนั้นเชิญบอทเข้ากลุ่ม LINE ที่ต้องการ และหา Group ID (เช่น ตั้ง webhook URL ของบอทไปที่เครื่องมืออย่าง webhook.site ชั่วคราว ส่งข้อความในกลุ่ม แล้วอ่านค่า \"source.groupId\" จาก event ที่ได้รับ)",
+  "lineTokenLabel": "Channel Access Token",
+  "lineGroupIdLabel": "Group ID",
+  "lineSaved": "บันทึกการตั้งค่า LINE แล้ว",
+
   "inviteNewMember": "เชิญสมาชิกใหม่",
   "memberNamePlaceholder": "ชื่อสมาชิก (optional)",
   "memberEmailPlaceholder": "อีเมลสมาชิก",

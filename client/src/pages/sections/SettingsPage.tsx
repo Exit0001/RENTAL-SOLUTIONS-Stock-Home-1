@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2, Camera } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +31,9 @@ export const SettingsPage = (): JSX.Element => {
   const qc = useQueryClient();
   const [editName, setEditName]     = useState(companyName || "");
   const [companyMsg, setCompanyMsg] = useState("");
+  const [lineToken, setLineToken]   = useState("");
+  const [lineGroupId, setLineGroupId] = useState("");
+  const [lineMsg, setLineMsg]       = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName]   = useState("");
   const [inviteRole, setInviteRole]   = useState<"manager" | "crew">("crew");
@@ -81,6 +84,24 @@ export const SettingsPage = (): JSX.Element => {
       setCompanyMsg(`✓ ${t("companySaved")}`);
     },
     onError: (err: any) => setCompanyMsg(`✗ ${err.message}`),
+  });
+
+  const { data: companySettings } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: authApi.getCompany,
+    enabled: !!token && userRole === "admin",
+  });
+
+  useEffect(() => {
+    if (!companySettings) return;
+    setLineToken(companySettings.lineChannelAccessToken || "");
+    setLineGroupId(companySettings.lineGroupId || "");
+  }, [companySettings]);
+
+  const saveLine = useMutation({
+    mutationFn: () => authApi.updateCompany({ lineChannelAccessToken: lineToken, lineGroupId }),
+    onSuccess: () => setLineMsg(`✓ ${t("lineSaved")}`),
+    onError: (err: any) => setLineMsg(`✗ ${err.message}`),
   });
 
   const saveProfile = useMutation({
@@ -170,6 +191,36 @@ export const SettingsPage = (): JSX.Element => {
               {tc("saveChanges")}
             </button>
           </div>
+
+          {userRole === "admin" && (
+            <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-white/70">{t("lineIntegration")}</h3>
+              <p className="text-xs text-white/50 leading-relaxed">{t("lineHelpText")}</p>
+
+              <div>
+                <label className="block text-xs text-white/60 mb-1.5">{t("lineTokenLabel")}</label>
+                <textarea rows={2} value={lineToken} onChange={(e) => setLineToken(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white font-mono resize-none focus:outline-none focus:border-[#FFFF00]/40" />
+              </div>
+              <div>
+                <label className="block text-xs text-white/60 mb-1.5">{t("lineGroupIdLabel")}</label>
+                <input value={lineGroupId} onChange={(e) => setLineGroupId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white font-mono focus:outline-none focus:border-[#FFFF00]/40" />
+              </div>
+
+              {lineMsg && (
+                <p className={`text-xs px-3 py-2 rounded-lg ${lineMsg.startsWith("✓") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+                  {lineMsg}
+                </p>
+              )}
+
+              <button onClick={() => saveLine.mutate()} disabled={saveLine.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+                {saveLine.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {tc("saveChanges")}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

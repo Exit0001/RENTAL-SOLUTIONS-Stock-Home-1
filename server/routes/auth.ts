@@ -219,21 +219,43 @@ authRouter.put("/me", requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/auth/company — Admin แก้ไขชื่อบริษัท
+// GET /api/auth/company — Admin ดูข้อมูลบริษัท (รวมค่าตั้งค่า LINE)
+authRouter.get("/company", requireAuth, async (req, res) => {
+  if (req.userRole !== "admin") {
+    return res.status(403).json({ message: "เฉพาะ Admin เท่านั้น" });
+  }
+
+  const [company] = await db.select().from(companies).where(eq(companies.id, req.companyId));
+  res.json(company);
+});
+
+// PUT /api/auth/company — Admin แก้ไขชื่อบริษัท / ค่าตั้งค่า LINE
 authRouter.put("/company", requireAuth, async (req, res) => {
   if (req.userRole !== "admin") {
     return res.status(403).json({ message: "เฉพาะ Admin เท่านั้น" });
   }
 
-  const { name }: { name?: string } = req.body;
-  if (!name?.trim()) {
-    return res.status(400).json({ message: "กรุณากรอกชื่อบริษัท" });
+  const { name, lineChannelAccessToken, lineGroupId }: {
+    name?: string;
+    lineChannelAccessToken?: string;
+    lineGroupId?: string;
+  } = req.body;
+
+  const updates: Partial<typeof companies.$inferInsert> = {};
+
+  if (name !== undefined) {
+    if (!name.trim()) {
+      return res.status(400).json({ message: "กรุณากรอกชื่อบริษัท" });
+    }
+    updates.name = name.trim();
   }
+  if (lineChannelAccessToken !== undefined) updates.lineChannelAccessToken = lineChannelAccessToken.trim() || null;
+  if (lineGroupId !== undefined) updates.lineGroupId = lineGroupId.trim() || null;
 
   try {
     const [company] = await db
       .update(companies)
-      .set({ name: name.trim() })
+      .set(updates)
       .where(eq(companies.id, req.companyId))
       .returning();
 

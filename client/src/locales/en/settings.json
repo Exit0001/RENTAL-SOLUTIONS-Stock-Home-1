@@ -18,6 +18,12 @@
   "freeBadge": "FREE",
   "upgradeHint": "Upgrade to Pro for more features",
 
+  "lineIntegration": "LINE Notifications",
+  "lineHelpText": "Automatically posts a message to a LINE group whenever a new job is created. Create a LINE Official Account in the LINE Developers Console, enable the Messaging API, and paste the Channel Access Token below. Then add the bot to your LINE group and find its Group ID (e.g. temporarily set the bot's webhook URL to a tool like webhook.site, send any message in the group, and read \"source.groupId\" from the captured event).",
+  "lineTokenLabel": "Channel Access Token",
+  "lineGroupIdLabel": "Group ID",
+  "lineSaved": "LINE settings saved",
+
   "inviteNewMember": "Invite New Member",
   "memberNamePlaceholder": "Member name (optional)",
   "memberEmailPlaceholder": "Member email",

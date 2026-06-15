@@ -54,7 +54,9 @@ export const authApi = {
   updateMe: (data: { name?: string; avatarUrl?: string | null }) => api.put<Me>("/auth/me", data),
   getTeam:  () => api.get<TeamMember[]>("/auth/team"),
   removeMember: (userId: string) => api.delete<{ message: string }>(`/auth/team/${userId}`),
-  updateCompany: (data: { name: string }) => api.put<Company>("/auth/company", data),
+  getCompany: () => api.get<Company>("/auth/company"),
+  updateCompany: (data: { name?: string; lineChannelAccessToken?: string; lineGroupId?: string }) =>
+    api.put<Company>("/auth/company", data),
 };
 
 // ─── Stock ────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import {
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { notify } from "../lib/notify";
+import { sendLineMessage } from "../lib/line";
 
 export const jobsRouter = Router();
 
@@ -299,6 +300,18 @@ jobsRouter.post("/", async (req, res) => {
     });
 
     const [job] = await db.insert(jobs).values(data).returning();
+
+    // ส่งข้อความแจ้งงานใหม่เข้ากลุ่ม LINE (ถ้าตั้งค่าไว้)
+    const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId));
+    const lines = [
+      `📋 งานใหม่: ${job.name}`,
+      `ลูกค้า: ${job.client}`,
+      `วันที่: ${job.startDate.toLocaleDateString("th-TH")} - ${job.endDate.toLocaleDateString("th-TH")}`,
+    ];
+    if (job.location) lines.push(`สถานที่: ${job.location}`);
+    lines.push(`สร้างโดย: ${actor?.name ?? "-"}`);
+    void sendLineMessage(req.companyId, lines.join("\n"));
+
     res.status(201).json(job);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

@@ -50,6 +50,10 @@ export const companies = pgTable("companies", {
   slug:      text("slug").notNull().unique(),  // ใช้ใน URL เช่น stak.app/my-company
   plan:      planEnum("plan").default("free").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+
+  // LINE group push notifications — ส่งข้อความเข้ากลุ่ม LINE เมื่อมีงานใหม่
+  lineChannelAccessToken: text("line_channel_access_token"),
+  lineGroupId:            text("line_group_id"),
 });
 
 // ─────────────────────────────────────────────
