@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { notifications, users, type NotificationType } from "@shared/schema";
+import { sendPushToUser, formatPushText } from "./push";
 
 type NotifyOpts = {
   companyId: string;
@@ -26,6 +27,12 @@ export async function notify({ companyId, userIds, actorId, type, meta, link }: 
       link: link ?? null,
     }))
   );
+
+  // ส่ง Web Push ไปยังทุก device ที่ผู้รับเปิดใช้งานไว้ (ไม่ block การ insert)
+  const pushPayload = formatPushText(type, meta);
+  for (const userId of recipients) {
+    void sendPushToUser(userId, { ...pushPayload, link: link ?? null });
+  }
 }
 
 // บันทึกแจ้งเตือนให้ทุกคนในบริษัท (ยกเว้นผู้ที่ทำให้เกิดการเปลี่ยนแปลง)

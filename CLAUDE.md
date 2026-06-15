@@ -144,6 +144,10 @@ both fields (Channel Access Token from a LINE Official Account's Messaging API s
 target group's Group ID), `sendLineMessage()` (`server/lib/line.ts`) is a no-op — no push is sent
 when a job is created.
 
+**Already applied** — `push_subscriptions` table for Web Push (Settings → Profile → Push
+Notifications card), in `shared/schema.ts` and `migrations/0010_ambiguous_miss_america.sql`.
+Already created in Supabase, no action needed.
+
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
 
@@ -171,6 +175,20 @@ warrantyExpiresAt: timestamp("warranty_expires_at"), // ประกันหม
 - `GET /api/stock` now returns `availableCount` per item (count of units with `status = 'available'`)
 - `PUT /api/stock/units/:unitId` handles date string → Date conversion for `purchasedAt` / `warrantyExpiresAt`
 
+### Web Push Notifications
+- `server/lib/push.ts` — `sendPushToUser()` (sends via `web-push` to all of a user's stored
+  `push_subscriptions`, deleting expired ones) and `formatPushText()` (Thai title/body per
+  `notification_type`, mirrors `client/src/locales/th/notifications.json`)
+- `server/lib/notify.ts`'s `notify()` now also calls `sendPushToUser()` for each recipient — all 6
+  existing notification types (job assign/remove/update, pull sheet, maintenance, stock added)
+  trigger an OS push automatically
+- `server/routes/push.ts` (`/api/push`) — `GET /vapid-public-key`, `POST /subscribe`,
+  `POST /unsubscribe`
+- `client/public/sw.js` — service worker (served at `/sw.js`), handles `push` (shows OS
+  notification) and `notificationclick` (focuses/opens the app)
+- Settings → Profile → "Push Notifications" card — enable/disable toggle, registers the service
+  worker and subscribes via `pushApi`
+
 ## Adding a New Feature
 
 1. Add table/columns to `shared/schema.ts`
@@ -187,6 +205,11 @@ Requires `.env` (not committed):
 DATABASE_URL=postgresql://...  # Supabase Session Pooler URL with encoded special chars
 NODE_ENV=development
 PORT=5000
+
+# Web Push (VAPID keys — generate once with `npx web-push generate-vapid-keys`)
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:admin@example.com
 ```
 
 URL-encode special chars in passwords: `%` → `%25`, `?` → `%3F`

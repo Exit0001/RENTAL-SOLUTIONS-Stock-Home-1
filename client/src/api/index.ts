@@ -307,3 +307,12 @@ export const notificationsApi = {
   markRead:       (id: string) => api.put<AppNotification>(`/notifications/${id}/read`, {}),
   markAllRead:    () => api.put<{ message: string }>("/notifications/read-all", {}),
 };
+
+// ─── Web Push ─────────────────────────────────────────────
+
+export const pushApi = {
+  getVapidKey: () => api.get<{ publicKey: string }>("/push/vapid-public-key"),
+  subscribe:   (sub: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+                 api.post<{ message: string }>("/push/subscribe", sub),
+  unsubscribe: (endpoint: string) => api.post<{ message: string }>("/push/unsubscribe", { endpoint }),
+};

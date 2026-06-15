@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2, Camera } from "lucide-react";
+import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2, Camera, Bell } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
-import { authApi } from "@/api";
+import { authApi, pushApi } from "@/api";
 import { uploadAttachment } from "@/components/FileUploadField";
+
+// แปลง VAPID public key (base64url) เป็น Uint8Array สำหรับ pushManager.subscribe()
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
 
 type SettingsTab = "general" | "team" | "profile";
 
@@ -46,6 +56,12 @@ export const SettingsPage = (): JSX.Element => {
   const [avatarUploading, setAvatarUploading]   = useState(false);
   const [profileMsg, setProfileMsg]             = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Push notifications
+  const [pushSupported, setPushSupported] = useState(true);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading]     = useState(false);
+  const [pushMsg, setPushMsg]             = useState("");
 
   const { data: team = [], isLoading: teamLoading } = useQuery({
     queryKey: ["team"], queryFn: authApi.getTeam, enabled: !!token,
@@ -112,6 +128,65 @@ export const SettingsPage = (): JSX.Element => {
     },
     onError: (err: any) => setProfileMsg(`✗ ${err.message}`),
   });
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushSupported(false);
+      return;
+    }
+    navigator.serviceWorker.register("/sw.js")
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => setPushSubscribed(!!sub))
+      .catch(() => setPushSupported(false));
+  }, []);
+
+  const enablePush = async () => {
+    setPushLoading(true);
+    setPushMsg("");
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setPushMsg(`✗ ${t("pushPermissionDenied")}`);
+        return;
+      }
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const { publicKey } = await pushApi.getVapidKey();
+      const sub = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+      const json = sub.toJSON();
+      await pushApi.subscribe({
+        endpoint: json.endpoint!,
+        keys: { p256dh: json.keys!.p256dh, auth: json.keys!.auth },
+      });
+      setPushSubscribed(true);
+      setPushMsg(`✓ ${t("pushEnabled")}`);
+    } catch (err: any) {
+      setPushMsg(`✗ ${err.message}`);
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const disablePush = async () => {
+    setPushLoading(true);
+    setPushMsg("");
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const sub = await registration?.pushManager.getSubscription();
+      if (sub) {
+        await pushApi.unsubscribe(sub.endpoint);
+        await sub.unsubscribe();
+      }
+      setPushSubscribed(false);
+      setPushMsg(`✓ ${t("pushDisabled")}`);
+    } catch (err: any) {
+      setPushMsg(`✗ ${err.message}`);
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const handleInvite = async () => {
     if (!inviteEmail) { setInviteMsg(t("pleaseEnterEmail")); return; }
@@ -370,6 +445,33 @@ export const SettingsPage = (): JSX.Element => {
               {saveProfile.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {tc("save")}
             </button>
+          </div>
+
+          <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-white/70 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-[#FFFF00]" />
+              {t("pushNotifications")}
+            </h3>
+            <p className="text-xs text-white/50 leading-relaxed">{t("pushHelpText")}</p>
+
+            {!pushSupported ? (
+              <p className="text-xs text-white/40">{t("pushUnsupported")}</p>
+            ) : (
+              <>
+                {pushMsg && (
+                  <p className={`text-xs px-3 py-2 rounded-lg ${pushMsg.startsWith("✓") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+                    {pushMsg}
+                  </p>
+                )}
+                <button onClick={() => (pushSubscribed ? disablePush() : enablePush())} disabled={pushLoading}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                    pushSubscribed ? "bg-white/[0.06] text-white/70 hover:bg-white/[0.1]" : "bg-[#FFFF00]/10 text-[#FFFF00] hover:bg-[#FFFF00]/20"
+                  }`}>
+                  {pushLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {pushSubscribed ? t("disablePush") : t("enablePush")}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -356,6 +356,20 @@ export const notifications = pgTable("notifications", {
 });
 
 // ─────────────────────────────────────────────
+// 16c. PUSH SUBSCRIPTIONS — Web Push subscription ต่อ device
+// ─────────────────────────────────────────────
+
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  userId:    uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  endpoint:  text("endpoint").notNull().unique(),
+  p256dh:    text("p256dh").notNull(),
+  auth:      text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
 // 17. CATALOG — Brand / Category / Sub-Category (จัดการได้จากหน้า Stock)
 // ─────────────────────────────────────────────
 
@@ -492,6 +506,7 @@ export const insertJobCrewSchema      = createInsertSchema(jobCrew).omit({ id: t
 export const insertPullSheetSchema    = createInsertSchema(pullSheets)
   .omit({ id: true, createdAt: true, companyId: true, createdById: true, status: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -561,3 +576,6 @@ export type InsertContainerType = z.infer<typeof insertContainerTypeSchema>;
 export type Notification       = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type NotificationType   = Notification["type"];
+
+export type PushSubscriptionRow       = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscriptionRow = z.infer<typeof insertPushSubscriptionSchema>;

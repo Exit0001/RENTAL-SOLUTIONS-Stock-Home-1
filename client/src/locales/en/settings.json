@@ -39,5 +39,14 @@
   "changePassword": "Change Password",
   "newPasswordPlaceholder": "New password",
   "confirmPasswordPlaceholder": "Confirm new password",
-  "profileSaved": "Profile saved"
+  "profileSaved": "Profile saved",
+
+  "pushNotifications": "Push Notifications",
+  "pushHelpText": "Enable browser/mobile push notifications — e.g. job assignments, job updates, pull sheet assignments, or new stock — even when STAK isn't open.",
+  "enablePush": "Enable notifications",
+  "disablePush": "Disable notifications",
+  "pushEnabled": "Push notifications enabled",
+  "pushDisabled": "Push notifications disabled",
+  "pushUnsupported": "This device or browser doesn't support push notifications",
+  "pushPermissionDenied": "Notification permission denied — please allow notifications in your browser settings"
 }

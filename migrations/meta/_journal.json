@@ -71,6 +71,13 @@
       "when": 1781494849657,
       "tag": "0009_early_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781533059831,
+      "tag": "0010_ambiguous_miss_america",
+      "breakpoints": true
     }
   ]
 }
