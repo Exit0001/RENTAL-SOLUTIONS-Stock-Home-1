@@ -78,18 +78,19 @@ style={{ backgroundColor: "#FFFF00" }}
 className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0"
 ```
 
-## Database Schema (17 tables)
+## Database Schema (25 tables)
 
 ```
 companies → users, stock_items, containers, jobs, maintenance_logs, quotes, invoices, incidents, activity_log
 stock_items → stock_units → container_units → containers
-jobs → job_stock, job_crew, job_units, pull_sheets, sub_rentals, quotes, invoices, incidents
-catalog: brands, categories, sub_categories, locations
+jobs → job_stock, job_crew, job_units, job_containers, pull_sheets, sub_rentals, quotes, invoices, incidents
+catalog: brands, categories, sub_categories, locations, container_types
+notifications, push_subscriptions
 ```
 
 All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, `stockUnitStatusEnum`, `containerTypeEnum`, `maintenanceTypeEnum`, `quoteStatusEnum`, `invoiceStatusEnum`, `incidentSeverityEnum`, `activityTypeEnum`, `maintenanceStatusEnum`, `subRentalStatusEnum`, `incidentStatusEnum`, `pullSheetStatusEnum`.
 
-## Current State (as of 2026-06-10)
+## Current State (as of 2026-06-16)
 
 ### Data
 - **2,188 stock_units** and **793 stock_items** migrated from `tenyear_backup_2026-06-09.sql` via `scripts/migrate-tenyear.js`
@@ -132,6 +133,12 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_users_id_fk" 
 ```
 Until run, `/api/notifications/*` endpoints and the header Bell dropdown will fail (table doesn't exist).
 
+**Pending (2026-06-16)** — `jobs.rehearsal_date` column, migration `0011_slim_typhoid_mary.sql`:
+```sql
+ALTER TABLE "jobs" ADD COLUMN "rehearsal_date" timestamp;
+```
+Until run, creating a job with a rehearsal date will fail.
+
 **Already applied** — `companies` columns for LINE group push notifications (Settings →
 General → LINE Notifications card, admin-only), in `shared/schema.ts` and
 `migrations/0009_early_professor_monster.sql`. Already created in Supabase, no action needed.
@@ -146,6 +153,25 @@ Already created in Supabase, no action needed.
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
 
+### Containers tab (`client/src/pages/sections/StockPage.tsx`)
+- **Delete container** — Trash2 icon button (Admin/Manager only), AlertDialog confirmation before delete
+- Backend `DELETE /api/containers/:id` — role-gated, calls `setUnitsAvailable()` on container units if container was checked out before deleting
+- FK cascade on `container_units` and `job_containers` cleans up join rows automatically
+
+### Maintenance page (`client/src/pages/sections/StockPage.tsx`)
+- Logs **grouped by Category** of the associated stock item — collapsed by default, click header to expand
+- Each category header shows: record count + amber "กำลังซ่อม N รายการ" / green "เสร็จสิ้นทั้งหมด" badge
+- **Bulk-select** (Admin/Manager only): custom yellow checkbox per row + per-category select-all checkbox + global select-all in `<thead>`
+  - Checkboxes use custom `<div>` style matching `AddMaintenanceLogModal` — `border-2 border-[#FFFF00] bg-[#FFFF00]` when checked, dash for indeterminate
+  - Action bar shows "Mark Completed" + "Delete Selected" buttons when any rows selected
+- Backend: `PUT /api/maintenance/batch-status` (bulk status change + per-unit sync), `DELETE /api/maintenance/batch` (bulk delete + per-unit revert)
+- Logs without `stockUnitId` grouped under "ทั่วไป" (General) category, sorted last
+
+### Jobs — Rehearsal Date
+- `rehearsalDate` optional field added to `jobs` table (`rehearsal_date TIMESTAMP`)
+- Shown in **Add Job modal** between Location and Start Date fields (not required)
+- `InsertJob` type auto-includes the field; POST route coerces string → Date if provided
+
 ### Inventory page (`client/src/pages/sections/StockItemsTableSection.tsx`)
 - Items grouped by **Category** (19 groups, collapsed by default)
 - Click category header → expand to see models
@@ -156,10 +182,14 @@ Already created in Supabase, no action needed.
 - Filter sidebar has search box inside Brand section (145 brands) + collapsible sections
 - Table sorted A→Z via `localeCompare`
 
-### stock_units extra fields (added to schema)
+### Schema extra fields
 ```typescript
+// stock_units
 purchasedAt:       timestamp("purchased_at"),        // วันที่ซื้อ
 warrantyExpiresAt: timestamp("warranty_expires_at"), // ประกันหมดอายุ
+
+// jobs
+rehearsalDate: timestamp("rehearsal_date"),          // วันซ้อม (optional)
 ```
 
 ### Loading states
