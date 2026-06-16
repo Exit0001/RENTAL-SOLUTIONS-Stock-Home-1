@@ -8,6 +8,7 @@ import {
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { notify } from "../lib/notify";
 import { sendLineMessage } from "../lib/line";
+import { setUnitsOut, setUnitsAvailable } from "../lib/stockUnitStatus";
 
 export const jobsRouter = Router();
 
@@ -294,9 +295,10 @@ jobsRouter.post("/", async (req, res) => {
   try {
     const data = insertJobSchema.parse({
       ...req.body,
-      companyId: req.companyId,
-      startDate: new Date(req.body.startDate),
-      endDate:   new Date(req.body.endDate),
+      companyId:     req.companyId,
+      rehearsalDate: req.body.rehearsalDate ? new Date(req.body.rehearsalDate) : null,
+      startDate:     new Date(req.body.startDate),
+      endDate:       new Date(req.body.endDate),
     });
 
     const [job] = await db.insert(jobs).values(data).returning();
@@ -428,6 +430,9 @@ jobsRouter.post("/:id/containers", async (req, res) => {
       if (newIds.length > 0) {
         await db.insert(jobUnits).values(newIds.map((stockUnitId) => ({ jobId: req.params.id, stockUnitId })));
       }
+
+      // ของในแร็คนี้ออกงานแล้ว — sync สถานะ
+      await setUnitsOut(unitIds);
     }
 
     res.status(201).json({ message: "Container assigned" });
@@ -444,6 +449,13 @@ jobsRouter.delete("/:id/containers/:containerId", async (req, res) => {
       .where(and(eq(jobContainers.jobId, req.params.id), eq(jobContainers.containerId, req.params.containerId)));
 
     await db.update(containers).set({ isOut: false }).where(eq(containers.id, req.params.containerId));
+
+    // ของในแร็คนี้กลับเข้าคลังแล้ว — sync สถานะ
+    const unitLinks = await db
+      .select({ stockUnitId: containerUnits.stockUnitId })
+      .from(containerUnits)
+      .where(eq(containerUnits.containerId, req.params.containerId));
+    await setUnitsAvailable(unitLinks.map((l) => l.stockUnitId));
 
     res.json({ message: "Container removed from job" });
   } catch {
@@ -684,6 +696,27 @@ jobsRouter.put("/:id", async (req, res) => {
     res.json(job);
   } catch {
     res.status(500).json({ message: "Failed to update job" });
+  }
+});
+
+// DELETE /api/jobs/:id — ลบงาน (Admin/Manager เท่านั้น)
+// job_stock, job_crew, job_units, job_containers, pull_sheets จะถูกลบตามไปด้วย (cascade)
+// quotes, invoices, incidents, sub_rentals จะยังคงอยู่แต่ตัดการเชื่อมโยง (jobId = null)
+jobsRouter.delete("/:id", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+
+  try {
+    const [deleted] = await db
+      .delete(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)))
+      .returning();
+
+    if (!deleted) return res.status(404).json({ message: "Job not found" });
+    res.json({ message: "Job deleted" });
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to delete job" });
   }
 });
 

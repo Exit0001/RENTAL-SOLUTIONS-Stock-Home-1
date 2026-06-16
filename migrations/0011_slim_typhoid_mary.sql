@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "rehearsal_date" timestamp;

@@ -98,7 +98,7 @@ export const containersApi = {
   getAll:         () => api.get<ContainerWithItems[]>("/containers"),
   create:         (data: Omit<InsertContainer, "companyId">) => api.post<Container>("/containers", data),
   toggleCheckout: (id: string) => api.put<Container>(`/containers/${id}/checkout`, {}),
-  delete:         (id: string) => api.delete<void>(`/containers/${id}`),
+  delete:         (id: string) => api.delete<{ message: string }>(`/containers/${id}`),
   setUnits:       (id: string, unitIds: string[]) => api.post<void>(`/containers/${id}/units`, { unitIds }),
 };
 
@@ -161,6 +161,7 @@ export const jobsApi = {
   getById:       (id: string) => api.get<JobDetail>(`/jobs/${id}`),
   create:        (data: Omit<InsertJob, "companyId">) => api.post<Job>("/jobs", data),
   update:        (id: string, data: Partial<InsertJob>) => api.put<Job>(`/jobs/${id}`, data),
+  delete:        (id: string) => api.delete<{ message: string }>(`/jobs/${id}`),
   addStock:      (jobId: string, items: { stockItemId: string; quantity: number }[]) =>
                    api.post<void>(`/jobs/${jobId}/stock`, { items }),
   getUnits:      (jobId: string) => api.get<AssignedUnit[]>(`/jobs/${jobId}/units`),
@@ -236,6 +237,10 @@ export const maintenanceApi = {
   getAll:        () => api.get<MaintenanceLog[]>("/maintenance"),
   createBatch:   (data: InsertMaintenanceLogBatch) => api.post<MaintenanceLog[]>("/maintenance/batch", data),
   update:        (id: string, data: Partial<InsertMaintenanceLog>) => api.put<MaintenanceLog>(`/maintenance/${id}`, data),
+  updateStatusBatch: (ids: string[], status: "in_progress" | "completed") =>
+                   api.put<MaintenanceLog[]>("/maintenance/batch-status", { ids, status }),
+  delete:        (id: string) => api.delete<{ message: string }>(`/maintenance/${id}`),
+  deleteBatch:   (ids: string[]) => api.delete<{ message: string; count: number }>("/maintenance/batch", { ids }),
   getSubRentals: () => api.get<SubRental[]>("/maintenance/subrentals"),
   createSubRental:(data: Omit<InsertSubRental, "companyId">) => api.post<SubRental>("/maintenance/subrentals", data),
 };

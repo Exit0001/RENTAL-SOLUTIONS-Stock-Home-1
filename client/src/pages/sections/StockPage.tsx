@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import {
   Package,
   ChevronRightIcon,
@@ -15,7 +15,21 @@ import {
   LogIn,
   PackagePlus,
   Receipt,
+  Pencil,
+  Trash2,
+  Check,
+  Loader2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { BrandCategoryModal } from "./BrandCategoryModal";
 import { AddNewItemModal } from "./AddNewItemModal";
 import { AddContainerModal } from "./AddContainerModal";
@@ -42,6 +56,9 @@ const stockTabs: { key: StockTab; labelKey: string; icon: typeof Package }[] = [
   { key: "maintenance",labelKey: "tabMaintenance", icon: Wrench },
   { key: "subrentals", labelKey: "tabSubRentals",  icon: ArrowRightLeft },
 ];
+
+// กลุ่มสำหรับบันทึกซ่อมบำรุงที่ไม่ได้ผูกกับอุปกรณ์ (general log)
+const GENERAL_MAINTENANCE_CATEGORY = "__general__";
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   available:   { bg: "bg-emerald-950/60", text: "text-emerald-400", dot: "bg-emerald-400" },
@@ -80,8 +97,16 @@ export const StockPage = (): JSX.Element => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [logForm, setLogForm] = useState({ status: "", cost: "" });
+  const [deleteLogTarget, setDeleteLogTarget] = useState<any>(null);
+  const [deleteContainerTarget, setDeleteContainerTarget] = useState<ContainerWithItems | null>(null);
+  const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteLogsOpen, setBulkDeleteLogsOpen] = useState(false);
+  const [expandedMaintenanceCategories, setExpandedMaintenanceCategories] = useState<Set<string>>(new Set());
 
-  const { token, expandedContainers, toggleContainer } = useAppStore();
+  const { token, expandedContainers, toggleContainer, userRole } = useAppStore();
+  const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
 
   // ดึง containers จาก API (token ถูกส่งอัตโนมัติจาก api client)
@@ -104,6 +129,16 @@ export const StockPage = (): JSX.Element => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
   });
 
+  // Mutation สำหรับลบ container
+  const deleteContainer = useMutation({
+    mutationFn: (id: string) => containersApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["containers"] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      setDeleteContainerTarget(null);
+    },
+  });
+
   // ดึง maintenance + subrentals จาก API
   const { data: maintenanceLogs = [], isLoading: maintenanceLoading } = useQuery({
     queryKey: ["maintenance"],
@@ -121,6 +156,85 @@ export const StockPage = (): JSX.Element => {
     mutationFn: (data: Parameters<typeof maintenanceApi.createBatch>[0]) => maintenanceApi.createBatch(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["maintenance"] }),
   });
+
+  const updateMaintenanceLog = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof maintenanceApi.update>[1] }) =>
+      maintenanceApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["maintenance"] });
+      setEditingLogId(null);
+    },
+  });
+
+  const deleteMaintenanceLog = useMutation({
+    mutationFn: (id: string) => maintenanceApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["maintenance"] });
+      setDeleteLogTarget(null);
+    },
+  });
+
+  const bulkCompleteLogs = useMutation({
+    mutationFn: (ids: string[]) => maintenanceApi.updateStatusBatch(ids, "completed"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["maintenance"] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      setSelectedLogIds(new Set());
+    },
+  });
+
+  const bulkDeleteLogs = useMutation({
+    mutationFn: (ids: string[]) => maintenanceApi.deleteBatch(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["maintenance"] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      setSelectedLogIds(new Set());
+      setBulkDeleteLogsOpen(false);
+    },
+  });
+
+  const toggleLogSelection = (id: string) =>
+    setSelectedLogIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleSelectAllLogs = () =>
+    setSelectedLogIds((prev) =>
+      prev.size === maintenanceLogs.length ? new Set() : new Set(maintenanceLogs.map((l: any) => l.id))
+    );
+
+  const toggleMaintenanceCategory = (cat: string) =>
+    setExpandedMaintenanceCategories((prev) => {
+      const next = new Set(prev);
+      next.has(cat) ? next.delete(cat) : next.add(cat);
+      return next;
+    });
+
+  // ติ้ก/ยกเลิกติ๊กทั้งหมดของ category นั้นๆ
+  const toggleCategorySelection = (logs: any[]) =>
+    setSelectedLogIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = logs.every((l) => next.has(l.id));
+      for (const l of logs) allSelected ? next.delete(l.id) : next.add(l.id);
+      return next;
+    });
+
+  const allLogsSelected = maintenanceLogs.length > 0 && selectedLogIds.size === maintenanceLogs.length;
+  const someLogsSelected = selectedLogIds.size > 0 && !allLogsSelected;
+
+  const startEditLog = (log: any) => {
+    setEditingLogId(log.id);
+    setLogForm({ status: log.status, cost: log.cost ?? "" });
+  };
+
+  const saveEditLog = (id: string) => {
+    updateMaintenanceLog.mutate({
+      id,
+      data: { status: logForm.status as any, cost: logForm.cost || null },
+    });
+  };
 
   // ดึงรายการ stock + units และทีมงาน เพื่อใช้แสดงชื่ออุปกรณ์/ช่างในตารางซ่อมบำรุง
   const { data: stockWithUnits = [] } = useQuery<StockItemWithUnits[]>({
@@ -143,6 +257,29 @@ export const StockPage = (): JSX.Element => {
     }
     return map;
   }, [stockWithUnits]);
+
+  const unitCategoryLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of stockWithUnits) {
+      for (const unit of item.units) map.set(unit.id, item.category);
+    }
+    return map;
+  }, [stockWithUnits]);
+
+  // จัดกลุ่มบันทึกซ่อมบำรุงตาม Category ของอุปกรณ์ (เรียง A→Z, "ทั่วไป" ไว้ล่างสุด)
+  const groupedMaintenanceLogs = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const log of maintenanceLogs) {
+      const cat = (log.stockUnitId && unitCategoryLookup.get(log.stockUnitId)) || GENERAL_MAINTENANCE_CATEGORY;
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(log);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      if (a === GENERAL_MAINTENANCE_CATEGORY) return 1;
+      if (b === GENERAL_MAINTENANCE_CATEGORY) return -1;
+      return a.localeCompare(b);
+    });
+  }, [maintenanceLogs, unitCategoryLookup]);
 
   const crewLookup = useMemo(() => {
     const map = new Map<string, string>();
@@ -387,6 +524,15 @@ export const StockPage = (): JSX.Element => {
                     >
                       {isOut ? <><LogIn className="w-3 h-3" /> {t("checkIn")}</> : <><LogOut className="w-3 h-3" /> {t("checkOut")}</>}
                     </button>
+                    {canManage && (
+                      <button
+                        onClick={() => setDeleteContainerTarget(c)}
+                        className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
+                        title={t("deleteContainer")}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 {expanded && (
@@ -412,6 +558,25 @@ export const StockPage = (): JSX.Element => {
             );
           })}
           </div>
+
+          <AlertDialog open={!!deleteContainerTarget} onOpenChange={(open) => !open && setDeleteContainerTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("confirmDeleteContainerTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>{t("confirmDeleteContainerDesc")}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteContainer.isPending}>{tc("cancel")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteContainerTarget && deleteContainer.mutate(deleteContainerTarget.id)}
+                  disabled={deleteContainer.isPending}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {deleteContainer.isPending ? tc("deleting") : tc("delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 
@@ -422,6 +587,25 @@ export const StockPage = (): JSX.Element => {
             <Wrench className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
             <span className="text-sm font-semibold text-white/50">{t("maintenanceLog")}</span>
             <span className="text-xs text-white/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
+            {canManage && selectedLogIds.size > 0 && (
+              <div className="flex items-center gap-2 animate-fade-in">
+                <span className="text-xs text-[#FFFF00]/70 font-semibold">{t("selectedLogsCount", { count: selectedLogIds.size })}</span>
+                <button
+                  onClick={() => bulkCompleteLogs.mutate(Array.from(selectedLogIds))}
+                  disabled={bulkCompleteLogs.isPending}
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-40"
+                >
+                  {bulkCompleteLogs.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                  {t("markCompletedSelected")}
+                </button>
+                <button
+                  onClick={() => setBulkDeleteLogsOpen(true)}
+                  className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" /> {t("deleteSelected")}
+                </button>
+              </div>
+            )}
             <div className="ml-auto">
               <button
                 onClick={() => setAddMaintenanceLogOpen(true)}
@@ -443,31 +627,103 @@ export const StockPage = (): JSX.Element => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
-                  <th className="py-2.5 pl-4 text-left font-semibold">{t("colAsset")}</th>
+                  {canManage && (
+                    <th className="py-2.5 pl-4 w-8">
+                      <div
+                        role="checkbox"
+                        aria-checked={allLogsSelected}
+                        aria-label={tc("selectAll")}
+                        onClick={toggleSelectAllLogs}
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
+                          ${allLogsSelected ? "border-[#FFFF00] bg-[#FFFF00]" : someLogsSelected ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" : "border-white/20"}`}
+                      >
+                        {allLogsSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
+                        {someLogsSelected && <div className="w-1.5 h-0.5 bg-[#FFFF00] rounded-full" />}
+                      </div>
+                    </th>
+                  )}
+                  <th className={`py-2.5 text-left font-semibold ${canManage ? "" : "pl-4"}`}>{t("colAsset")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colType")}</th>
                   <th className="py-2.5 text-left font-semibold">{tc("description")}</th>
                   <th className="py-2.5 text-left font-semibold">{tc("date")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colTech")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colCost")}</th>
-                  <th className="py-2.5 pr-4 text-right font-semibold">{tc("status")}</th>
+                  <th className="py-2.5 text-left font-semibold">{tc("status")}</th>
+                  <th className="py-2.5 pr-4 text-right font-semibold">{tc("actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {maintenanceLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={`msk-${i}`} className="animate-pulse border-b border-white/[0.04]">
-                      <td className="py-2.5 pl-4"><div className="h-3 rounded bg-white/[0.06] w-28" /></td>
+                      {canManage && <td className="py-2.5 pl-4"><div className="h-3.5 w-3.5 rounded bg-white/[0.06]" /></td>}
+                      <td className={`py-2.5 ${canManage ? "" : "pl-4"}`}><div className="h-3 rounded bg-white/[0.06] w-28" /></td>
                       <td className="py-2.5"><div className="h-5 rounded bg-white/[0.05] w-16" /></td>
                       <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04]" style={{ width: `${100 + (i * 27) % 100}px` }} /></td>
                       <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04] w-20" /></td>
                       <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04] w-16" /></td>
                       <td className="py-2.5"><div className="h-3 rounded bg-white/[0.05] w-10" /></td>
+                      <td className="py-2.5"><div className="h-5 rounded-full bg-white/[0.06] w-20" /></td>
                       <td className="py-2.5 pr-4 text-right"><div className="h-3 rounded bg-white/[0.05] w-16 ml-auto" /></td>
                     </tr>
                   ))
-                ) : maintenanceLogs.map((log: any) => (
+                ) : groupedMaintenanceLogs.map(([category, logs]) => {
+                  const isCatOpen = expandedMaintenanceCategories.has(category);
+                  const inProgressCount = logs.filter((l: any) => l.status === "in_progress").length;
+                  const categoryLabel = category === GENERAL_MAINTENANCE_CATEGORY ? t("generalLog") : category;
+                  const catAllSelected = logs.length > 0 && logs.every((l: any) => selectedLogIds.has(l.id));
+                  const catSomeSelected = !catAllSelected && logs.some((l: any) => selectedLogIds.has(l.id));
+                  return (
+                  <Fragment key={category}>
+                    <tr
+                      className="cursor-pointer bg-white/[0.03] hover:bg-white/[0.05] border-b border-white/[0.08] transition-colors select-none"
+                      onClick={() => toggleMaintenanceCategory(category)}
+                    >
+                      <td colSpan={canManage ? 9 : 8} className="py-2.5 px-4">
+                        <div className="flex items-center gap-2.5">
+                          {canManage && (
+                            <div
+                              role="checkbox"
+                              aria-checked={catAllSelected}
+                              onClick={(e) => { e.stopPropagation(); toggleCategorySelection(logs); }}
+                              className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
+                                ${catAllSelected ? "border-[#FFFF00] bg-[#FFFF00]" : catSomeSelected ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" : "border-white/20"}`}
+                            >
+                              {catAllSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
+                              {catSomeSelected && <div className="w-1.5 h-0.5 bg-[#FFFF00] rounded-full" />}
+                            </div>
+                          )}
+                          <ChevronRightIcon className={`w-3.5 h-3.5 flex-shrink-0 text-[#FFFF00]/60 transition-transform duration-200 ${isCatOpen ? "rotate-90" : ""}`} />
+                          <Wrench className="w-3.5 h-3.5 text-[#FFFF00]/40 flex-shrink-0" />
+                          <span className="font-bold text-xs text-[#FFFF00]">{categoryLabel}</span>
+                          <span className="text-[11px] text-white/60">{t("recordsCount", { count: logs.length })}</span>
+                          <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            inProgressCount > 0 ? "bg-amber-950/40 text-amber-500" : "bg-emerald-950/40 text-emerald-500"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${inProgressCount > 0 ? "bg-amber-500" : "bg-emerald-500"}`} />
+                            {inProgressCount > 0 ? t("inProgressCount", { count: inProgressCount }) : t("allLogsCompleted")}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {isCatOpen && logs.map((log: any) => {
+                  const isEditing = editingLogId === log.id;
+                  return (
                   <tr key={log.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`maintenance-${log.id}`}>
-                    <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">
+                    {canManage && (
+                      <td className="py-2.5 pl-4">
+                        <div
+                          role="checkbox"
+                          aria-checked={selectedLogIds.has(log.id)}
+                          onClick={() => toggleLogSelection(log.id)}
+                          className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
+                            ${selectedLogIds.has(log.id) ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20"}`}
+                        >
+                          {selectedLogIds.has(log.id) && <Check className="w-2 h-2 text-black" strokeWidth={3} />}
+                        </div>
+                      </td>
+                    )}
+                    <td className={`py-2.5 font-mono text-[#FFFF00]/70 text-xs ${canManage ? "" : "pl-4"}`}>
                       {log.stockUnitId ? (unitLookup.get(log.stockUnitId) ?? log.stockUnitId) : t("generalLog")}
                     </td>
                     <td className="py-2.5">
@@ -479,28 +735,130 @@ export const StockPage = (): JSX.Element => {
                     <td className="py-2.5 text-white/60 text-xs">{new Date(log.date).toLocaleDateString("en-GB")}</td>
                     <td className="py-2.5 text-white/50">{log.techId ? (crewLookup.get(log.techId) ?? "—") : "—"}</td>
                     <td className="py-2.5 text-white/60 font-semibold">
-                      <span className="inline-flex items-center gap-1.5">
-                        {log.cost ? `£${log.cost}` : "—"}
-                        {log.receiptUrl && (
-                          <a href={log.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
-                            className="text-white/60 hover:text-[#FFFF00] transition-colors">
-                            <Receipt className="w-3 h-3" />
-                          </a>
-                        )}
-                      </span>
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="h-7 w-24 bg-black/50 border border-white/10 rounded px-2 text-xs text-white focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                          value={logForm.cost}
+                          onChange={(e) => setLogForm((f) => ({ ...f, cost: e.target.value }))}
+                          placeholder={t("costPlaceholder")}
+                        />
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5">
+                          {log.cost ? `£${log.cost}` : "—"}
+                          {log.receiptUrl && (
+                            <a href={log.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
+                              className="text-white/60 hover:text-[#FFFF00] transition-colors">
+                              <Receipt className="w-3 h-3" />
+                            </a>
+                          )}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      {isEditing ? (
+                        <select
+                          className="h-7 w-full bg-black/50 border border-white/10 rounded px-2 text-xs text-white focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
+                          value={logForm.status}
+                          onChange={(e) => setLogForm((f) => ({ ...f, status: e.target.value }))}
+                        >
+                          <option value="in_progress" className="bg-[#111]">{tc("statusEnum.in_progress")}</option>
+                          <option value="completed" className="bg-[#111]">{tc("statusEnum.completed")}</option>
+                        </select>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${log.status === "completed" ? "text-emerald-400" : "text-amber-400"}`}>
+                          {log.status === "completed" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {tc(`statusEnum.${log.status}`, { defaultValue: log.status })}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 pr-4 text-right">
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${log.status === "completed" ? "text-emerald-400" : "text-amber-400"}`}>
-                        {log.status === "completed" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                        {tc(`statusEnum.${log.status}`, { defaultValue: log.status })}
-                      </span>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <button
+                            onClick={() => setEditingLogId(null)}
+                            className="h-7 px-2 rounded text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-colors"
+                          >
+                            {tc("cancel")}
+                          </button>
+                          <button
+                            onClick={() => saveEditLog(log.id)}
+                            disabled={updateMaintenanceLog.isPending}
+                            className="h-7 px-2 rounded text-xs font-bold text-black flex items-center gap-1 disabled:opacity-50 transition-opacity hover:opacity-80"
+                            style={{ backgroundColor: "#FFFF00" }}
+                          >
+                            {updateMaintenanceLog.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                            {tc("save")}
+                          </button>
+                        </div>
+                      ) : canManage ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => startEditLog(log)}
+                            className="p-1.5 rounded-lg text-white/60 hover:text-[#FFFF00] hover:bg-white/[0.06] transition-colors"
+                            title={t("editLog")}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteLogTarget(log)}
+                            className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
+                            title={t("deleteLog")}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
-                ))}
+                  );
+                    })}
+                  </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           </div>
+
+          <AlertDialog open={!!deleteLogTarget} onOpenChange={(open) => !open && setDeleteLogTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("confirmDeleteLogTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>{t("confirmDeleteLogDesc")}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteMaintenanceLog.isPending}>{tc("cancel")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteLogTarget && deleteMaintenanceLog.mutate(deleteLogTarget.id)}
+                  disabled={deleteMaintenanceLog.isPending}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {deleteMaintenanceLog.isPending ? tc("deleting") : tc("delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={bulkDeleteLogsOpen} onOpenChange={setBulkDeleteLogsOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("confirmDeleteLogsTitle", { count: selectedLogIds.size })}</AlertDialogTitle>
+                <AlertDialogDescription>{t("confirmDeleteLogsDesc")}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={bulkDeleteLogs.isPending}>{tc("cancel")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => bulkDeleteLogs.mutate(Array.from(selectedLogIds))}
+                  disabled={bulkDeleteLogs.isPending}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {bulkDeleteLogs.isPending ? tc("deleting") : tc("delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 

@@ -30,12 +30,13 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState<string | null>(null);
 
-  const [name,      setName]      = useState("");
-  const [client,    setClient]    = useState("");
-  const [location,  setLocation]  = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate,   setEndDate]   = useState("");
-  const [status,    setStatus]    = useState<"draft" | "scheduled">("draft");
+  const [name,          setName]          = useState("");
+  const [client,        setClient]        = useState("");
+  const [location,      setLocation]      = useState("");
+  const [rehearsalDate, setRehearsalDate] = useState("");
+  const [startDate,     setStartDate]     = useState("");
+  const [endDate,       setEndDate]       = useState("");
+  const [status,        setStatus]        = useState<"draft" | "scheduled">("draft");
 
   const valid = name.trim() && client.trim() && startDate && endDate;
 
@@ -45,11 +46,12 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
     setSaving(true);
     try {
       const data: Omit<InsertJob, "companyId"> = {
-        name:      name.trim(),
-        client:    client.trim(),
-        location:  location.trim() || undefined,
-        startDate: new Date(startDate),
-        endDate:   new Date(endDate),
+        name:          name.trim(),
+        client:        client.trim(),
+        location:      location.trim() || undefined,
+        rehearsalDate: rehearsalDate ? new Date(rehearsalDate) : null,
+        startDate:     new Date(startDate),
+        endDate:       new Date(endDate),
         status,
       };
       await jobsApi.create(data);
@@ -94,6 +96,8 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
             value={client} onChange={(e) => setClient(e.target.value)} />
           <InputField label={tc("location")} placeholder={t("addJob.locationPlaceholder")}
             value={location} onChange={(e) => setLocation(e.target.value)} />
+          <InputField label={t("addJob.rehearsalDate")} type="date"
+            value={rehearsalDate} onChange={(e) => setRehearsalDate(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
             <InputField label={t("addJob.startDate")} required type="date"
               value={startDate} onChange={(e) => setStartDate(e.target.value)} />

@@ -166,6 +166,7 @@
     "clientLabel": "Client",
     "clientPlaceholder": "e.g. Event Co. Ltd.",
     "locationPlaceholder": "e.g. BITEC Bangkok",
+    "rehearsalDate": "Rehearsal Date",
     "startDate": "Start Date",
     "endDate": "End Date",
     "createJob": "Create Job",

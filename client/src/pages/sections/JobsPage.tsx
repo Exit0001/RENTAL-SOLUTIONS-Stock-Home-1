@@ -30,6 +30,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi } from "@/api";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { AddIncidentModal } from "./AddIncidentModal";
 import { AddJobModal } from "./AddJobModal";
 import { ScanModal } from "./ScanModal";
@@ -323,7 +333,9 @@ export const JobsPage = (): JSX.Element => {
   const [manageJob, setManageJob]   = useState<any>(null);
   const [createPullSheetOpen, setCreatePullSheetOpen] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
-  const { token } = useAppStore();
+  const [deleteJobTarget, setDeleteJobTarget] = useState<any>(null);
+  const { token, userRole } = useAppStore();
+  const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
 
   const { data: jobs = [], isLoading: jobsLoading } = useQuery({
@@ -376,6 +388,15 @@ export const JobsPage = (): JSX.Element => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pull-sheets"] }),
   });
 
+  const deleteJob = useMutation({
+    mutationFn: (id: string) => jobsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["pull-sheets"] });
+      setDeleteJobTarget(null);
+    },
+  });
+
   const handleExportPdf = async (ps: { id: string; jobId: string | null; job: string }) => {
     if (!ps.jobId) return;
     setDownloadingPdfId(ps.id);
@@ -425,6 +446,25 @@ export const JobsPage = (): JSX.Element => {
           onSubmit={(jobId, data) => createPullSheet.mutate({ jobId, data })}
         />
       )}
+
+      <AlertDialog open={!!deleteJobTarget} onOpenChange={(open) => !open && setDeleteJobTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDeleteJobTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("confirmDeleteJobDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteJob.isPending}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteJobTarget && deleteJob.mutate(deleteJobTarget.id)}
+              disabled={deleteJob.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteJob.isPending ? tc("deleting") : tc("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-white" data-testid="text-jobs-title">{t("pageTitle")}</h1>
@@ -533,6 +573,16 @@ export const JobsPage = (): JSX.Element => {
                         >
                           <ScanLine className="w-3 h-3" /> {t("scanButton")}
                         </button>
+                        {canManage && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDeleteJobTarget(job); }}
+                            className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
+                            title={t("deleteJob")}
+                            data-testid={`button-delete-job-${job.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>,

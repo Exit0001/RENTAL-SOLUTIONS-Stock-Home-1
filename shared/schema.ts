@@ -177,9 +177,10 @@ export const jobs = pgTable("jobs", {
   name:      text("name").notNull(),
   client:    text("client").notNull(),
   location:  text("location"),
-  startDate: timestamp("start_date").notNull(),
-  endDate:   timestamp("end_date").notNull(),
-  status:    jobStatusEnum("status").default("draft").notNull(),
+  rehearsalDate: timestamp("rehearsal_date"),
+  startDate:     timestamp("start_date").notNull(),
+  endDate:       timestamp("end_date").notNull(),
+  status:        jobStatusEnum("status").default("draft").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

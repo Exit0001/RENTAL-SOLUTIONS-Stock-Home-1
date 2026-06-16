@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { containers, containerUnits, stockUnits, stockItems, jobContainers, jobs, insertContainerSchema } from "@shared/schema";
+import { setUnitsOut, setUnitsAvailable } from "../lib/stockUnitStatus";
 
 export const containersRouter = Router();
 
@@ -118,6 +119,19 @@ containersRouter.put("/:id/checkout", async (req, res) => {
       .where(eq(containers.id, req.params.id))
       .returning();
 
+    // sync สถานะของอุปกรณ์ทุกชิ้นในแร็คนี้ให้ตรงกับสถานะ check out/in ของแร็ค
+    const unitLinks = await db
+      .select({ stockUnitId: containerUnits.stockUnitId })
+      .from(containerUnits)
+      .where(eq(containerUnits.containerId, req.params.id));
+    const unitIds = unitLinks.map((l) => l.stockUnitId);
+
+    if (nextIsOut) {
+      await setUnitsOut(unitIds);
+    } else {
+      await setUnitsAvailable(unitIds);
+    }
+
     res.json(updated);
   } catch {
     res.status(500).json({ message: "Failed to update container" });
@@ -147,18 +161,34 @@ containersRouter.post("/:id/units", async (req, res) => {
   }
 });
 
-// DELETE /api/containers/:id — ลบ container
+// DELETE /api/containers/:id — ลบ container (Admin/Manager เท่านั้น)
 containersRouter.delete("/:id", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+
   try {
-    const [container] = await db
-      .delete(containers)
+    const [current] = await db
+      .select()
+      .from(containers)
       .where(and(
         eq(containers.id, req.params.id),
         eq(containers.companyId, req.companyId)
-      ))
-      .returning();
+      ));
 
-    if (!container) return res.status(404).json({ message: "Container not found" });
+    if (!current) return res.status(404).json({ message: "Container not found" });
+
+    // ถ้าแร็คเช็คเอาท์อยู่ — คืนสถานะอุปกรณ์ข้างในเป็น "พร้อมใช้งาน" ก่อนลบ
+    if (current.isOut) {
+      const unitLinks = await db
+        .select({ stockUnitId: containerUnits.stockUnitId })
+        .from(containerUnits)
+        .where(eq(containerUnits.containerId, req.params.id));
+      await setUnitsAvailable(unitLinks.map((l) => l.stockUnitId));
+    }
+
+    await db.delete(containers).where(eq(containers.id, req.params.id));
+
     res.json({ message: "Deleted" });
   } catch {
     res.status(500).json({ message: "Failed to delete container" });
