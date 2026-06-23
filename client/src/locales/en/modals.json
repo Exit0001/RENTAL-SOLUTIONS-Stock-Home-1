@@ -87,6 +87,21 @@
     "saveSubRental": "Save Sub-Rental"
   },
 
+  "jobExpenses": {
+    "title": "Job Expenses",
+    "categoryLabel": "Category",
+    "categoryStaff": "Staff / Labor",
+    "categoryTransport": "Transport / Delivery",
+    "amountLabel": "Amount (£)",
+    "amountPlaceholder": "e.g. 1500.00",
+    "noteLabel": "Note (optional)",
+    "notePlaceholder": "e.g. 3 loading crew",
+    "addExpense": "Add Expense",
+    "noExpensesYet": "No expenses added yet",
+    "viewSlip": "View slip",
+    "deleteConfirm": "Delete this expense?"
+  },
+
   "assignContainer": {
     "title": "Add Rack to Job",
     "searchPlaceholder": "Search racks, location, barcode...",

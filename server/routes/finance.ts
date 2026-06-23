@@ -3,7 +3,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db";
 import {
   quotes, invoices, insertQuoteSchema, insertInvoiceSchema,
-  jobs, subRentals, incidents, maintenanceLogs,
+  jobs, subRentals, incidents, maintenanceLogs, jobExpenses,
 } from "@shared/schema";
 
 export const financeRouter = Router();
@@ -120,20 +120,25 @@ financeRouter.get("/costing", async (req, res) => {
       .orderBy(desc(jobs.startDate));
 
     const results = await Promise.all(allJobs.map(async (job) => {
-      const [jobInvoices, jobSubRentals] = await Promise.all([
+      const [jobInvoices, jobSubRentals, jobExpenseRows] = await Promise.all([
         db.select({ amount: invoices.amount })
           .from(invoices)
           .where(and(eq(invoices.jobId, job.id), eq(invoices.companyId, req.companyId))),
         db.select({ dailyRate: subRentals.dailyRate })
           .from(subRentals)
           .where(and(eq(subRentals.jobId, job.id), eq(subRentals.companyId, req.companyId))),
+        db.select({ category: jobExpenses.category, amount: jobExpenses.amount })
+          .from(jobExpenses)
+          .where(and(eq(jobExpenses.jobId, job.id), eq(jobExpenses.companyId, req.companyId))),
       ]);
 
       const revenue       = jobInvoices.reduce((s, i) => s + Number(i.amount ?? 0), 0);
       const subRentalCost = jobSubRentals.reduce((s, sr) => s + Number(sr.dailyRate ?? 0), 0);
-      const totalCost     = subRentalCost; // staff/transport/equipment columns not in schema yet
-      const profit        = revenue - totalCost;
-      const roi           = totalCost > 0
+      const staffCost      = jobExpenseRows.filter((e) => e.category === "staff").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+      const transportCost  = jobExpenseRows.filter((e) => e.category === "transport").reduce((s, e) => s + Number(e.amount ?? 0), 0);
+      const totalCost      = subRentalCost + staffCost + transportCost; // equipment excluded — owned, not a job cost
+      const profit         = revenue - totalCost;
+      const roi            = totalCost > 0
         ? Math.round((profit / totalCost) * 100)
         : revenue > 0 ? 100 : 0;
 
@@ -141,16 +146,15 @@ financeRouter.get("/costing", async (req, res) => {
         project:    job.name,
         jobId:      job.id,
         revenue,
-        costs:      0,
-        staff:      0,
-        transport:  0,
+        staff:      staffCost,
+        transport:  transportCost,
         subRentals: subRentalCost,
         roi,
       };
     }));
 
     // คืนเฉพาะงานที่มีข้อมูลการเงิน
-    res.json(results.filter((r) => r.revenue > 0 || r.subRentals > 0));
+    res.json(results.filter((r) => r.revenue > 0 || r.subRentals > 0 || r.staff > 0 || r.transport > 0));
   } catch {
     res.status(500).json({ message: "Failed to fetch costing data" });
   }

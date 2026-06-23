@@ -4,6 +4,7 @@ import { db } from "../db";
 import { maintenanceLogs, subRentals, insertMaintenanceLogBatchSchema } from "@shared/schema";
 import { notify } from "../lib/notify";
 import { markUnitsInMaintenance, revertUnitIfNoOpenMaintenance } from "../lib/stockUnitStatus";
+import { recalculateUnitHealth } from "../lib/health";
 
 export const maintenanceRouter = Router();
 
@@ -44,6 +45,10 @@ maintenanceRouter.post("/batch", async (req, res) => {
       .filter((l) => l.status === "in_progress" && l.stockUnitId)
       .map((l) => l.stockUnitId as string);
     await markUnitsInMaintenance(inProgressUnitIds);
+
+    // คำนวณ health score ใหม่ของทุก unit ที่มีบันทึกซ่อมเพิ่มมา
+    const affectedUnitIds = Array.from(new Set(logs.filter((l) => l.stockUnitId).map((l) => l.stockUnitId as string)));
+    await Promise.all(affectedUnitIds.map(recalculateUnitHealth));
 
     // แจ้งเตือนช่างที่ถูก assign งานซ่อมบำรุง
     const techCounts = new Map<string, number>();
@@ -101,6 +106,9 @@ maintenanceRouter.put("/batch-status", async (req, res) => {
       await markUnitsInMaintenance(unitIds);
     }
 
+    const affectedUnitIds = Array.from(new Set(updated.filter((l) => l.stockUnitId).map((l) => l.stockUnitId as string)));
+    await Promise.all(affectedUnitIds.map(recalculateUnitHealth));
+
     res.json(updated);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -129,6 +137,9 @@ maintenanceRouter.delete("/batch", async (req, res) => {
         await revertUnitIfNoOpenMaintenance(log.stockUnitId);
       }
     }
+
+    const affectedUnitIds = Array.from(new Set(deleted.filter((l) => l.stockUnitId).map((l) => l.stockUnitId as string)));
+    await Promise.all(affectedUnitIds.map(recalculateUnitHealth));
 
     res.json({ message: "Maintenance logs deleted", count: deleted.length });
   } catch (err: any) {
@@ -164,6 +175,8 @@ maintenanceRouter.put("/:id", async (req, res) => {
       }
     }
 
+    if (log.stockUnitId) await recalculateUnitHealth(log.stockUnitId);
+
     res.json(log);
   } catch {
     res.status(500).json({ message: "Failed to update maintenance log" });
@@ -191,6 +204,8 @@ maintenanceRouter.delete("/:id", async (req, res) => {
     if (deleted.status === "in_progress" && deleted.stockUnitId) {
       await revertUnitIfNoOpenMaintenance(deleted.stockUnitId);
     }
+
+    if (deleted.stockUnitId) await recalculateUnitHealth(deleted.stockUnitId);
 
     res.json({ message: "Maintenance log deleted" });
   } catch (err: any) {

@@ -87,6 +87,21 @@
     "saveSubRental": "บันทึกรายการเช่าช่วง"
   },
 
+  "jobExpenses": {
+    "title": "ค่าใช้จ่ายของงาน",
+    "categoryLabel": "ประเภท",
+    "categoryStaff": "ค่าแรง / เด็กโหลด",
+    "categoryTransport": "ค่าเดินทาง / ส่งของ",
+    "amountLabel": "จำนวนเงิน (£)",
+    "amountPlaceholder": "เช่น 1500.00",
+    "noteLabel": "บันทึกเพิ่มเติม (ไม่บังคับ)",
+    "notePlaceholder": "เช่น เด็กโหลด 3 คน",
+    "addExpense": "เพิ่มรายการ",
+    "noExpensesYet": "ยังไม่มีรายการค่าใช้จ่าย",
+    "viewSlip": "ดูสลิป",
+    "deleteConfirm": "ลบรายการนี้?"
+  },
+
   "assignContainer": {
     "title": "เพิ่มแร็คเข้างาน",
     "searchPlaceholder": "ค้นหาแร็ค, ตำแหน่ง, บาร์โค้ด...",

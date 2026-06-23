@@ -4,11 +4,13 @@ import { db } from "../db";
 import {
   jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, incidents, insertJobSchema,
   insertPullSheetSchema, insertJobCrewSchema, users, activityLog, stockUnits, stockItems, containers, containerUnits, companies,
+  jobExpenses, insertJobExpenseSchema,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { notify } from "../lib/notify";
 import { sendLineMessage } from "../lib/line";
 import { setUnitsOut, setUnitsAvailable } from "../lib/stockUnitStatus";
+import { recalculateUnitHealth } from "../lib/health";
 
 export const jobsRouter = Router();
 
@@ -745,8 +747,66 @@ jobsRouter.post("/:id/incidents", async (req, res) => {
         companyId: req.companyId,
       })
       .returning();
+
+    if (incident.stockUnitId) await recalculateUnitHealth(incident.stockUnitId);
+
     res.status(201).json(incident);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// ─── Job Expenses (ค่าเด็กโหลด / ค่าเดินทาง-ส่งของ พร้อมสลิป) ──────
+
+// GET /api/jobs/:id/expenses
+jobsRouter.get("/:id/expenses", async (req, res) => {
+  try {
+    const result = await db
+      .select()
+      .from(jobExpenses)
+      .where(and(eq(jobExpenses.jobId, req.params.id), eq(jobExpenses.companyId, req.companyId)))
+      .orderBy(desc(jobExpenses.createdAt));
+    res.json(result);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job expenses" });
+  }
+});
+
+// POST /api/jobs/:id/expenses — เพิ่มรายการค่าใช้จ่าย (Admin/Manager เท่านั้น)
+jobsRouter.post("/:id/expenses", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+
+  try {
+    const data = insertJobExpenseSchema.parse({
+      ...req.body,
+      jobId:     req.params.id,
+      companyId: req.companyId,
+    });
+
+    const [expense] = await db.insert(jobExpenses).values(data).returning();
+    res.status(201).json(expense);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// DELETE /api/jobs/expenses/:expenseId — ลบรายการค่าใช้จ่าย (Admin/Manager เท่านั้น)
+jobsRouter.delete("/expenses/:expenseId", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+
+  try {
+    const [deleted] = await db
+      .delete(jobExpenses)
+      .where(and(eq(jobExpenses.id, req.params.expenseId), eq(jobExpenses.companyId, req.companyId)))
+      .returning();
+
+    if (!deleted) return res.status(404).json({ message: "Expense not found" });
+    res.json({ message: "Expense deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete expense" });
   }
 });

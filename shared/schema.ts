@@ -35,6 +35,7 @@ export const invoiceStatusEnum = pgEnum("invoice_status", ["pending", "paid", "o
 export const incidentSeverityEnum = pgEnum("incident_severity", ["low", "medium", "high"]);
 export const incidentStatusEnum = pgEnum("incident_status", ["open", "resolved"]);
 export const activityTypeEnum = pgEnum("activity_type", ["stock", "finance", "maintenance", "jobs"]);
+export const jobExpenseCategoryEnum = pgEnum("job_expense_category", ["staff", "transport"]);
 export const notificationTypeEnum = pgEnum("notification_type", [
   "job_assigned", "job_removed", "job_updated",
   "pullsheet_assigned", "maintenance_assigned", "stock_added",
@@ -182,6 +183,21 @@ export const jobs = pgTable("jobs", {
   endDate:       timestamp("end_date").notNull(),
   status:        jobStatusEnum("status").default("draft").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
+// 7b. JOB EXPENSES — ค่าใช้จ่ายเพิ่มเติมของงาน (ค่าเด็กโหลด, ค่าเดินทาง/ส่งของ) พร้อมสลิป
+// ─────────────────────────────────────────────
+
+export const jobExpenses = pgTable("job_expenses", {
+  id:         uuid("id").primaryKey().defaultRandom(),
+  companyId:  uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:      uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  category:   jobExpenseCategoryEnum("category").notNull(),
+  amount:     decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  note:       text("note"),
+  receiptUrl: text("receipt_url"),
+  createdAt:  timestamp("created_at").defaultNow().notNull(),
 });
 
 // ─────────────────────────────────────────────
@@ -462,6 +478,11 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
   quotes:      many(quotes),
   invoices:    many(invoices),
   incidents:   many(incidents),
+  expenses:    many(jobExpenses),
+}));
+
+export const jobExpensesRelations = relations(jobExpenses, ({ one }) => ({
+  job: one(jobs, { fields: [jobExpenses.jobId], references: [jobs.id] }),
 }));
 
 export const jobUnitsRelations = relations(jobUnits, ({ one }) => ({
@@ -496,6 +517,7 @@ export const insertSubRentalSchema = createInsertSchema(subRentals).omit({ id: t
 export const insertQuoteSchema     = createInsertSchema(quotes).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema   = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertIncidentSchema  = createInsertSchema(incidents).omit({ id: true, createdAt: true });
+export const insertJobExpenseSchema = createInsertSchema(jobExpenses).omit({ id: true, createdAt: true });
 export const insertBrandSchema        = createInsertSchema(brands).omit({ id: true, createdAt: true });
 export const insertCategorySchema     = createInsertSchema(categories).omit({ id: true, createdAt: true });
 export const insertSubCategorySchema  = createInsertSchema(subCategories).omit({ id: true, createdAt: true });
@@ -558,6 +580,9 @@ export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 
 export type Incident       = typeof incidents.$inferSelect;
 export type InsertIncident = z.infer<typeof insertIncidentSchema>;
+
+export type JobExpense       = typeof jobExpenses.$inferSelect;
+export type InsertJobExpense = z.infer<typeof insertJobExpenseSchema>;
 
 export type Brand       = typeof brands.$inferSelect;
 export type InsertBrand = z.infer<typeof insertBrandSchema>;

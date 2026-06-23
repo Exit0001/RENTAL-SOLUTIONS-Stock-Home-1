@@ -17,7 +17,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { financeApi, type ProjectCost } from "@/api";
+import { financeApi } from "@/api";
+import { JobExpensesModal } from "./JobExpensesModal";
 
 type FinanceTab = "quotes" | "invoices" | "costing" | "loss";
 
@@ -42,6 +43,7 @@ export const FinancePage = (): JSX.Element => {
   const { t } = useTranslation("finance");
   const { t: tc } = useTranslation("common");
   const [activeTab, setActiveTab] = useState<FinanceTab>("quotes");
+  const [expensesJob, setExpensesJob] = useState<{ jobId: string; project: string } | null>(null);
   const { token } = useAppStore();
 
   const { data: quotes = [] } = useQuery({
@@ -209,7 +211,6 @@ export const FinancePage = (): JSX.Element => {
               <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
                 <th className="py-2.5 pl-4 text-left font-semibold">{t("colProject")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colRevenue")}</th>
-                <th className="py-2.5 text-left font-semibold">{t("colEquipment")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colStaff")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colTransport")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colSubRentals")}</th>
@@ -219,15 +220,24 @@ export const FinancePage = (): JSX.Element => {
             </thead>
             <tbody>
               {projectCosts.map((p) => {
-                const totalCost = p.costs + p.staff + p.transport + p.subRentals;
+                const totalCost = p.staff + p.transport + p.subRentals;
                 const profit = p.revenue - totalCost;
                 return (
                   <tr key={p.project} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-cost-${p.project.toLowerCase().replace(/\s+/g, "-")}`}>
                     <td className="py-2.5 pl-4 text-white/80 font-medium">{p.project}</td>
                     <td className="py-2.5 text-emerald-400 font-semibold">£{p.revenue.toLocaleString()}</td>
-                    <td className="py-2.5 text-white/60">£{p.costs.toLocaleString()}</td>
-                    <td className="py-2.5 text-white/60">£{p.staff.toLocaleString()}</td>
-                    <td className="py-2.5 text-white/60">£{p.transport.toLocaleString()}</td>
+                    <td className="py-2.5 text-white/60">
+                      <button onClick={() => setExpensesJob({ jobId: p.jobId, project: p.project })}
+                        className="hover:text-[#FFFF00] underline-offset-2 hover:underline transition-colors">
+                        £{p.staff.toLocaleString()}
+                      </button>
+                    </td>
+                    <td className="py-2.5 text-white/60">
+                      <button onClick={() => setExpensesJob({ jobId: p.jobId, project: p.project })}
+                        className="hover:text-[#FFFF00] underline-offset-2 hover:underline transition-colors">
+                        £{p.transport.toLocaleString()}
+                      </button>
+                    </td>
                     <td className="py-2.5 text-white/60">{p.subRentals ? `£${p.subRentals.toLocaleString()}` : "—"}</td>
                     <td className="py-2.5 text-emerald-400 font-bold">£{profit.toLocaleString()}</td>
                     <td className="py-2.5 pr-4 text-right">
@@ -242,7 +252,7 @@ export const FinancePage = (): JSX.Element => {
             <span className="text-xs text-white/60">{t("totalAcrossProjects")}</span>
             <div className="flex items-center gap-6 text-xs">
               <span className="text-white/50">{t("revenueLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue, 0).toLocaleString()}</span></span>
-              <span className="text-white/50">{t("profitLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue - p.costs - p.staff - p.transport - p.subRentals, 0).toLocaleString()}</span></span>
+              <span className="text-white/50">{t("profitLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue - p.staff - p.transport - p.subRentals, 0).toLocaleString()}</span></span>
               <span className="text-white/50">{t("avgRoiLabel")} <span className="text-[#FFFF00] font-bold">{projectCosts.length > 0 ? Math.round(projectCosts.reduce((s, p) => s + p.roi, 0) / projectCosts.length) : 0}%</span></span>
             </div>
           </div>
@@ -304,6 +314,14 @@ export const FinancePage = (): JSX.Element => {
             </table>
           </div>
         </div>
+      )}
+
+      {expensesJob && (
+        <JobExpensesModal
+          jobId={expensesJob.jobId}
+          jobName={expensesJob.project}
+          onClose={() => setExpensesJob(null)}
+        />
       )}
     </div>
   );

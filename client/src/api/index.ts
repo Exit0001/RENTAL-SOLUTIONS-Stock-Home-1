@@ -19,6 +19,7 @@ import type {
   PullSheet, InsertPullSheet,
   JobCrew,
   Notification,
+  JobExpense, InsertJobExpense,
 } from "@shared/schema";
 
 // ─── Companies (ไม่ต้องการ auth) ─────────────────────────
@@ -186,13 +187,21 @@ export const jobsApi = {
   unassignCrew:  (jobId: string, userId: string) => api.delete<void>(`/jobs/${jobId}/crew/${userId}`),
 };
 
+// ─── Job Expenses (ค่าเด็กโหลด / ค่าเดินทาง-ส่งของ พร้อมสลิป) ──────
+
+export const jobExpensesApi = {
+  getForJob: (jobId: string) => api.get<JobExpense[]>(`/jobs/${jobId}/expenses`),
+  create:    (jobId: string, data: Omit<InsertJobExpense, "companyId" | "jobId">) =>
+               api.post<JobExpense>(`/jobs/${jobId}/expenses`, data),
+  delete:    (expenseId: string) => api.delete<{ message: string }>(`/jobs/expenses/${expenseId}`),
+};
+
 // ─── Finance ──────────────────────────────────────────────
 
 export type ProjectCost = {
   project: string;
   jobId: string;
   revenue: number;
-  costs: number;
   staff: number;
   transport: number;
   subRentals: number;
