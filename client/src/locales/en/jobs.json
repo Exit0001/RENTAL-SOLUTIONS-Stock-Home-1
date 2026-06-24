@@ -32,6 +32,12 @@
   "assignCrew": "Assign Crew",
   "noCrewAssigned": "No crew assigned to this job yet",
   "removeFromJob": "Remove from job",
+  "outsourceExpenses": "Outsource / Expenses",
+
+  "vehiclesLabel": "Vehicles",
+  "addVehicle": "Add Vehicle",
+  "noVehiclesAssigned": "No vehicles added to this job yet",
+  "removeVehicle": "Remove vehicle",
 
   "pullSheetsHint": "Pull sheets can be shared via LINE or exported as PDF for paperless operations",
   "colPullSheet": "Pull Sheet",

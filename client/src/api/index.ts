@@ -20,6 +20,7 @@ import type {
   JobCrew,
   Notification,
   JobExpense, InsertJobExpense,
+  JobVehicle, InsertJobVehicle,
 } from "@shared/schema";
 
 // ─── Companies (ไม่ต้องการ auth) ─────────────────────────
@@ -194,6 +195,15 @@ export const jobExpensesApi = {
   create:    (jobId: string, data: Omit<InsertJobExpense, "companyId" | "jobId">) =>
                api.post<JobExpense>(`/jobs/${jobId}/expenses`, data),
   delete:    (expenseId: string) => api.delete<{ message: string }>(`/jobs/expenses/${expenseId}`),
+};
+
+// ─── Job Vehicles (รถที่ใช้ในงาน) ──────────────────────────
+
+export const jobVehiclesApi = {
+  getForJob: (jobId: string) => api.get<JobVehicle[]>(`/jobs/${jobId}/vehicles`),
+  create:    (jobId: string, data: Omit<InsertJobVehicle, "companyId" | "jobId">) =>
+               api.post<JobVehicle>(`/jobs/${jobId}/vehicles`, data),
+  delete:    (vehicleId: string) => api.delete<{ message: string }>(`/jobs/vehicles/${vehicleId}`),
 };
 
 // ─── Finance ──────────────────────────────────────────────

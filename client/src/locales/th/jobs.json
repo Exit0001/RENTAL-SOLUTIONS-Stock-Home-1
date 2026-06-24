@@ -32,6 +32,12 @@
   "assignCrew": "เพิ่มทีมงาน",
   "noCrewAssigned": "ยังไม่มีทีมงานที่กำหนดให้งานนี้",
   "removeFromJob": "เอาออกจากงาน",
+  "outsourceExpenses": "Outsource / ค่าใช้จ่าย",
+
+  "vehiclesLabel": "รถที่ใช้ในงาน",
+  "addVehicle": "เพิ่มรถ",
+  "noVehiclesAssigned": "ยังไม่มีรถที่เพิ่มให้งานนี้",
+  "removeVehicle": "ลบรถ",
 
   "pullSheetsHint": "ใบเบิกอุปกรณ์สามารถแชร์ผ่าน LINE หรือส่งออกเป็น PDF เพื่อลดการใช้กระดาษ",
   "colPullSheet": "ใบเบิกอุปกรณ์",

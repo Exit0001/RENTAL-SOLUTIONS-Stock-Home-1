@@ -102,6 +102,15 @@
     "deleteConfirm": "ลบรายการนี้?"
   },
 
+  "addVehicle": {
+    "title": "เพิ่มรถที่ใช้ในงาน",
+    "vehicleTypeLabel": "รถ",
+    "vehicleTypePlaceholder": "เช่น รถ 6 ล้อ",
+    "noteLabel": "บันทึกเพิ่มเติม (ไม่บังคับ)",
+    "notePlaceholder": "เช่น ใช้ขนเฉพาะ backline",
+    "saveVehicle": "เพิ่มรถ"
+  },
+
   "assignContainer": {
     "title": "เพิ่มแร็คเข้างาน",
     "searchPlaceholder": "ค้นหาแร็ค, ตำแหน่ง, บาร์โค้ด...",

@@ -150,6 +150,14 @@ Messaging API settings, and the target group's Group ID), `sendLineMessage()`
 Notifications card), in `shared/schema.ts` and `migrations/0010_ambiguous_miss_america.sql`.
 Already created in Supabase, no action needed.
 
+**Already applied** — `job_expenses` table for real ROI costing (Finance → Costing tab,
+Staff/Transport columns), in `shared/schema.ts` and `migrations/0012_chief_speed_demon.sql`.
+Already created in Supabase, no action needed.
+
+**Already applied** — `job_vehicles` table for job logistics (Jobs page, Vehicles section),
+in `shared/schema.ts` and `migrations/0013_brief_riptide.sql`. Already created in Supabase,
+no action needed.
+
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
 
@@ -213,6 +221,42 @@ rehearsalDate: timestamp("rehearsal_date"),          // วันซ้อม (o
   notification) and `notificationclick` (focuses/opens the app)
 - Settings → Profile → "Push Notifications" card — enable/disable toggle, registers the service
   worker and subscribes via `pushApi`
+
+### Finance — Real ROI Costing & Equipment Health Score
+- **ROI** (`server/routes/finance.ts` `/costing`): `revenue` (sum of `invoices.amount`),
+  `subRentals` (sum of `sub_rentals.dailyRate`), and `staff`/`transport` (sum of `job_expenses`
+  rows by category) — `totalCost = subRentals + staff + transport`. Equipment owned by the
+  company is intentionally excluded (sunk cost, not an incremental job cost).
+- `job_expenses` table — one row per staff/transport payment (e.g. loading crew, Lalamove),
+  each with optional `note` + `receiptUrl` (slip photo via Supabase Storage, same pattern as
+  maintenance/sub-rental receipts). Endpoints: `GET/POST /api/jobs/:id/expenses`,
+  `DELETE /api/jobs/expenses/:expenseId` (write ops Admin/Manager only).
+- Finance → Costing tab: clicking the Staff/Transport amount opens `JobExpensesModal.tsx` to
+  view/add/delete expense line items with slips for that job.
+- **Health score** (`stock_units.health_score`): now actually computed by
+  `recalculateUnitHealth()` in `server/lib/health.ts` — starts at 100, deducts per open/resolved
+  incident (by severity) and per maintenance log (`-10` while `in_progress`, `-8` per completed
+  `repair`). Called automatically after incident/maintenance create/update/delete (mirrors the
+  existing `markUnitsInMaintenance`/`revertUnitIfNoOpenMaintenance` pattern in
+  `server/lib/stockUnitStatus.ts`). Feeds both the per-unit badge in `ItemDetailPanel.tsx` and
+  the Analytics "Overall Health" average — no changes needed in either place.
+
+### Jobs — Auto Pull Sheet, Vehicles, Outsourced Crew
+- **Auto pull sheet**: `ensurePullSheetForJob()` in `server/routes/jobs.ts` creates a draft
+  pull sheet the first time a job's status becomes `"scheduled"` (checked in both `POST /jobs`
+  and `PUT /jobs/:id`) — skips if one already exists for that job. No manual "Create Pull
+  Sheet" step needed for the common case; the global Pull Sheets tab / `CreatePullSheetModal`
+  still works for ad-hoc/extra sheets.
+- **Vehicles**: `job_vehicles` table — free-text `vehicleType` (e.g. "รถ 6 ล้อ") + optional
+  `note`, no driver field, purely informational/logistics (not linked to `job_expenses` cost).
+  Shown in the Jobs page's expanded row (`JobsPage.tsx` → `JobDetailRow`), added via
+  `AddVehicleModal.tsx`. Endpoints: `GET/POST /api/jobs/:id/vehicles`,
+  `DELETE /api/jobs/vehicles/:vehicleId`.
+- **Outsourced crew** (เด็กโหลด/external workers): no new entity — reuses `job_expenses`
+  (category `"staff"`, no user account needed, just a `note` + `amount` + optional slip).
+  Exposed directly on the Jobs page via an "Outsource / Expenses" button next to Crew (opens
+  the same `JobExpensesModal.tsx` used by Finance → Costing), so it doesn't require Finance
+  access just to log a loading-crew payment.
 
 ## Adding a New Feature
 

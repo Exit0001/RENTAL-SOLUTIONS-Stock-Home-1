@@ -201,6 +201,19 @@ export const jobExpenses = pgTable("job_expenses", {
 });
 
 // ─────────────────────────────────────────────
+// 7c. JOB VEHICLES — รถที่ใช้ในงาน (เช่น รถ 6 ล้อ, กระบะ) — ข้อมูล logistics ไม่ผูกกับต้นทุน
+// ─────────────────────────────────────────────
+
+export const jobVehicles = pgTable("job_vehicles", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  vehicleType: text("vehicle_type").notNull(),
+  note:        text("note"),
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
 // 8. JOB STOCK — อุปกรณ์ที่ assign ให้แต่ละงาน
 // ─────────────────────────────────────────────
 
@@ -479,10 +492,15 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
   invoices:    many(invoices),
   incidents:   many(incidents),
   expenses:    many(jobExpenses),
+  vehicles:    many(jobVehicles),
 }));
 
 export const jobExpensesRelations = relations(jobExpenses, ({ one }) => ({
   job: one(jobs, { fields: [jobExpenses.jobId], references: [jobs.id] }),
+}));
+
+export const jobVehiclesRelations = relations(jobVehicles, ({ one }) => ({
+  job: one(jobs, { fields: [jobVehicles.jobId], references: [jobs.id] }),
 }));
 
 export const jobUnitsRelations = relations(jobUnits, ({ one }) => ({
@@ -518,6 +536,7 @@ export const insertQuoteSchema     = createInsertSchema(quotes).omit({ id: true,
 export const insertInvoiceSchema   = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertIncidentSchema  = createInsertSchema(incidents).omit({ id: true, createdAt: true });
 export const insertJobExpenseSchema = createInsertSchema(jobExpenses).omit({ id: true, createdAt: true });
+export const insertJobVehicleSchema = createInsertSchema(jobVehicles).omit({ id: true, createdAt: true });
 export const insertBrandSchema        = createInsertSchema(brands).omit({ id: true, createdAt: true });
 export const insertCategorySchema     = createInsertSchema(categories).omit({ id: true, createdAt: true });
 export const insertSubCategorySchema  = createInsertSchema(subCategories).omit({ id: true, createdAt: true });
@@ -583,6 +602,9 @@ export type InsertIncident = z.infer<typeof insertIncidentSchema>;
 
 export type JobExpense       = typeof jobExpenses.$inferSelect;
 export type InsertJobExpense = z.infer<typeof insertJobExpenseSchema>;
+
+export type JobVehicle       = typeof jobVehicles.$inferSelect;
+export type InsertJobVehicle = z.infer<typeof insertJobVehicleSchema>;
 
 export type Brand       = typeof brands.$inferSelect;
 export type InsertBrand = z.infer<typeof insertBrandSchema>;

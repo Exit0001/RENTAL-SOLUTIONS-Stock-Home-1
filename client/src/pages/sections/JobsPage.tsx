@@ -25,11 +25,13 @@ import {
   X,
   Trash2,
   UserPlus,
+  Truck,
+  Wallet,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { jobsApi } from "@/api";
+import { jobsApi, jobVehiclesApi } from "@/api";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -47,6 +49,8 @@ import { ManageJobStockModal } from "./ManageJobStockModal";
 import { AssignContainerModal } from "./AssignContainerModal";
 import { AssignCrewModal } from "./AssignCrewModal";
 import { CreatePullSheetModal } from "./CreatePullSheetModal";
+import { AddVehicleModal } from "./AddVehicleModal";
+import { JobExpensesModal } from "./JobExpensesModal";
 
 type JobTab = "jobs" | "pullsheets" | "crew" | "incidents";
 
@@ -101,6 +105,8 @@ const JobDetailRow = ({ job }: { job: any }) => {
   const qc = useQueryClient();
   const [assignContainerOpen, setAssignContainerOpen] = useState(false);
   const [assignCrewOpen, setAssignCrewOpen] = useState(false);
+  const [addVehicleOpen, setAddVehicleOpen] = useState(false);
+  const [expensesOpen, setExpensesOpen] = useState(false);
 
   const { data: assignedUnits = [], isLoading } = useQuery({
     queryKey: ["job-units", job.id],
@@ -120,6 +126,12 @@ const JobDetailRow = ({ job }: { job: any }) => {
     enabled: !!token,
   });
 
+  const { data: jobVehicles = [], isLoading: vehiclesLoading } = useQuery({
+    queryKey: ["job-vehicles", job.id],
+    queryFn:  () => jobVehiclesApi.getForJob(job.id),
+    enabled: !!token,
+  });
+
   const removeContainer = useMutation({
     mutationFn: (containerId: string) => jobsApi.removeContainer(job.id, containerId),
     onSuccess: () => {
@@ -134,6 +146,11 @@ const JobDetailRow = ({ job }: { job: any }) => {
       qc.invalidateQueries({ queryKey: ["job-crew", job.id] });
       qc.invalidateQueries({ queryKey: ["crew"] });
     },
+  });
+
+  const removeVehicle = useMutation({
+    mutationFn: (vehicleId: string) => jobVehiclesApi.delete(vehicleId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["job-vehicles", job.id] }),
   });
 
   const start = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -221,12 +238,20 @@ const JobDetailRow = ({ job }: { job: any }) => {
             <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
               <Users className="w-3 h-3" /> {t("crewLabel")}
             </p>
-            <button
-              onClick={() => setAssignCrewOpen(true)}
-              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-            >
-              <UserPlus className="w-3 h-3" /> {t("assignCrew")}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setExpensesOpen(true)}
+                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+              >
+                <Wallet className="w-3 h-3" /> {t("outsourceExpenses")}
+              </button>
+              <button
+                onClick={() => setAssignCrewOpen(true)}
+                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+              >
+                <UserPlus className="w-3 h-3" /> {t("assignCrew")}
+              </button>
+            </div>
           </div>
           {crewLoading ? (
             <div className="flex items-center gap-2 text-white/60 text-xs py-1">
@@ -247,6 +272,46 @@ const JobDetailRow = ({ job }: { job: any }) => {
                     onClick={() => removeCrew.mutate(c.userId)}
                     disabled={removeCrew.isPending}
                     title={t("removeFromJob")}
+                    className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Vehicles */}
+        <div className="px-6 py-3 border-b border-white/[0.04]">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
+              <Truck className="w-3 h-3" /> {t("vehiclesLabel")}
+            </p>
+            <button
+              onClick={() => setAddVehicleOpen(true)}
+              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+            >
+              <Plus className="w-3 h-3" /> {t("addVehicle")}
+            </button>
+          </div>
+          {vehiclesLoading ? (
+            <div className="flex items-center gap-2 text-white/60 text-xs py-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
+            </div>
+          ) : jobVehicles.length === 0 ? (
+            <p className="text-xs text-white/60 italic">{t("noVehiclesAssigned")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {jobVehicles.map((v) => (
+                <div key={v.id} className="flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                  <Truck className="w-3.5 h-3.5 text-[#FFFF00]/50 flex-shrink-0" />
+                  <span className="text-xs text-white/70">{v.vehicleType}</span>
+                  {v.note && <span className="text-[10px] text-white/60">{v.note}</span>}
+                  <button
+                    onClick={() => removeVehicle.mutate(v.id)}
+                    disabled={removeVehicle.isPending}
+                    title={t("removeVehicle")}
                     className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
                   >
                     <X className="w-3 h-3" />
@@ -316,6 +381,12 @@ const JobDetailRow = ({ job }: { job: any }) => {
         )}
         {assignCrewOpen && (
           <AssignCrewModal jobId={job.id} onClose={() => setAssignCrewOpen(false)} />
+        )}
+        {addVehicleOpen && (
+          <AddVehicleModal jobId={job.id} onClose={() => setAddVehicleOpen(false)} />
+        )}
+        {expensesOpen && (
+          <JobExpensesModal jobId={job.id} jobName={job.name} onClose={() => setExpensesOpen(false)} />
         )}
       </td>
     </tr>

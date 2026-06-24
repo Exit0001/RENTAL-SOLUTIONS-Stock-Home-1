@@ -102,6 +102,15 @@
     "deleteConfirm": "Delete this expense?"
   },
 
+  "addVehicle": {
+    "title": "Add Vehicle",
+    "vehicleTypeLabel": "Vehicle",
+    "vehicleTypePlaceholder": "e.g. 6-Wheel Truck",
+    "noteLabel": "Note (optional)",
+    "notePlaceholder": "e.g. for backline only",
+    "saveVehicle": "Add Vehicle"
+  },
+
   "assignContainer": {
     "title": "Add Rack to Job",
     "searchPlaceholder": "Search racks, location, barcode...",

@@ -4,7 +4,7 @@ import { db } from "../db";
 import {
   jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, incidents, insertJobSchema,
   insertPullSheetSchema, insertJobCrewSchema, users, activityLog, stockUnits, stockItems, containers, containerUnits, companies,
-  jobExpenses, insertJobExpenseSchema,
+  jobExpenses, insertJobExpenseSchema, jobVehicles, insertJobVehicleSchema,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { notify } from "../lib/notify";
@@ -13,6 +13,13 @@ import { setUnitsOut, setUnitsAvailable } from "../lib/stockUnitStatus";
 import { recalculateUnitHealth } from "../lib/health";
 
 export const jobsRouter = Router();
+
+// สร้าง pull sheet draft อัตโนมัติให้งานที่เพิ่งเข้าสถานะ "scheduled" — ถ้ายังไม่มีอยู่แล้ว
+async function ensurePullSheetForJob(jobId: string, companyId: string, createdById: string) {
+  const [existing] = await db.select({ id: pullSheets.id }).from(pullSheets).where(eq(pullSheets.jobId, jobId));
+  if (existing) return;
+  await db.insert(pullSheets).values({ jobId, companyId, createdById, status: "draft" });
+}
 
 // รวมอุปกรณ์ของ job จากทั้ง job_stock (กำหนด quantity ตรง) และ job_units (unit ที่ assign จริง ผ่าน Edit Units / scan)
 // แล้ว group ตาม stock item พร้อมชื่อและหมวดหมู่
@@ -304,6 +311,11 @@ jobsRouter.post("/", async (req, res) => {
     });
 
     const [job] = await db.insert(jobs).values(data).returning();
+
+    // งานที่สร้างมาพร้อมสถานะ "scheduled" — สร้างใบเบิกอุปกรณ์ draft ให้อัตโนมัติ
+    if (job.status === "scheduled") {
+      await ensurePullSheetForJob(job.id, req.companyId, req.userId);
+    }
 
     // ส่งข้อความแจ้งงานใหม่เข้ากลุ่ม LINE (ถ้าตั้งค่าไว้)
     const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId));
@@ -676,6 +688,12 @@ jobsRouter.put("/:id", async (req, res) => {
 
     // แจ้งเตือนทีมงานที่ถูก assign ถ้าสถานะหรือกำหนดการของงานเปลี่ยน
     const statusChanged = req.body.status !== undefined && job.status !== before.status;
+
+    // งานเข้าสถานะ "scheduled" — สร้างใบเบิกอุปกรณ์ draft ให้อัตโนมัติ (ถ้ายังไม่มี)
+    if (statusChanged && job.status === "scheduled") {
+      await ensurePullSheetForJob(job.id, req.companyId, req.userId);
+    }
+
     const dateChanged =
       (req.body.startDate !== undefined && new Date(job.startDate).getTime() !== new Date(before.startDate).getTime()) ||
       (req.body.endDate !== undefined && new Date(job.endDate).getTime() !== new Date(before.endDate).getTime());
@@ -808,5 +826,52 @@ jobsRouter.delete("/expenses/:expenseId", async (req, res) => {
     res.json({ message: "Expense deleted" });
   } catch {
     res.status(500).json({ message: "Failed to delete expense" });
+  }
+});
+
+// ─── Job Vehicles (รถที่ใช้ในงาน — logistics เท่านั้น ไม่ผูกกับต้นทุน) ──────
+
+// GET /api/jobs/:id/vehicles
+jobsRouter.get("/:id/vehicles", async (req, res) => {
+  try {
+    const result = await db
+      .select()
+      .from(jobVehicles)
+      .where(and(eq(jobVehicles.jobId, req.params.id), eq(jobVehicles.companyId, req.companyId)))
+      .orderBy(desc(jobVehicles.createdAt));
+    res.json(result);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job vehicles" });
+  }
+});
+
+// POST /api/jobs/:id/vehicles — เพิ่มรถที่ใช้ในงาน
+jobsRouter.post("/:id/vehicles", async (req, res) => {
+  try {
+    const data = insertJobVehicleSchema.parse({
+      ...req.body,
+      jobId:     req.params.id,
+      companyId: req.companyId,
+    });
+
+    const [vehicle] = await db.insert(jobVehicles).values(data).returning();
+    res.status(201).json(vehicle);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// DELETE /api/jobs/vehicles/:vehicleId
+jobsRouter.delete("/vehicles/:vehicleId", async (req, res) => {
+  try {
+    const [deleted] = await db
+      .delete(jobVehicles)
+      .where(and(eq(jobVehicles.id, req.params.vehicleId), eq(jobVehicles.companyId, req.companyId)))
+      .returning();
+
+    if (!deleted) return res.status(404).json({ message: "Vehicle not found" });
+    res.json({ message: "Vehicle deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete vehicle" });
   }
 });

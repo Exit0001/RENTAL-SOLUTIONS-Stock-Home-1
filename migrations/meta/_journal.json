@@ -92,6 +92,13 @@
       "when": 1782243193563,
       "tag": "0012_chief_speed_demon",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782245549410,
+      "tag": "0013_brief_riptide",
+      "breakpoints": true
     }
   ]
 }
