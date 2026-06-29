@@ -258,6 +258,32 @@ rehearsalDate: timestamp("rehearsal_date"),          // วันซ้อม (o
   the same `JobExpensesModal.tsx` used by Finance → Costing), so it doesn't require Finance
   access just to log a loading-crew payment.
 
+### Lifecycle Close-Out: Job Status, Incident Resolve, Sub-Rental Return, Quotes/Invoices
+- **Job status**: `JobsPage.tsx` main table — Admin/Manager see a `<select>` over the status
+  badge (all 5 `jobStatusEnum` values), calling the existing `PUT /api/jobs/:id`. Non-managers
+  still see the read-only badge.
+- **Incident resolve**: `PUT /api/jobs/incidents/:incidentId` (Admin/Manager only) sets
+  `status: "resolved"` and calls `recalculateUnitHealth()` if linked to a stock unit. "Mark
+  Resolved" button shown on open incidents in `JobsPage.tsx`'s Incidents tab.
+- **Sub-rental return**: `PUT /api/maintenance/subrentals/:id` (generic status/field update,
+  no role gate — matches existing subrental routes). "Mark Returned" button in `StockPage.tsx`'s
+  Sub-Rentals list, sets `status: "returned"`.
+- **Quote/Invoice creation**: previously had zero creation UI (only display tables, with a
+  non-functional "Send" icon) — `POST /api/finance/quotes` / `/invoices` already existed
+  server-side but were never called from the client. Added `AddQuoteModal.tsx` /
+  `AddInvoiceModal.tsx` (mirrors `AddSubRentalModal.tsx`'s field/select pattern, with an
+  optional job-link dropdown), wired to "+ New Quote" / "+ New Invoice" buttons in
+  `FinancePage.tsx`'s tab headers. Quote/invoice number fields are pre-filled with a suggested
+  next number (`QT-001`/`INV-001` style) but freely editable.
+- **Quote/Invoice status update**: status badges in `FinancePage.tsx` replaced with `<select>`
+  dropdowns calling the existing `financeApi.updateQuote`/`updateInvoice`.
+- **Quote/Invoice PDF export**: `server/lib/financePdf.ts` (`generateQuotePdf`/
+  `generateInvoicePdf`, same `pdfkit` pattern as `pullsheetPdf.ts`) + `GET
+  /api/finance/quotes/:id/pdf` / `/invoices/:id/pdf`. Since `quotes`/`invoices` have no
+  line-item tables (`totalValue`/`amount` are single decimal fields), these are **summary
+  documents** (number, client, linked job, total, dates, status) — not itemized equipment
+  breakdowns. Download icon button per row in `FinancePage.tsx`.
+
 ## Adding a New Feature
 
 1. Add table/columns to `shared/schema.ts`

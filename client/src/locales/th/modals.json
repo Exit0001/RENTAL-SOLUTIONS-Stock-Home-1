@@ -111,6 +111,30 @@
     "saveVehicle": "เพิ่มรถ"
   },
 
+  "addQuote": {
+    "title": "ใบเสนอราคาใหม่",
+    "quoteNumberLabel": "เลขที่ใบเสนอราคา",
+    "clientLabel": "ลูกค้า",
+    "clientPlaceholder": "เช่น Acme Events Ltd",
+    "totalValueLabel": "มูลค่ารวม (£)",
+    "totalValuePlaceholder": "เช่น 4500.00",
+    "linkedJobOptional": "งานที่เกี่ยวข้อง (ไม่บังคับ)",
+    "saveQuote": "บันทึกใบเสนอราคา"
+  },
+
+  "addInvoice": {
+    "title": "ใบแจ้งหนี้ใหม่",
+    "invoiceNumberLabel": "เลขที่ใบแจ้งหนี้",
+    "clientLabel": "ลูกค้า",
+    "clientPlaceholder": "เช่น Acme Events Ltd",
+    "amountLabel": "จำนวนเงิน (£)",
+    "amountPlaceholder": "เช่น 4500.00",
+    "issuedDateLabel": "วันที่ออก",
+    "dueDateLabel": "วันครบกำหนด",
+    "linkedJobOptional": "งานที่เกี่ยวข้อง (ไม่บังคับ)",
+    "saveInvoice": "บันทึกใบแจ้งหนี้"
+  },
+
   "assignContainer": {
     "title": "เพิ่มแร็คเข้างาน",
     "searchPlaceholder": "ค้นหาแร็ค, ตำแหน่ง, บาร์โค้ด...",

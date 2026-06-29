@@ -3,8 +3,9 @@ import { eq, and, desc } from "drizzle-orm";
 import { db } from "../db";
 import {
   quotes, invoices, insertQuoteSchema, insertInvoiceSchema,
-  jobs, subRentals, incidents, maintenanceLogs, jobExpenses,
+  jobs, subRentals, incidents, maintenanceLogs, jobExpenses, companies,
 } from "@shared/schema";
+import { generateQuotePdf, generateInvoicePdf } from "../lib/financePdf";
 
 export const financeRouter = Router();
 
@@ -58,6 +59,38 @@ financeRouter.put("/quotes/:id", async (req, res) => {
   }
 });
 
+// GET /api/finance/quotes/:id/pdf — สร้างใบเสนอราคาเป็น PDF
+financeRouter.get("/quotes/:id/pdf", async (req, res) => {
+  try {
+    const [quote] = await db
+      .select()
+      .from(quotes)
+      .where(and(eq(quotes.id, req.params.id), eq(quotes.companyId, req.companyId)));
+
+    if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+    const [company] = await db
+      .select({ name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, req.companyId));
+
+    let jobName: string | null = null;
+    if (quote.jobId) {
+      const [job] = await db.select({ name: jobs.name }).from(jobs).where(eq(jobs.id, quote.jobId));
+      jobName = job?.name ?? null;
+    }
+
+    const doc = generateQuotePdf({ companyName: company?.name ?? "Company", quote, jobName });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="quote-${quote.quoteNumber}.pdf"`);
+    doc.pipe(res);
+    doc.end();
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to generate quote PDF" });
+  }
+});
+
 // ─── Invoices ─────────────────────────────────────────────
 
 // GET /api/finance/invoices
@@ -79,6 +112,8 @@ financeRouter.post("/invoices", async (req, res) => {
   try {
     const data = insertInvoiceSchema.parse({
       ...req.body,
+      issuedDate: new Date(req.body.issuedDate),
+      dueDate:    new Date(req.body.dueDate),
       companyId: req.companyId,
     });
 
@@ -105,6 +140,38 @@ financeRouter.put("/invoices/:id", async (req, res) => {
     res.json(invoice);
   } catch {
     res.status(500).json({ message: "Failed to update invoice" });
+  }
+});
+
+// GET /api/finance/invoices/:id/pdf — สร้างใบแจ้งหนี้เป็น PDF
+financeRouter.get("/invoices/:id/pdf", async (req, res) => {
+  try {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(and(eq(invoices.id, req.params.id), eq(invoices.companyId, req.companyId)));
+
+    if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+
+    const [company] = await db
+      .select({ name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, req.companyId));
+
+    let jobName: string | null = null;
+    if (invoice.jobId) {
+      const [job] = await db.select({ name: jobs.name }).from(jobs).where(eq(jobs.id, invoice.jobId));
+      jobName = job?.name ?? null;
+    }
+
+    const doc = generateInvoicePdf({ companyName: company?.name ?? "Company", invoice, jobName });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="invoice-${invoice.invoiceNumber}.pdf"`);
+    doc.pipe(res);
+    doc.end();
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to generate invoice PDF" });
   }
 });
 

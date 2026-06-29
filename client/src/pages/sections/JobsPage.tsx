@@ -427,6 +427,11 @@ export const JobsPage = (): JSX.Element => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }),
   });
 
+  const resolveIncident = useMutation({
+    mutationFn: (incidentId: string) => jobsApi.resolveIncident(incidentId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }),
+  });
+
   const { data: pullSheets = [] } = useQuery({
     queryKey: ["pull-sheets"],
     queryFn: jobsApi.getPullSheets,
@@ -445,6 +450,11 @@ export const JobsPage = (): JSX.Element => {
 
   const createJob = useMutation({
     mutationFn: (data: Parameters<typeof jobsApi.create>[0]) => jobsApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+  });
+
+  const updateJobStatus = useMutation({
+    mutationFn: ({ jobId, status }: { jobId: string; status: string }) => jobsApi.update(jobId, { status: status as any }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
@@ -624,9 +634,24 @@ export const JobsPage = (): JSX.Element => {
                     <td className="py-2.5 text-white/60 text-xs">{dateStr}</td>
                     <td className="py-2.5"><span className="text-white/60 text-xs">—</span></td>
                     <td className="py-2.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[job.status] ?? "bg-white/5 text-white/60"}`}>
-                        {tc(`statusEnum.${job.status}`, { defaultValue: job.status })}
-                      </span>
+                      {canManage ? (
+                        <select
+                          value={job.status}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => { e.stopPropagation(); updateJobStatus.mutate({ jobId: job.id, status: e.target.value }); }}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40 ${statusStyles[job.status] ?? "bg-white/5 text-white/60"}`}
+                        >
+                          {["draft", "scheduled", "active", "completed", "cancelled"].map((s) => (
+                            <option key={s} value={s} className="bg-[#111] text-white">
+                              {tc(`statusEnum.${s}`, { defaultValue: s })}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[job.status] ?? "bg-white/5 text-white/60"}`}>
+                          {tc(`statusEnum.${job.status}`, { defaultValue: job.status })}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 pr-4">
                       <div className="flex items-center justify-end gap-2">
@@ -885,6 +910,18 @@ export const JobsPage = (): JSX.Element => {
                       <span>{new Date(inc.date).toLocaleDateString("en-GB")}</span>
                     </div>
                   </div>
+                  {canManage && inc.status === "open" && (
+                    <button
+                      onClick={() => resolveIncident.mutate(inc.id)}
+                      disabled={resolveIncident.isPending && resolveIncident.variables === inc.id}
+                      className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors flex-shrink-0 disabled:opacity-40"
+                    >
+                      {resolveIncident.isPending && resolveIncident.variables === inc.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <CheckCircle2 className="w-3 h-3" />}
+                      {t("markResolved")}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

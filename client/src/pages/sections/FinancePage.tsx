@@ -13,12 +13,29 @@ import {
   TrendingUp,
   TrendingDown,
   Target,
+  Plus,
+  Download,
+  Loader2,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { financeApi } from "@/api";
 import { JobExpensesModal } from "./JobExpensesModal";
+import { AddQuoteModal } from "./AddQuoteModal";
+import { AddInvoiceModal } from "./AddInvoiceModal";
+
+const QUOTE_STATUSES = ["draft", "sent", "accepted", "declined"];
+const INVOICE_STATUSES = ["pending", "paid", "overdue"];
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 type FinanceTab = "quotes" | "invoices" | "costing" | "loss";
 
@@ -44,7 +61,11 @@ export const FinancePage = (): JSX.Element => {
   const { t: tc } = useTranslation("common");
   const [activeTab, setActiveTab] = useState<FinanceTab>("quotes");
   const [expensesJob, setExpensesJob] = useState<{ jobId: string; project: string } | null>(null);
+  const [addQuoteOpen, setAddQuoteOpen] = useState(false);
+  const [addInvoiceOpen, setAddInvoiceOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { token } = useAppStore();
+  const qc = useQueryClient();
 
   const { data: quotes = [] } = useQuery({
     queryKey: ["quotes"],
@@ -57,6 +78,46 @@ export const FinancePage = (): JSX.Element => {
     queryFn: financeApi.getInvoices,
     enabled: !!token,
   });
+
+  const createQuote = useMutation({
+    mutationFn: (data: Parameters<typeof financeApi.createQuote>[0]) => financeApi.createQuote(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["quotes"] }),
+  });
+
+  const createInvoice = useMutation({
+    mutationFn: (data: Parameters<typeof financeApi.createInvoice>[0]) => financeApi.createInvoice(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
+  });
+
+  const updateQuoteStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => financeApi.updateQuote(id, { status: status as any }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["quotes"] }),
+  });
+
+  const updateInvoiceStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => financeApi.updateInvoice(id, { status: status as any }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
+  });
+
+  const handleDownloadQuotePdf = async (id: string, quoteNumber: string) => {
+    setDownloadingId(id);
+    try {
+      const blob = await financeApi.downloadQuotePdf(id);
+      downloadBlob(blob, `quote-${quoteNumber}.pdf`);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleDownloadInvoicePdf = async (id: string, invoiceNumber: string) => {
+    setDownloadingId(id);
+    try {
+      const blob = await financeApi.downloadInvoicePdf(id);
+      downloadBlob(blob, `invoice-${invoiceNumber}.pdf`);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const { data: projectCosts = [] } = useQuery({
     queryKey: ["finance-costing"],
@@ -120,6 +181,14 @@ export const FinancePage = (): JSX.Element => {
             <FileText className="w-4 h-4 text-[#FFFF00]" />
             <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("smartQuotes")}</span>
             <span className="ml-auto text-[10px] text-white/60">{t("linkedToStock")}</span>
+            <button
+              onClick={() => setAddQuoteOpen(true)}
+              className="h-9 px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black"
+              style={{ backgroundColor: "#FFFF00" }}
+              data-testid="button-add-quote"
+            >
+              <Plus className="w-4 h-4" />{t("newQuote")}
+            </button>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -143,9 +212,30 @@ export const FinancePage = (): JSX.Element => {
                   <td className="py-2.5 text-white font-bold">—</td>
                   <td className="py-2.5 text-white font-semibold">£{Number(q.totalValue).toLocaleString()}</td>
                   <td className="py-2.5"><span className="text-xs font-semibold text-white/60">—</span></td>
-                  <td className="py-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[q.status] ?? "bg-white/5 text-white/60"}`}>{tc(`statusEnum.${q.status}`, { defaultValue: q.status })}</span></td>
+                  <td className="py-2.5">
+                    <select
+                      value={q.status}
+                      onChange={(e) => updateQuoteStatus.mutate({ id: q.id, status: e.target.value })}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40 ${statusColors[q.status] ?? "bg-white/5 text-white/60"}`}
+                    >
+                      {QUOTE_STATUSES.map((s) => (
+                        <option key={s} value={s} className="bg-[#111] text-white">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td className="py-2.5 pr-4 text-right">
-                    <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors" title={tc("send")} data-testid={`button-send-quote-${q.id}`}><Send className="w-3.5 h-3.5" /></button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors" title={tc("send")} data-testid={`button-send-quote-${q.id}`}><Send className="w-3.5 h-3.5" /></button>
+                      <button
+                        onClick={() => handleDownloadQuotePdf(q.id, q.quoteNumber ?? q.id)}
+                        disabled={downloadingId === q.id}
+                        className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors disabled:opacity-40"
+                        title={tc("downloadPdf")}
+                        data-testid={`button-download-quote-${q.id}`}
+                      >
+                        {downloadingId === q.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -159,6 +249,14 @@ export const FinancePage = (): JSX.Element => {
           <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
             <Receipt className="w-4 h-4 text-[#FFFF00]" />
             <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("invoicesAndPayments")}</span>
+            <button
+              onClick={() => setAddInvoiceOpen(true)}
+              className="ml-auto h-9 px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black"
+              style={{ backgroundColor: "#FFFF00" }}
+              data-testid="button-add-invoice"
+            >
+              <Plus className="w-4 h-4" />{t("newInvoice")}
+            </button>
           </div>
           <table className="w-full text-sm">
             <thead>
@@ -168,7 +266,8 @@ export const FinancePage = (): JSX.Element => {
                 <th className="py-2.5 text-left font-semibold">{t("colAmount")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colIssued")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colDue")}</th>
-                <th className="py-2.5 pr-4 text-right font-semibold">{tc("status")}</th>
+                <th className="py-2.5 text-left font-semibold">{tc("status")}</th>
+                <th className="py-2.5 pr-4 text-right font-semibold">{tc("actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -184,13 +283,27 @@ export const FinancePage = (): JSX.Element => {
                       <span className={inv.status === "overdue" ? "text-red-400" : "text-white/60"}>{new Date(inv.dueDate).toLocaleDateString("en-GB")}</span>
                       {daysLeft < 0 && <span className="ml-1 text-red-400/60 text-[10px]">{t("daysOverdue", { days: Math.abs(daysLeft) })}</span>}
                     </td>
+                    <td className="py-2.5">
+                      <select
+                        value={inv.status}
+                        onChange={(e) => updateInvoiceStatus.mutate({ id: inv.id, status: e.target.value })}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40 ${statusColors[inv.status] ?? "bg-white/5 text-white/60"}`}
+                      >
+                        {INVOICE_STATUSES.map((s) => (
+                          <option key={s} value={s} className="bg-[#111] text-white">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="py-2.5 pr-4 text-right">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[inv.status] ?? "bg-white/5 text-white/60"}`}>
-                        {inv.status === "paid"    && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                        {inv.status === "overdue" && <AlertTriangle className="w-3 h-3 mr-1" />}
-                        {inv.status === "pending" && <Clock className="w-3 h-3 mr-1" />}
-                        {tc(`statusEnum.${inv.status}`, { defaultValue: inv.status })}
-                      </span>
+                      <button
+                        onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber ?? inv.id)}
+                        disabled={downloadingId === inv.id}
+                        className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors disabled:opacity-40"
+                        title={tc("downloadPdf")}
+                        data-testid={`button-download-invoice-${inv.id}`}
+                      >
+                        {downloadingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -321,6 +434,22 @@ export const FinancePage = (): JSX.Element => {
           jobId={expensesJob.jobId}
           jobName={expensesJob.project}
           onClose={() => setExpensesJob(null)}
+        />
+      )}
+
+      {addQuoteOpen && (
+        <AddQuoteModal
+          suggestedNumber={`QT-${String((quotes as any[]).length + 1).padStart(3, "0")}`}
+          onClose={() => setAddQuoteOpen(false)}
+          onSubmit={(data) => createQuote.mutate(data)}
+        />
+      )}
+
+      {addInvoiceOpen && (
+        <AddInvoiceModal
+          suggestedNumber={`INV-${String((invoices as any[]).length + 1).padStart(3, "0")}`}
+          onClose={() => setAddInvoiceOpen(false)}
+          onSubmit={(data) => createInvoice.mutate(data)}
         />
       )}
     </div>

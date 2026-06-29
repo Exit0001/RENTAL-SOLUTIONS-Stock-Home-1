@@ -234,10 +234,26 @@ maintenanceRouter.post("/subrentals", async (req, res) => {
   try {
     const [rental] = await db
       .insert(subRentals)
-      .values({ ...req.body, companyId: req.companyId })
+      .values({ ...req.body, dueBack: new Date(req.body.dueBack), companyId: req.companyId })
       .returning();
     res.status(201).json(rental);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// PUT /api/maintenance/subrentals/:id — เปลี่ยนสถานะ (เช่น คืนของแล้ว)
+maintenanceRouter.put("/subrentals/:id", async (req, res) => {
+  try {
+    const [rental] = await db
+      .update(subRentals)
+      .set(req.body)
+      .where(and(eq(subRentals.id, req.params.id), eq(subRentals.companyId, req.companyId)))
+      .returning();
+
+    if (!rental) return res.status(404).json({ message: "Sub-rental not found" });
+    res.json(rental);
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to update sub-rental" });
   }
 });

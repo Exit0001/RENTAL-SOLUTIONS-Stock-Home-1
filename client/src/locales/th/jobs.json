@@ -66,6 +66,7 @@
   "reportIncident": "รายงานเหตุการณ์",
   "incidentReports": "รายงานเหตุการณ์",
   "openCount": "{{count}} เปิดอยู่",
+  "markResolved": "ปิดเหตุการณ์",
   "viewPhotoEvidence": "ดูรูปหลักฐาน",
   "photoAttached": "มีรูปแนบ",
   "assetLabel": "อุปกรณ์:",

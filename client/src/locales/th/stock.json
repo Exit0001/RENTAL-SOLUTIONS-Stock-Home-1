@@ -47,6 +47,7 @@
   "fromPartner": "จาก: {{partner}}",
   "jobIdLabel": "เลขงาน: {{id}}",
   "dueLabel": "กำหนดคืน: {{date}}",
+  "markReturned": "คืนของแล้ว",
 
   "searchItemsPlaceholder": "ค้นหาอุปกรณ์...",
   "addBrandCategory": "เพิ่มแบรนด์และหมวดหมู่",

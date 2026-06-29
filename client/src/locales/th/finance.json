@@ -12,6 +12,7 @@
 
   "smartQuotes": "ใบเสนอราคาอัจฉริยะ",
   "linkedToStock": "เชื่อมโยงกับสต็อกแบบเรียลไทม์",
+  "newQuote": "สร้างใบเสนอราคา",
   "colQuote": "ใบเสนอราคา",
   "colClient": "ลูกค้า",
   "colProject": "โปรเจกต์",
@@ -19,6 +20,7 @@
   "colStock": "สต็อก",
 
   "invoicesAndPayments": "ใบแจ้งหนี้และการชำระเงิน",
+  "newInvoice": "สร้างใบแจ้งหนี้",
   "colInvoice": "ใบแจ้งหนี้",
   "colAmount": "จำนวนเงิน",
   "colIssued": "วันที่ออก",

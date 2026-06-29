@@ -200,11 +200,6 @@ export const StockPage = (): JSX.Element => {
       return next;
     });
 
-  const toggleSelectAllLogs = () =>
-    setSelectedLogIds((prev) =>
-      prev.size === maintenanceLogs.length ? new Set() : new Set(maintenanceLogs.map((l: any) => l.id))
-    );
-
   const toggleMaintenanceCategory = (cat: string) =>
     setExpandedMaintenanceCategories((prev) => {
       const next = new Set(prev);
@@ -220,9 +215,6 @@ export const StockPage = (): JSX.Element => {
       for (const l of logs) allSelected ? next.delete(l.id) : next.add(l.id);
       return next;
     });
-
-  const allLogsSelected = maintenanceLogs.length > 0 && selectedLogIds.size === maintenanceLogs.length;
-  const someLogsSelected = selectedLogIds.size > 0 && !allLogsSelected;
 
   const startEditLog = (log: any) => {
     setEditingLogId(log.id);
@@ -289,6 +281,11 @@ export const StockPage = (): JSX.Element => {
 
   const createSubRental = useMutation({
     mutationFn: (data: Parameters<typeof maintenanceApi.createSubRental>[0]) => maintenanceApi.createSubRental(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["subrentals"] }),
+  });
+
+  const returnSubRental = useMutation({
+    mutationFn: (id: string) => maintenanceApi.updateSubRental(id, { status: "returned" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["subrentals"] }),
   });
 
@@ -627,21 +624,7 @@ export const StockPage = (): JSX.Element => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
-                  {canManage && (
-                    <th className="py-2.5 pl-4 w-8">
-                      <div
-                        role="checkbox"
-                        aria-checked={allLogsSelected}
-                        aria-label={tc("selectAll")}
-                        onClick={toggleSelectAllLogs}
-                        className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
-                          ${allLogsSelected ? "border-[#FFFF00] bg-[#FFFF00]" : someLogsSelected ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" : "border-white/20"}`}
-                      >
-                        {allLogsSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
-                        {someLogsSelected && <div className="w-1.5 h-0.5 bg-[#FFFF00] rounded-full" />}
-                      </div>
-                    </th>
-                  )}
+                  {canManage && <th className="py-2.5 pl-4 w-8" />}
                   <th className={`py-2.5 text-left font-semibold ${canManage ? "" : "pl-4"}`}>{t("colAsset")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colType")}</th>
                   <th className="py-2.5 text-left font-semibold">{tc("description")}</th>
@@ -915,7 +898,7 @@ export const StockPage = (): JSX.Element => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-white/80">{sr.itemName}</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "active" ? "bg-purple-500/15 text-purple-400" : "bg-amber-500/15 text-amber-400"}`}>{tc(`statusEnum.${sr.status}`, { defaultValue: sr.status })}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "active" ? "bg-purple-500/15 text-purple-400" : sr.status === "returned" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>{tc(`statusEnum.${sr.status}`, { defaultValue: sr.status })}</span>
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
                       <span>{t("fromPartner", { partner: sr.partner })}</span>
@@ -934,6 +917,18 @@ export const StockPage = (): JSX.Element => {
                     </p>
                     <p className="text-[10px] text-white/60 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />{t("dueLabel", { date: new Date(sr.dueBack).toLocaleDateString("en-GB") })}</p>
                   </div>
+                  {canManage && sr.status !== "returned" && (
+                    <button
+                      onClick={() => returnSubRental.mutate(sr.id)}
+                      disabled={returnSubRental.isPending && returnSubRental.variables === sr.id}
+                      className="flex items-center gap-1 h-7 px-2.5 rounded-md text-[10px] font-semibold text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-colors flex-shrink-0 disabled:opacity-40"
+                    >
+                      {returnSubRental.isPending && returnSubRental.variables === sr.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Check className="w-3 h-3" />}
+                      {t("markReturned")}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

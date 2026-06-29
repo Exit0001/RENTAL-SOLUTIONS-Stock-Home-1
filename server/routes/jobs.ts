@@ -774,6 +774,29 @@ jobsRouter.post("/:id/incidents", async (req, res) => {
   }
 });
 
+// PUT /api/jobs/incidents/:incidentId — ปิด incident เป็น resolved (Admin/Manager เท่านั้น)
+jobsRouter.put("/incidents/:incidentId", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+
+  try {
+    const [incident] = await db
+      .update(incidents)
+      .set({ status: "resolved" })
+      .where(and(eq(incidents.id, req.params.incidentId), eq(incidents.companyId, req.companyId)))
+      .returning();
+
+    if (!incident) return res.status(404).json({ message: "Incident not found" });
+
+    if (incident.stockUnitId) await recalculateUnitHealth(incident.stockUnitId);
+
+    res.json(incident);
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to resolve incident" });
+  }
+});
+
 // ─── Job Expenses (ค่าเด็กโหลด / ค่าเดินทาง-ส่งของ พร้อมสลิป) ──────
 
 // GET /api/jobs/:id/expenses

@@ -12,6 +12,7 @@
 
   "smartQuotes": "Smart Quotes",
   "linkedToStock": "Linked to live stock availability",
+  "newQuote": "New Quote",
   "colQuote": "Quote",
   "colClient": "Client",
   "colProject": "Project",
@@ -19,6 +20,7 @@
   "colStock": "Stock",
 
   "invoicesAndPayments": "Invoices & Payments",
+  "newInvoice": "New Invoice",
   "colInvoice": "Invoice",
   "colAmount": "Amount",
   "colIssued": "Issued",

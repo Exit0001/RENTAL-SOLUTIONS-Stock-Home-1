@@ -47,6 +47,7 @@
   "fromPartner": "From: {{partner}}",
   "jobIdLabel": "Job ID: {{id}}",
   "dueLabel": "Due: {{date}}",
+  "markReturned": "Mark Returned",
 
   "searchItemsPlaceholder": "Search for items...",
   "addBrandCategory": "Add Brand & Category",

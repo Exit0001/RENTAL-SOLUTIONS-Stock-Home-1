@@ -4,6 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+*.log
 
 # ห้าม commit ไฟล์เหล่านี้ขึ้น git เด็ดขาด
 .env

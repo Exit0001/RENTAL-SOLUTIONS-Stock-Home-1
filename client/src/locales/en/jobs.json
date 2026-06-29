@@ -66,6 +66,7 @@
   "reportIncident": "Report Incident",
   "incidentReports": "Incident Reports",
   "openCount": "{{count}} open",
+  "markResolved": "Mark Resolved",
   "viewPhotoEvidence": "View photo evidence",
   "photoAttached": "Photo attached",
   "assetLabel": "Asset:",

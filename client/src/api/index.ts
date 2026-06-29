@@ -15,7 +15,7 @@ import type {
   SubCategory, InsertSubCategory,
   Location, InsertLocation,
   ContainerType, InsertContainerType,
-  Quote, Invoice,
+  Quote, InsertQuote, Invoice, InsertInvoice,
   PullSheet, InsertPullSheet,
   JobCrew,
   Notification,
@@ -178,6 +178,7 @@ export const jobsApi = {
   getIncidents:  () => api.get<Incident[]>("/jobs/all/incidents"),
   createIncident:(jobId: string, data: Omit<InsertIncident, "companyId" | "jobId">) =>
                    api.post<Incident>(`/jobs/${jobId}/incidents`, data),
+  resolveIncident:(incidentId: string) => api.put<Incident>(`/jobs/incidents/${incidentId}`, {}),
   getContainers: (jobId: string) => api.get<JobContainerRow[]>(`/jobs/${jobId}/containers`),
   addContainer:  (jobId: string, containerId: string) =>
                    api.post<void>(`/jobs/${jobId}/containers`, { containerId }),
@@ -246,8 +247,12 @@ export const financeApi = {
   getInvoices:   () => api.get<Invoice[]>("/finance/invoices"),
   getCosting:    () => api.get<ProjectCost[]>("/finance/costing"),
   getLoss:       () => api.get<LossData>("/finance/loss"),
+  createQuote:   (data: Omit<InsertQuote, "companyId">)   => api.post<Quote>("/finance/quotes", data),
+  createInvoice: (data: Omit<InsertInvoice, "companyId">) => api.post<Invoice>("/finance/invoices", data),
   updateQuote:   (id: string, data: Partial<Quote>)   => api.put<Quote>(`/finance/quotes/${id}`, data),
   updateInvoice: (id: string, data: Partial<Invoice>) => api.put<Invoice>(`/finance/invoices/${id}`, data),
+  downloadQuotePdf:   (id: string) => fetchBlob(`/finance/quotes/${id}/pdf`),
+  downloadInvoicePdf: (id: string) => fetchBlob(`/finance/invoices/${id}/pdf`),
 };
 
 // ─── Maintenance ──────────────────────────────────────────
@@ -262,6 +267,7 @@ export const maintenanceApi = {
   deleteBatch:   (ids: string[]) => api.delete<{ message: string; count: number }>("/maintenance/batch", { ids }),
   getSubRentals: () => api.get<SubRental[]>("/maintenance/subrentals"),
   createSubRental:(data: Omit<InsertSubRental, "companyId">) => api.post<SubRental>("/maintenance/subrentals", data),
+  updateSubRental:(id: string, data: Partial<InsertSubRental>) => api.put<SubRental>(`/maintenance/subrentals/${id}`, data),
 };
 
 // ─── Activity ─────────────────────────────────────────────

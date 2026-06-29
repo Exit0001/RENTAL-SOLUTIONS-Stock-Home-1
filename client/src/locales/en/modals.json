@@ -111,6 +111,30 @@
     "saveVehicle": "Add Vehicle"
   },
 
+  "addQuote": {
+    "title": "New Quote",
+    "quoteNumberLabel": "Quote Number",
+    "clientLabel": "Client",
+    "clientPlaceholder": "e.g. Acme Events Ltd",
+    "totalValueLabel": "Total Value (£)",
+    "totalValuePlaceholder": "e.g. 4500.00",
+    "linkedJobOptional": "Linked Job (optional)",
+    "saveQuote": "Save Quote"
+  },
+
+  "addInvoice": {
+    "title": "New Invoice",
+    "invoiceNumberLabel": "Invoice Number",
+    "clientLabel": "Client",
+    "clientPlaceholder": "e.g. Acme Events Ltd",
+    "amountLabel": "Amount (£)",
+    "amountPlaceholder": "e.g. 4500.00",
+    "issuedDateLabel": "Issued Date",
+    "dueDateLabel": "Due Date",
+    "linkedJobOptional": "Linked Job (optional)",
+    "saveInvoice": "Save Invoice"
+  },
+
   "assignContainer": {
     "title": "Add Rack to Job",
     "searchPlaceholder": "Search racks, location, barcode...",
