@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import {
   X, Package, Pencil, MapPin, Hash, Barcode, Archive,
   Boxes, Info, DollarSign, Wrench, FileText, Loader2,
-  ExternalLink, ShieldCheck, Calendar,
+  ExternalLink, ShieldCheck, Calendar, Link2, Plus, Trash2, Search,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
+import type { ItemAccessoryWithInfo } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
 
 // ────────────────────────────────────────────────
@@ -49,12 +50,6 @@ const unitStatusColor: Record<string, { bg: string; text: string; dot: string }>
   retired:     { bg: "bg-white/5",        text: "text-white/60",    dot: "bg-white/20" },
 };
 
-const STATUS_CYCLE: Record<string, "available" | "out" | "maintenance" | "retired"> = {
-  available:   "maintenance",
-  maintenance: "available",
-  out:         "available",
-  retired:     "available",
-};
 
 // ────────────────────────────────────────────────
 // main component
@@ -69,9 +64,11 @@ interface Props {
 export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
-  const { token } = useAppStore();
+  const { token, userRole } = useAppStore();
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"units" | "details">("units");
+  const canManage = userRole === "admin" || userRole === "manager";
+  const [activeTab, setActiveTab] = useState<"units" | "accessories" | "details">("units");
+  const [accSearch, setAccSearch] = useState("");
 
   // Fetch full item with units
   const { data, isLoading } = useQuery({
@@ -82,10 +79,40 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
 
   const units: StockUnit[] = (data as any)?.units ?? [];
 
-  const updateUnit = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      stockApi.updateUnit(id, { status: status as any }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["stock", item.id] }),
+
+  const { data: accessories = [], isLoading: accLoading } = useQuery<ItemAccessoryWithInfo[]>({
+    queryKey: ["accessories", item.id],
+    queryFn:  () => stockApi.getAccessories(item.id),
+    enabled:  !!token && activeTab === "accessories",
+  });
+
+  const { data: allItems = [] } = useQuery<StockItem[]>({
+    queryKey: ["stock"],
+    queryFn:  stockApi.getAll,
+    enabled:  !!token && activeTab === "accessories" && canManage,
+  });
+
+  const accSearchResults = React.useMemo(() => {
+    if (!accSearch.trim()) return [];
+    const q = accSearch.toLowerCase();
+    const linkedIds = new Set(accessories.map((a) => a.accessoryStockItemId));
+    return allItems
+      .filter((si) => si.id !== item.id && !linkedIds.has(si.id) && si.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [accSearch, allItems, accessories, item.id]);
+
+  const addAcc = useMutation({
+    mutationFn: (d: { accessoryStockItemId: string; quantityPerUnit: number; required: boolean }) =>
+      stockApi.addAccessory(item.id, d),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accessories", item.id] });
+      setAccSearch("");
+    },
+  });
+
+  const removeAcc = useMutation({
+    mutationFn: (linkId: string) => stockApi.removeAccessory(linkId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["accessories", item.id] }),
   });
 
   const availableCount   = units.filter((u) => u.status === "available").length;
@@ -144,14 +171,15 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
       {/* Tab nav */}
       <div className="flex border-b border-white/[0.06] flex-shrink-0">
         {[
-          { key: "units",   label: t("tabUnits"),   icon: Boxes },
-          { key: "details", label: t("tabDetails"), icon: Info },
+          { key: "units",       label: t("tabUnits"),       icon: Boxes },
+          { key: "accessories", label: t("tabAccessories"), icon: Link2 },
+          { key: "details",     label: t("tabDetails"),     icon: Info },
         ].map((tab) => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key as any)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-[10px] font-medium border-b-2 transition-colors ${
               activeTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"
             }`}>
-            <tab.icon className="w-3.5 h-3.5" />{tab.label}
+            <tab.icon className="w-3 h-3" />{tab.label}
           </button>
         ))}
       </div>
@@ -184,16 +212,10 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
                     {/* Name + status */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm text-white/85 font-medium truncate">{u.name}</span>
-                      <button
-                        onClick={() => updateUnit.mutate({ id: u.id, status: STATUS_CYCLE[u.status] ?? "available" })}
-                        title={t("clickToChangeStatus")}
-                        disabled={updateUnit.isPending}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border border-current/20
-                          transition-opacity hover:opacity-70 flex-shrink-0 ${sc.bg} ${sc.text}`}
-                      >
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border border-current/20 flex-shrink-0 ${sc.bg} ${sc.text}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
                         {tc(`statusEnum.${u.status}`, { defaultValue: u.status }).toUpperCase()}
-                      </button>
+                      </span>
                     </div>
 
                     {/* Serial + Barcode */}
@@ -238,6 +260,77 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
             )}
             {!isLoading && units.length > 0 && (
               <p className="text-[9px] text-white/40 text-center py-2">{t("clickStatusBadgeHint")}</p>
+            )}
+          </div>
+        )}
+
+        {/* ── Accessories tab ── */}
+        {activeTab === "accessories" && (
+          <div className="flex flex-col gap-3 p-4">
+
+            {/* Search box — top */}
+            {canManage && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40" />
+                  <input
+                    value={accSearch}
+                    onChange={(e) => setAccSearch(e.target.value)}
+                    placeholder={t("searchAccessoryPlaceholder")}
+                    className="w-full h-8 pl-8 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#FFFF00]/40"
+                  />
+                </div>
+                {accSearchResults.map((si) => (
+                  <div key={si.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <p className="text-xs text-white/70 flex-1 truncate">{si.name}</p>
+                    <button
+                      onClick={() => addAcc.mutate({ accessoryStockItemId: si.id, quantityPerUnit: 1, required: true })}
+                      disabled={addAcc.isPending}
+                      className="flex items-center gap-1 h-6 px-2 rounded text-[10px] font-bold text-black disabled:opacity-40 transition-opacity hover:opacity-80 flex-shrink-0"
+                      style={{ backgroundColor: "#FFFF00" }}
+                    >
+                      <Plus className="w-3 h-3" />{t("addAccessory")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-[10px] text-white/50 leading-relaxed">{t("accessoriesHint")}</p>
+
+            {accLoading ? (
+              <div className="flex items-center justify-center gap-2 py-6 text-white/60">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+            ) : accessories.length === 0 ? (
+              <div className="flex flex-col items-center py-6 gap-2 text-white/40">
+                <Link2 className="w-6 h-6" />
+                <p className="text-xs">{t("noAccessoriesYet")}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {accessories.map((acc) => (
+                  <div key={acc.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-white/80 truncate">{acc.accessoryName}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-white/50">×{acc.quantityPerUnit}</span>
+                        <span className={`text-[9px] px-1 rounded font-bold ${acc.required ? "bg-amber-500/20 text-amber-400" : "bg-white/10 text-white/50"}`}>
+                          {acc.required ? t("requiredLabel") : t("optionalLabel")}
+                        </span>
+                        <span className="text-[10px] text-emerald-400/70">{acc.availableCount} {t("availableCountLabel")}</span>
+                      </div>
+                    </div>
+                    {canManage && (
+                      <button onClick={() => removeAcc.mutate(acc.id)}
+                        disabled={removeAcc.isPending}
+                        className="p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

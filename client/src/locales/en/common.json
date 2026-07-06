@@ -47,6 +47,7 @@
   "date": "Date",
   "location": "Location",
   "category": "Category",
+  "subCategory": "Sub-Category",
   "brand": "Brand",
   "quantity": "Quantity",
   "price": "Price",

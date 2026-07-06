@@ -21,6 +21,7 @@ import type {
   Notification,
   JobExpense, InsertJobExpense,
   JobVehicle, InsertJobVehicle,
+  ItemAccessory, InsertItemAccessory,
 } from "@shared/schema";
 
 // ─── Companies (ไม่ต้องการ auth) ─────────────────────────
@@ -69,8 +70,9 @@ export type StockUnitWithContainer = StockUnit & {
   containerName: string | null;
   containerType: string | null;
 };
-export type StockItemWithUnits = StockItem & { units: StockUnitWithContainer[] };
-export type AssignedUnit   = StockUnit & { itemName: string };
+export type StockItemWithUnits  = StockItem & { units: StockUnitWithContainer[]; availableCount?: number };
+export type AssignedUnit        = StockUnit & { itemName: string; phase: "planned" | "prepared" | "dispatched"; jobUnitId: string };
+export type ItemAccessoryWithInfo = ItemAccessory & { accessoryName: string; availableCount: number };
 
 export const stockApi = {
   getAll:         () => api.get<StockItem[]>("/stock"),
@@ -85,6 +87,17 @@ export const stockApi = {
                     api.put<StockUnit>(`/stock/units/${unitId}`, data),
   scanBarcode:    (barcode: string) =>
                     api.get<ScannedUnit>(`/stock/units/scan/${encodeURIComponent(barcode)}`),
+  // accessories
+  getAllAccessoryLinks: () =>
+    api.get<ItemAccessory[]>("/stock/accessories/all"),
+  getAccessories: (itemId: string) =>
+    api.get<ItemAccessoryWithInfo[]>(`/stock/${itemId}/accessories`),
+  addAccessory:    (itemId: string, data: { accessoryStockItemId: string; quantityPerUnit?: number; required?: boolean }) =>
+    api.post<ItemAccessory>(`/stock/${itemId}/accessories`, data),
+  updateAccessory: (linkId: string, data: Partial<Pick<InsertItemAccessory, "quantityPerUnit" | "required">>) =>
+    api.put<ItemAccessory>(`/stock/accessories/${linkId}`, data),
+  removeAccessory: (linkId: string) =>
+    api.delete<void>(`/stock/accessories/${linkId}`),
 };
 
 // ─── Containers ───────────────────────────────────────────
@@ -153,10 +166,11 @@ export type CrewData = {
   responsibilityLog: ResponsibilityEntry[];
 };
 
-export type JobStockItem = { stockItemId: string; itemName: string; itemCategory: string; quantity: number };
-export type JobDetail = Job & { stock: JobStockItem[]; crew: unknown[]; pullSheets: unknown[] };
+export type JobStockItem    = { stockItemId: string; itemName: string; itemCategory: string; quantity: number };
+export type JobDetail       = Job & { stock: JobStockItem[]; crew: unknown[]; pullSheets: unknown[] };
 export type JobContainerRow = Container & { itemCount: number };
-export type JobCrewMember = { userId: string; name: string; initials: string; role: string };
+export type JobCrewMember   = { userId: string; name: string; initials: string; role: string };
+export type JobBulkEntry    = { id: string; jobId: string; stockItemId: string; quantity: number };
 
 export const jobsApi = {
   getAll:        () => api.get<Job[]>("/jobs"),
@@ -166,9 +180,14 @@ export const jobsApi = {
   delete:        (id: string) => api.delete<{ message: string }>(`/jobs/${id}`),
   addStock:      (jobId: string, items: { stockItemId: string; quantity: number }[]) =>
                    api.post<void>(`/jobs/${jobId}/stock`, { items }),
+  getJobStock:   (jobId: string) => api.get<JobBulkEntry[]>(`/jobs/${jobId}/stock`),
+  setJobStock:   (jobId: string, items: { stockItemId: string; quantity: number }[]) =>
+                   api.post<void>(`/jobs/${jobId}/stock`, { items }),
   getUnits:      (jobId: string) => api.get<AssignedUnit[]>(`/jobs/${jobId}/units`),
   setUnits:      (jobId: string, unitIds: string[]) =>
                    api.post<void>(`/jobs/${jobId}/units`, { unitIds }),
+  updatePhase:   (jobId: string, stockUnitIds: string[], phase: "planned" | "prepared" | "dispatched") =>
+                   api.put<{ message: string; count: number }>(`/jobs/${jobId}/units/phase`, { stockUnitIds, phase }),
   getPullSheets: () => api.get<PullSheetRow[]>("/jobs/pullsheets"),
   createPullSheet: (jobId: string, data: Omit<InsertPullSheet, "jobId">) =>
                    api.post<PullSheet>(`/jobs/${jobId}/pullsheets`, data),
@@ -184,6 +203,7 @@ export const jobsApi = {
                    api.post<void>(`/jobs/${jobId}/containers`, { containerId }),
   removeContainer: (jobId: string, containerId: string) =>
                    api.delete<void>(`/jobs/${jobId}/containers/${containerId}`),
+  getCrewMatrix: () => api.get<{ jobId: string; userId: string }[]>("/jobs/crew-matrix"),
   getJobCrew:    (jobId: string) => api.get<JobCrewMember[]>(`/jobs/${jobId}/crew`),
   assignCrew:    (jobId: string, userId: string) => api.post<JobCrew>(`/jobs/${jobId}/crew`, { userId }),
   unassignCrew:  (jobId: string, userId: string) => api.delete<void>(`/jobs/${jobId}/crew/${userId}`),

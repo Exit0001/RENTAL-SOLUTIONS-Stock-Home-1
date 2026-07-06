@@ -53,6 +53,7 @@ export const AssignContainerModal = ({ jobId, onClose }: Props): JSX.Element => 
       qc.invalidateQueries({ queryKey: ["job-containers", jobId] });
       qc.invalidateQueries({ queryKey: ["containers"] });
       qc.invalidateQueries({ queryKey: ["job-units", jobId] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
       onClose();
     },
     onError: (err: any) => setError(err.message ?? t("assignContainer.errorAddFailed")),

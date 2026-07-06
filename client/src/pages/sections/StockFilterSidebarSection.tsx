@@ -8,8 +8,10 @@ import { catalogApi } from "@/api";
 interface StockFilterSidebarProps {
   selectedBrands: string[];
   selectedCategories: string[];
+  selectedSubCategories: string[];
   onBrandChange: (brand: string) => void;
   onCategoryChange: (category: string) => void;
+  onSubCategoryChange: (sub: string) => void;
   onClearAll: () => void;
 }
 
@@ -151,8 +153,10 @@ const FilterSection = ({ title, isLoading, items, selected, onToggle, showSearch
 export const StockFilterSidebarSection = ({
   selectedBrands,
   selectedCategories,
+  selectedSubCategories,
   onBrandChange,
   onCategoryChange,
+  onSubCategoryChange,
   onClearAll,
 }: StockFilterSidebarProps): JSX.Element => {
   const { t } = useTranslation("stock");
@@ -171,10 +175,17 @@ export const StockFilterSidebarSection = ({
     enabled: !!token,
   });
 
+  const { data: subCategories = [], isLoading: subCatsLoading } = useQuery({
+    queryKey: ["catalog-subcategories"],
+    queryFn: catalogApi.getSubCategories,
+    enabled: !!token,
+  });
+
   const sortedBrands = [...brands].sort((a, b) => a.name.localeCompare(b.name));
   const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedSubCategories = [...subCategories].sort((a, b) => a.name.localeCompare(b.name));
 
-  const totalSelected = selectedBrands.length + selectedCategories.length;
+  const totalSelected = selectedBrands.length + selectedCategories.length + selectedSubCategories.length;
 
   return (
     <aside className="w-52 min-w-[208px] h-full bg-[#0d0d0d] border-r border-white/10 flex flex-col overflow-y-auto">
@@ -218,6 +229,17 @@ export const StockFilterSidebarSection = ({
           selected={selectedCategories}
           onToggle={onCategoryChange}
           showSearch={false}
+        />
+
+        <div className="h-px bg-white/5 mx-2" />
+
+        <FilterSection
+          title={tc("subCategory")}
+          isLoading={subCatsLoading}
+          items={sortedSubCategories}
+          selected={selectedSubCategories}
+          onToggle={onSubCategoryChange}
+          showSearch
         />
       </div>
     </aside>

@@ -10,6 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
 import type { StockUnitWithContainer } from "@/api";
@@ -40,7 +50,7 @@ const AvailabilityBadge = ({ available, total }: { available: number; total: num
   );
 };
 
-const ActionIcons = ({ onView, onEdit }: { onView?: () => void; onEdit?: () => void }) => {
+const ActionIcons = ({ onView, onEdit, onDelete }: { onView?: () => void; onEdit?: () => void; onDelete?: () => void }) => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   return (
@@ -50,17 +60,16 @@ const ActionIcons = ({ onView, onEdit }: { onView?: () => void; onEdit?: () => v
         <Eye className="w-4 h-4" />
       </button>
       <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-        className="p-1.5 rounded-md text-white/60 hover:bg-white/10 transition-colors" title={tc("edit")}
-        style={{ color: "inherit" }}
-        onMouseEnter={e => (e.currentTarget.style.color = "#FFFF00")}
-        onMouseLeave={e => (e.currentTarget.style.color = "")}
+        className="p-1.5 rounded-md text-white hover:text-[#FFFF00] hover:bg-white/10 transition-colors" title={tc("edit")}
       >
         <Pencil className="w-4 h-4" />
       </button>
-      <button onClick={(e) => e.stopPropagation()}
-        className="p-1.5 rounded-md text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title={tc("delete")}>
-        <Trash2 className="w-4 h-4" />
-      </button>
+      {onDelete && (
+        <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="p-1.5 rounded-md text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title={tc("delete")}>
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 };
@@ -160,9 +169,9 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
   return (
     <>
       {/* Sub-header */}
-      <TableRow className="bg-[#0b0b0b] hover:bg-[#0b0b0b]">
+      <TableRow className="bg-[#0b0b0b] hover:bg-[#0b0b0b] border-b-0">
         <TableCell colSpan={6} className="py-1.5 pl-16 pr-4">
-          <div className="grid gap-x-3 text-[10px] font-bold text-white/60 uppercase tracking-wider pr-20"
+          <div className="grid gap-x-3 text-[10px] font-bold text-white/60 uppercase tracking-wider pr-[34px]"
             style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
             <span>{t("colUnitName")}</span>
             <span>{t("colSerialNo")}</span>
@@ -283,23 +292,43 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
 interface StockItemsTableProps {
   selectedBrands?: string[];
   selectedCategories?: string[];
+  selectedSubCategories?: string[];
   searchQuery?: string;
   onViewItem?: (item: StockItem) => void;
+  onEditItem?: (item: StockItem) => void;
   selectedItemId?: string | null;
 }
 
 export const StockItemsTableSection = ({
   selectedBrands = [],
   selectedCategories = [],
+  selectedSubCategories = [],
   searchQuery = "",
   onViewItem,
+  onEditItem,
   selectedItemId,
 }: StockItemsTableProps): JSX.Element => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
-  const { token } = useAppStore();
+  const { token, userRole } = useAppStore();
+  const qc = useQueryClient();
   const [expandedRows, setExpandedRows]           = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [deleteItemId, setDeleteItemId]           = useState<string | null>(null);
+  const [deleteError, setDeleteError]             = useState<string | null>(null);
+
+  const canManage = userRole === "admin" || userRole === "manager";
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => stockApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      setDeleteItemId(null);
+    },
+    onError: (err: any) => {
+      setDeleteError(err.message ?? "ไม่สามารถลบได้");
+    },
+  });
 
   const { data: stockItems = [], isLoading } = useQuery<StockItemWithCount[]>({
     queryKey: ["stock"],
@@ -323,13 +352,14 @@ export const StockItemsTableSection = ({
     });
   };
 
-  const isFiltering = searchQuery || selectedBrands.length > 0 || selectedCategories.length > 0;
+  const isFiltering = searchQuery || selectedBrands.length > 0 || selectedCategories.length > 0 || selectedSubCategories.length > 0;
 
   const filteredItems = useMemo(() =>
     stockItems
       .filter((item) => {
-        const brandMatch    = selectedBrands.length === 0    || selectedBrands.includes(item.brand);
-        const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(item.category);
+        const brandMatch       = selectedBrands.length === 0       || selectedBrands.includes(item.brand);
+        const categoryMatch    = selectedCategories.length === 0    || selectedCategories.includes(item.category);
+        const subCategoryMatch = selectedSubCategories.length === 0 || selectedSubCategories.includes(item.subCategory);
         const q = searchQuery.toLowerCase();
         const searchMatch =
           !q ||
@@ -337,10 +367,10 @@ export const StockItemsTableSection = ({
           item.brand.toLowerCase().includes(q) ||
           item.category.toLowerCase().includes(q) ||
           item.subCategory.toLowerCase().includes(q);
-        return brandMatch && categoryMatch && searchMatch;
+        return brandMatch && categoryMatch && subCategoryMatch && searchMatch;
       })
       .sort((a, b) => a.name.localeCompare(b.name)),
-    [stockItems, selectedBrands, selectedCategories, searchQuery]
+    [stockItems, selectedBrands, selectedCategories, selectedSubCategories, searchQuery]
   );
 
   // Group by category, sorted A→Z
@@ -480,28 +510,41 @@ export const StockItemsTableSection = ({
 
                   {/* Item rows (shown when category is open) */}
                   {catOpen && items.map((item: StockItemWithCount) => {
-                    const isExpanded = expandedRows.has(item.id);
+                    const isBulk     = item.trackingMode === "bulk";
+                    const isExpanded = !isBulk && expandedRows.has(item.id);
                     const isSelected = selectedItemId === item.id;
+                    const totalForBadge = isBulk ? (item.quantity ?? 0) : item.unitCount;
                     return (
                       <React.Fragment key={item.id}>
                         <TableRow
-                          className={`cursor-pointer transition-colors border-b ${
+                          className={`transition-colors border-b ${
+                            isBulk ? "" : "cursor-pointer"
+                          } ${
                             isSelected
                               ? "bg-[#FFFF00]/[0.05] border-l-2 border-l-[#FFFF00]/50 border-b-white/10"
                               : "bg-[#1a1a1a] hover:bg-[#242424] border-b-white/[0.05]"
                           }`}
-                          onClick={() => toggleRow(item.id)}
+                          onClick={isBulk ? undefined : () => toggleRow(item.id)}
                         >
                           <TableCell className="py-2.5 pl-10">
                             <div className="flex items-center gap-2">
-                              <ChevronRightIcon
-                                className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${
-                                  isExpanded ? "rotate-90 text-[#FFFF00]" : "text-white/60"
-                                }`}
-                              />
+                              {isBulk ? (
+                                <Layers className="w-3.5 h-3.5 flex-shrink-0 text-amber-400/70" />
+                              ) : (
+                                <ChevronRightIcon
+                                  className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${
+                                    isExpanded ? "rotate-90 text-[#FFFF00]" : "text-white/60"
+                                  }`}
+                                />
+                              )}
                               <span className={`font-medium text-sm truncate ${isSelected ? "text-[#FFFF00]" : "text-white/90"}`}>
                                 {item.name}
                               </span>
+                              {isBulk && (
+                                <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 font-medium flex-shrink-0">
+                                  BULK
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="py-2.5 text-white/60 text-sm truncate align-middle">
@@ -511,15 +554,16 @@ export const StockItemsTableSection = ({
                             {item.subCategory || "—"}
                           </TableCell>
                           <TableCell className="py-2.5 text-sm align-middle">
-                            <span className="font-bold text-white/80">{item.unitCount}</span>
+                            <span className="font-bold text-white/80">{totalForBadge}</span>
                           </TableCell>
                           <TableCell className="py-2.5 align-middle">
-                            <AvailabilityBadge available={item.availableCount} total={item.unitCount} />
+                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} />
                           </TableCell>
                           <TableCell className="py-2.5 pr-6 text-right align-middle">
                             <ActionIcons
                               onView={() => onViewItem?.(item)}
-                              onEdit={() => onViewItem?.(item)}
+                              onEdit={() => onEditItem?.(item)}
+                              onDelete={canManage ? () => { setDeleteError(null); setDeleteItemId(item.id); } : undefined}
                             />
                           </TableCell>
                         </TableRow>
@@ -533,6 +577,32 @@ export const StockItemsTableSection = ({
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!deleteItemId} onOpenChange={(open) => { if (!open) { setDeleteItemId(null); setDeleteError(null); } }}>
+        <AlertDialogContent className="bg-[#0f0f0f] border border-white/[0.08]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">{tc("areYouSure")}</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/60">
+              {t("deleteItemConfirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{deleteError}</p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">
+              {tc("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); if (deleteItemId) deleteMutation.mutate(deleteItemId); }}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white border-0"
+            >
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : tc("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 };

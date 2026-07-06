@@ -47,6 +47,7 @@
   "date": "วันที่",
   "location": "สถานที่",
   "category": "หมวดหมู่",
+  "subCategory": "หมวดหมู่ย่อย",
   "brand": "แบรนด์",
   "quantity": "จำนวน",
   "price": "ราคา",

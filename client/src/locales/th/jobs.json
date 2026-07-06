@@ -4,6 +4,7 @@
   "tabPullSheets": "ใบเบิกอุปกรณ์",
   "tabCrew": "ทีมงานและภารกิจ",
   "tabIncidents": "เหตุการณ์",
+  "tabSchedule": "ตารางงาน",
 
   "statusCount": "{{count}} {{status}}",
   "addJob": "เพิ่มงาน",
@@ -71,5 +72,20 @@
   "photoAttached": "มีรูปแนบ",
   "assetLabel": "อุปกรณ์:",
   "jobLabel": "งาน:",
-  "byLabel": "โดย:"
+  "byLabel": "โดย:",
+
+  "phasePlanned": "วางแผน",
+  "phasePrepared": "จัดเตรียม",
+  "phaseDispatched": "ออกงานแล้ว",
+  "markAllPrepared": "จัดเตรียมทั้งหมด",
+  "scanMode": "โหมดสแกน",
+  "exitScan": "ออกจากสแกน",
+  "scanBarcodePlaceholder": "สแกนบาร์โค้ดหรือพิมพ์ serial number…",
+  "scanSuccess": "ออกงานแล้ว",
+  "scanNotFound": "ไม่พบอุปกรณ์",
+  "phase_planned": "วางแผน",
+  "phase_prepared": "จัดเตรียมแล้ว",
+  "phase_dispatched": "ออกงานแล้ว",
+  "advanceTo_prepared": "ทำเครื่องหมายว่าจัดเตรียมแล้ว",
+  "advanceTo_dispatched": "ทำเครื่องหมายว่าออกงานแล้ว"
 }

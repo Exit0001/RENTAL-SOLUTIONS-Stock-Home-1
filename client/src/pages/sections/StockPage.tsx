@@ -92,9 +92,11 @@ export const StockPage = (): JSX.Element => {
   const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
   const [addSubRentalOpen, setAddSubRentalOpen] = useState(false);
   const [editItemOpen, setEditItemOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [assignContainer, setAssignContainer] = useState<ContainerWithItems | null>(null);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -330,9 +332,15 @@ export const StockPage = (): JSX.Element => {
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
     );
 
+  const toggleSubCategory = (sub: string) =>
+    setSelectedSubCategories((prev) =>
+      prev.includes(sub) ? prev.filter((s) => s !== sub) : [...prev, sub]
+    );
+
   const clearAll = () => {
     setSelectedBrands([]);
     setSelectedCategories([]);
+    setSelectedSubCategories([]);
   };
 
   const handleAddContainer = (data: { name: string; type: string; location: string; barcode: string }) => {
@@ -355,11 +363,11 @@ export const StockPage = (): JSX.Element => {
           onSubmit={(data) => createStockItem.mutate(data)}
         />
       )}
-      {editItemOpen && selectedItem && (
+      {editItemOpen && editingItem && (
         <AddNewItemModal
-          initialItem={selectedItem}
-          onClose={() => setEditItemOpen(false)}
-          onSubmit={(data) => { updateStockItem.mutate(data); setEditItemOpen(false); }}
+          initialItem={editingItem}
+          onClose={() => { setEditItemOpen(false); setEditingItem(null); }}
+          onSubmit={(data) => { updateStockItem.mutate(data); setEditItemOpen(false); setEditingItem(null); }}
         />
       )}
       {addContainerOpen && (
@@ -408,8 +416,10 @@ export const StockPage = (): JSX.Element => {
             <StockFilterSidebarSection
               selectedBrands={selectedBrands}
               selectedCategories={selectedCategories}
+              selectedSubCategories={selectedSubCategories}
               onBrandChange={toggleBrand}
               onCategoryChange={toggleCategory}
+              onSubCategoryChange={toggleSubCategory}
               onClearAll={clearAll}
             />
           </div>
@@ -430,8 +440,10 @@ export const StockPage = (): JSX.Element => {
                 <StockItemsTableSection
                   selectedBrands={selectedBrands}
                   selectedCategories={selectedCategories}
+                  selectedSubCategories={selectedSubCategories}
                   searchQuery={searchQuery}
                   onViewItem={(item) => setSelectedItem(item as any)}
+                  onEditItem={(item) => { setEditingItem(item as any); setEditItemOpen(true); }}
                   selectedItemId={selectedItem?.id ?? null}
                 />
               </div>
@@ -779,7 +791,7 @@ export const StockPage = (): JSX.Element => {
                         <div className="flex items-center gap-1 justify-end">
                           <button
                             onClick={() => startEditLog(log)}
-                            className="p-1.5 rounded-lg text-white/60 hover:text-[#FFFF00] hover:bg-white/[0.06] transition-colors"
+                            className="p-1.5 rounded-lg text-white hover:text-[#FFFF00] hover:bg-white/[0.06] transition-colors"
                             title={t("editLog")}
                           >
                             <Pencil className="w-3.5 h-3.5" />

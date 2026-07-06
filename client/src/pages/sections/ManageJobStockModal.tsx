@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { X, Package, Search, Loader2, Check, Save, ChevronDown, ChevronRight, Boxes } from "lucide-react";
+import { X, Package, Search, Loader2, Check, Save, ChevronDown, ChevronRight, Boxes, Layers, Minus, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, jobsApi } from "@/api";
-import type { AssignedUnit, StockItemWithUnits } from "@/api";
-import type { StockUnit } from "@shared/schema";
+import type { AssignedUnit, StockItemWithUnits, JobBulkEntry } from "@/api";
+import type { StockUnit, ItemAccessory } from "@shared/schema";
 
 interface Props {
   jobId:       string;
@@ -28,6 +28,7 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
 
   const [search,             setSearch]             = useState("");
   const [selectedIds,        setSelectedIds]        = useState<Set<string>>(new Set());
+  const [bulkQuantities,     setBulkQuantities]     = useState<Record<string, number>>({});
   const [expanded,           setExpanded]           = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [saving,             setSaving]             = useState(false);
@@ -46,6 +47,40 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     queryFn: () => jobsApi.getUnits(jobId),
     enabled: !!token,
   });
+
+  // โหลด bulk quantities ที่ assign แล้วสำหรับ job นี้
+  const { data: jobBulkEntries = [], isLoading: bulkLoading } = useQuery<JobBulkEntry[]>({
+    queryKey: ["job-bulk-stock", jobId],
+    queryFn: () => jobsApi.getJobStock(jobId),
+    enabled: !!token,
+  });
+
+  // โหลด accessory links ทั้งหมดของบริษัท
+  const { data: accessoryLinks = [] } = useQuery<ItemAccessory[]>({
+    queryKey: ["accessory-links"],
+    queryFn:  stockApi.getAllAccessoryLinks,
+    enabled:  !!token,
+  });
+
+  // map: parentStockItemId → list of accessory links
+  const accessoryMap = useMemo(() => {
+    const map = new Map<string, ItemAccessory[]>();
+    for (const link of accessoryLinks) {
+      if (!map.has(link.parentStockItemId)) map.set(link.parentStockItemId, []);
+      map.get(link.parentStockItemId)!.push(link);
+    }
+    return map;
+  }, [accessoryLinks]);
+
+  // pre-populate bulk quantities
+  useEffect(() => {
+    if (bulkLoading) return;
+    const map: Record<string, number> = {};
+    for (const entry of jobBulkEntries) {
+      map[entry.stockItemId] = entry.quantity;
+    }
+    setBulkQuantities(map);
+  }, [jobBulkEntries, bulkLoading]);
 
   // pre-select ตาม assigned units + expand groups ที่มี selection
   useEffect(() => {
@@ -71,7 +106,34 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
   const toggleUnit = (unitId: string) =>
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(unitId) ? next.delete(unitId) : next.add(unitId);
+      if (next.has(unitId)) {
+        next.delete(unitId);
+        return next;
+      }
+      next.add(unitId);
+
+      // หา stockItemId ของ unit นี้
+      let parentStockItemId: string | undefined;
+      for (const g of stockGroups) {
+        if (g.units.some((u) => u.id === unitId)) {
+          parentStockItemId = g.id;
+          break;
+        }
+      }
+
+      // auto-select required accessories
+      if (parentStockItemId) {
+        const links = accessoryMap.get(parentStockItemId) ?? [];
+        for (const link of links) {
+          if (!link.required) continue;
+          const accGroup = stockGroups.find((g) => g.id === link.accessoryStockItemId);
+          if (!accGroup) continue;
+          const availableUnits = accGroup.units.filter((u) => u.status === "available" && !next.has(u.id));
+          const toAdd = availableUnits.slice(0, link.quantityPerUnit);
+          toAdd.forEach((u) => next.add(u.id));
+        }
+      }
+
       return next;
     });
 
@@ -127,14 +189,27 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredGroups]);
 
-  const isLoading = stockLoading || assignedLoading;
+  const isLoading = stockLoading || assignedLoading || bulkLoading;
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
+      // Save individual unit assignments
       await jobsApi.setUnits(jobId, Array.from(selectedIds));
+
+      // Save bulk quantity assignments
+      const bulkItems = Object.entries(bulkQuantities)
+        .filter(([, qty]) => qty > 0)
+        .map(([stockItemId, quantity]) => ({ stockItemId, quantity }));
+      if (bulkItems.length > 0) {
+        await jobsApi.setJobStock(jobId, bulkItems);
+      }
+
       qc.invalidateQueries({ queryKey: ["job-units", jobId] });
+      qc.invalidateQueries({ queryKey: ["job-bulk-stock", jobId] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
       onClose();
     } catch (err: any) {
       setError(err.message ?? t("manageContainerUnits.errorSaveFailed"));
@@ -234,10 +309,49 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
                 {catOpen && (
                   <div className="space-y-2">
                     {groups.map((group) => {
-                      const isExpanded   = expanded.has(group.id);
+                      const isBulk       = group.trackingMode === "bulk";
+                      const isExpanded   = !isBulk && expanded.has(group.id);
                       const groupUnits   = group.units;
                       const selectedInGroup = groupUnits.filter((u) => selectedIds.has(u.id)).length;
-                      const allSelected  = groupUnits.length > 0 && groupUnits.every((u) => selectedIds.has(u.id));
+                      const allSelected  = !isBulk && groupUnits.length > 0 && groupUnits.every((u) => selectedIds.has(u.id));
+                      const bulkQty      = bulkQuantities[group.id] ?? 0;
+                      const bulkMax      = group.availableCount ?? (group.quantity ?? 0);
+
+                      if (isBulk) {
+                        return (
+                          <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden bg-white/[0.02]">
+                            <div className="flex items-center gap-3 px-3 py-2.5">
+                              <Layers className="w-4 h-4 text-amber-400/70 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
+                                <p className="text-[10px] text-white/60">
+                                  {t("manageJobStock.bulkAvailable", { available: group.availableCount ?? group.quantity ?? 0, total: group.quantity ?? 0 })}
+                                </p>
+                              </div>
+                              {/* Stepper */}
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setBulkQuantities((p) => ({ ...p, [group.id]: Math.max(0, (p[group.id] ?? 0) - 1) }))}
+                                  className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className={`w-8 text-center text-sm font-bold ${bulkQty > 0 ? "text-[#FFFF00]" : "text-white/60"}`}>
+                                  {bulkQty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setBulkQuantities((p) => ({ ...p, [group.id]: Math.min(bulkMax + bulkQty, (p[group.id] ?? 0) + 1) }))}
+                                  className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
 
                       return (
               <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden">

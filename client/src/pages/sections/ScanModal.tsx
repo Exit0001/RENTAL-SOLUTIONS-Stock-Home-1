@@ -3,7 +3,7 @@ import {
   X, ScanLine, CheckCircle2, AlertCircle, Package,
   LogIn, LogOut, Loader2, Check,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, jobsApi } from "@/api";
@@ -30,6 +30,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
   const { t }        = useTranslation("modals");
   const { t: tc }    = useTranslation("common");
   const { token }    = useAppStore();
+  const qc           = useQueryClient();
   const inputRef     = useRef<HTMLInputElement>(null);
   const [mode, setMode]             = useState<"checkout" | "return">("checkout");
   const [value, setValue]           = useState("");
@@ -76,6 +77,13 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
       const unit      = await stockApi.scanBarcode(barcode);
       const newStatus = mode === "checkout" ? "out" : "available";
       await stockApi.updateUnit(unit.id, { status: newStatus });
+
+      // sync phase in job_units: checkout → dispatched, return → planned
+      const newPhase = mode === "checkout" ? "dispatched" : "planned";
+      await jobsApi.updatePhase(jobId, [unit.id], newPhase);
+      qc.invalidateQueries({ queryKey: ["job-units", jobId] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["stock", unit.stockItemId] });
 
       const inManifest = !!barcodeToUnit[barcode];
       if (inManifest) {

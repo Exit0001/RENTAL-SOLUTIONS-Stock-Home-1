@@ -28,7 +28,9 @@ const initGeneral = (item?: StockItem): GeneralData => item ? {
   subCategory: item.subCategory,
   description: item.description ?? "",
   imageUrl: item.imageUrl ?? null,
-} : { itemName: "", manufacturer: "", manufacturerCountry: "", brand: "", category: "", subCategory: "", description: "", imageUrl: null };
+  trackingMode: (item.trackingMode ?? "unit") as "unit" | "bulk",
+  bulkQuantity: item.quantity?.toString() ?? "0",
+} : { itemName: "", manufacturer: "", manufacturerCountry: "", brand: "", category: "", subCategory: "", description: "", imageUrl: null, trackingMode: "unit", bulkQuantity: "0" };
 
 const initPricing = (item?: StockItem): PricingData => item ? {
   purchaseCost:     item.purchaseCost?.toString()     ?? "",
@@ -166,6 +168,8 @@ interface GeneralData {
   itemName: string; manufacturer: string; manufacturerCountry: string;
   brand: string; category: string; subCategory: string; description: string;
   imageUrl: string | null;
+  trackingMode: "unit" | "bulk";
+  bulkQuantity: string;
 }
 const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, subCategoryOptions }: {
   data: GeneralData; onChange: (d: GeneralData) => void; companyId: string;
@@ -198,6 +202,41 @@ const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, 
       </div>
       <FileUploadField label={t("addNewItem.itemImage")} folder="stock-items" companyId={companyId}
         value={data.imageUrl} onChange={(url) => onChange({ ...data, imageUrl: url })} />
+
+      {/* Tracking mode */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">
+          {t("addNewItem.trackingModeLabel")}
+        </label>
+        <div className="flex gap-2">
+          {(["unit", "bulk"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onChange({ ...data, trackingMode: mode })}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                data.trackingMode === mode
+                  ? "border-[#FFFF00] text-black"
+                  : "border-white/10 text-white/60 hover:border-white/30 hover:text-white"
+              }`}
+              style={data.trackingMode === mode ? { backgroundColor: "#FFFF00" } : undefined}
+            >
+              {mode === "unit" ? t("addNewItem.trackingModeUnit") : t("addNewItem.trackingModeBulk")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {data.trackingMode === "bulk" && (
+        <InputField
+          label={t("addNewItem.bulkTotalQty")}
+          placeholder="100"
+          type="number"
+          value={data.bulkQuantity}
+          onChange={(v) => onChange({ ...data, bulkQuantity: v })}
+          icon={Package}
+        />
+      )}
     </div>
   );
 };
@@ -496,8 +535,12 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
       certUrl:        docs.certUrl,
       invoiceUrl:     docs.invoiceUrl,
     };
-    // ไม่ reset quantity เมื่อ edit — quantity ถูก track จาก stock_units
-    if (!isEdit) payload.quantity = 0;
+    payload.trackingMode = general.trackingMode;
+    if (general.trackingMode === "bulk") {
+      payload.quantity = parseInt(general.bulkQuantity, 10) || 0;
+    } else if (!isEdit) {
+      payload.quantity = 0;
+    }
 
     onSubmit(payload as Omit<InsertStockItem, "companyId">);
     onClose();

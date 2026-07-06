@@ -4,6 +4,7 @@
   "tabPullSheets": "Pull Sheets",
   "tabCrew": "Crew & Tasks",
   "tabIncidents": "Incidents",
+  "tabSchedule": "Schedule",
 
   "statusCount": "{{count}} {{status}}",
   "addJob": "Add Job",
@@ -71,5 +72,20 @@
   "photoAttached": "Photo attached",
   "assetLabel": "Asset:",
   "jobLabel": "Job:",
-  "byLabel": "By:"
+  "byLabel": "By:",
+
+  "phasePlanned": "Planned",
+  "phasePrepared": "Prepared",
+  "phaseDispatched": "Dispatched",
+  "markAllPrepared": "Mark All Prepared",
+  "scanMode": "Scan Mode",
+  "exitScan": "Exit Scan",
+  "scanBarcodePlaceholder": "Scan barcode or type serial number…",
+  "scanSuccess": "marked as dispatched",
+  "scanNotFound": "Not found",
+  "phase_planned": "Planned",
+  "phase_prepared": "Prepared",
+  "phase_dispatched": "Dispatched",
+  "advanceTo_prepared": "Mark as Prepared",
+  "advanceTo_dispatched": "Mark as Dispatched"
 }

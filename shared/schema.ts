@@ -36,6 +36,8 @@ export const incidentSeverityEnum = pgEnum("incident_severity", ["low", "medium"
 export const incidentStatusEnum = pgEnum("incident_status", ["open", "resolved"]);
 export const activityTypeEnum = pgEnum("activity_type", ["stock", "finance", "maintenance", "jobs"]);
 export const jobExpenseCategoryEnum = pgEnum("job_expense_category", ["staff", "transport"]);
+export const jobUnitPhaseEnum        = pgEnum("job_unit_phase", ["planned", "prepared", "dispatched"]);
+export const stockTrackingModeEnum  = pgEnum("stock_tracking_mode", ["unit", "bulk"]);
 export const notificationTypeEnum = pgEnum("notification_type", [
   "job_assigned", "job_removed", "job_updated",
   "pullsheet_assigned", "maintenance_assigned", "stock_added",
@@ -85,7 +87,8 @@ export const stockItems = pgTable("stock_items", {
   brand:       text("brand").notNull(),
   category:    text("category").notNull(),
   subCategory: text("sub_category").notNull(),
-  quantity:    integer("quantity").default(0).notNull(),
+  quantity:     integer("quantity").default(0).notNull(),
+  trackingMode: stockTrackingModeEnum("tracking_mode").default("unit").notNull(),
 
   // General — รายละเอียดเพิ่มเติม
   manufacturer:        text("manufacturer"),
@@ -169,6 +172,20 @@ export const containerUnits = pgTable("container_units", {
 });
 
 // ─────────────────────────────────────────────
+// 6b. ITEM ACCESSORIES — อุปกรณ์เสริมที่ต้องไปพร้อมกัน
+// ─────────────────────────────────────────────
+
+export const itemAccessories = pgTable("item_accessories", {
+  id:                   uuid("id").primaryKey().defaultRandom(),
+  companyId:            uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  parentStockItemId:    uuid("parent_stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
+  accessoryStockItemId: uuid("accessory_stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
+  quantityPerUnit:      integer("quantity_per_unit").default(1).notNull(),
+  required:             boolean("required").default(true).notNull(),
+  createdAt:            timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─────────────────────────────────────────────
 // 7. JOBS — งานให้เช่า (events, concerts, conferences)
 // ─────────────────────────────────────────────
 
@@ -243,6 +260,7 @@ export const jobUnits = pgTable("job_units", {
   id:          uuid("id").primaryKey().defaultRandom(),
   jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "cascade" }).notNull(),
+  phase:       jobUnitPhaseEnum("phase").default("planned").notNull(),
 });
 
 // ─────────────────────────────────────────────
@@ -549,6 +567,7 @@ export const insertPullSheetSchema    = createInsertSchema(pullSheets)
   .omit({ id: true, createdAt: true, companyId: true, createdById: true, status: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
+export const insertItemAccessorySchema    = createInsertSchema(itemAccessories).omit({ id: true, createdAt: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -605,6 +624,9 @@ export type InsertJobExpense = z.infer<typeof insertJobExpenseSchema>;
 
 export type JobVehicle       = typeof jobVehicles.$inferSelect;
 export type InsertJobVehicle = z.infer<typeof insertJobVehicleSchema>;
+
+export type ItemAccessory       = typeof itemAccessories.$inferSelect;
+export type InsertItemAccessory = z.infer<typeof insertItemAccessorySchema>;
 
 export type Brand       = typeof brands.$inferSelect;
 export type InsertBrand = z.infer<typeof insertBrandSchema>;

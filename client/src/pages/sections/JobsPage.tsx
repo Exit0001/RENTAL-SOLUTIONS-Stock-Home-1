@@ -27,6 +27,8 @@ import {
   UserPlus,
   Truck,
   Wallet,
+  ChevronRight,
+  CalendarRange,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -42,6 +44,8 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { JobScheduleView } from "./JobScheduleView";
+import { CrewScheduleView } from "./CrewScheduleView";
 import { AddIncidentModal } from "./AddIncidentModal";
 import { AddJobModal } from "./AddJobModal";
 import { ScanModal } from "./ScanModal";
@@ -52,7 +56,7 @@ import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { AddVehicleModal } from "./AddVehicleModal";
 import { JobExpensesModal } from "./JobExpensesModal";
 
-type JobTab = "jobs" | "pullsheets" | "crew" | "incidents";
+type JobTab = "jobs" | "pullsheets" | "crew" | "incidents" | "schedule";
 
 const jobTabs: { key: JobTab; labelKey: string; icon: typeof Briefcase }[] = [
   { key: "jobs",       labelKey: "tabJobs",       icon: Briefcase },
@@ -101,7 +105,8 @@ const taskStatusColors: Record<string, string> = {
 const JobDetailRow = ({ job }: { job: any }) => {
   const { t } = useTranslation("jobs");
   const { t: tc } = useTranslation("common");
-  const { token } = useAppStore();
+  const { token, userRole } = useAppStore();
+  const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
   const [assignContainerOpen, setAssignContainerOpen] = useState(false);
   const [assignCrewOpen, setAssignCrewOpen] = useState(false);
@@ -137,6 +142,7 @@ const JobDetailRow = ({ job }: { job: any }) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job-containers", job.id] });
       qc.invalidateQueries({ queryKey: ["containers"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
     },
   });
 
@@ -151,6 +157,12 @@ const JobDetailRow = ({ job }: { job: any }) => {
   const removeVehicle = useMutation({
     mutationFn: (vehicleId: string) => jobVehiclesApi.delete(vehicleId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["job-vehicles", job.id] }),
+  });
+
+  const updatePhase = useMutation({
+    mutationFn: ({ unitIds, phase }: { unitIds: string[]; phase: "planned" | "prepared" | "dispatched" }) =>
+      jobsApi.updatePhase(job.id, unitIds, phase),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["job-units", job.id] }),
   });
 
   const start = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -260,22 +272,24 @@ const JobDetailRow = ({ job }: { job: any }) => {
           ) : jobCrew.length === 0 ? (
             <p className="text-xs text-white/60 italic">{t("noCrewAssigned")}</p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-0.5">
               {jobCrew.map((c) => (
-                <div key={c.userId} className="flex items-center gap-2 pl-2 pr-1.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <div className="w-5 h-5 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-[9px] font-bold text-[#FFFF00]/70 flex-shrink-0">
+                <div key={c.userId} className="group/crew flex items-center gap-2.5 -mx-1 px-1 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors">
+                  <div className="w-6 h-6 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-[9px] font-bold text-[#FFFF00]/70 flex-shrink-0">
                     {c.initials}
                   </div>
-                  <span className="text-xs text-white/70">{c.name}</span>
-                  <span className="text-[10px] text-white/60 capitalize">{c.role}</span>
-                  <button
-                    onClick={() => removeCrew.mutate(c.userId)}
-                    disabled={removeCrew.isPending}
-                    title={t("removeFromJob")}
-                    className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+                  <span className="text-xs font-medium text-white/80 flex-1 min-w-0 truncate">{c.name}</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold capitalize text-white/50 bg-white/[0.06] flex-shrink-0">{c.role}</span>
+                  {canManage && (
+                    <button
+                      onClick={() => removeCrew.mutate(c.userId)}
+                      disabled={removeCrew.isPending}
+                      title={t("removeFromJob")}
+                      className="opacity-0 group-hover/crew:opacity-100 p-1 rounded text-white/40 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -302,27 +316,29 @@ const JobDetailRow = ({ job }: { job: any }) => {
           ) : jobVehicles.length === 0 ? (
             <p className="text-xs text-white/60 italic">{t("noVehiclesAssigned")}</p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-0.5">
               {jobVehicles.map((v) => (
-                <div key={v.id} className="flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <Truck className="w-3.5 h-3.5 text-[#FFFF00]/50 flex-shrink-0" />
-                  <span className="text-xs text-white/70">{v.vehicleType}</span>
-                  {v.note && <span className="text-[10px] text-white/60">{v.note}</span>}
-                  <button
-                    onClick={() => removeVehicle.mutate(v.id)}
-                    disabled={removeVehicle.isPending}
-                    title={t("removeVehicle")}
-                    className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+                <div key={v.id} className="group/veh flex items-center gap-2.5 -mx-1 px-1 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors">
+                  <Truck className="w-4 h-4 text-[#FFFF00]/40 flex-shrink-0" />
+                  <span className="text-xs font-medium text-white/80 flex-1 min-w-0 truncate">{v.vehicleType}</span>
+                  {v.note && <span className="text-[10px] text-white/40 truncate max-w-[140px]">{v.note}</span>}
+                  {canManage && (
+                    <button
+                      onClick={() => removeVehicle.mutate(v.id)}
+                      disabled={removeVehicle.isPending}
+                      title={t("removeVehicle")}
+                      className="opacity-0 group-hover/veh:opacity-100 p-1 rounded text-white/40 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Checklist */}
+        {/* Stock — Phase Checklist */}
         <div className="px-6 py-4">
           {isLoading ? (
             <div className="flex items-center gap-2 text-white/60 text-xs py-4">
@@ -333,46 +349,100 @@ const JobDetailRow = ({ job }: { job: any }) => {
               {t("noUnitsAssignedHint", { editUnits: t("editUnits") })}
             </p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-5">
-              {grouped.map(([itemName, units]) => (
-                <div key={itemName}>
-                  <div className="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-white/[0.06]">
-                    <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex-1 truncate">
-                      {itemName}
-                    </p>
-                    <span className="text-[9px] text-white/60 flex-shrink-0">{units.length}</span>
+            <>
+              {/* Phase summary bar */}
+              {(() => {
+                const all = assignedUnits as any[];
+                const planned    = all.filter((u) => u.phase === "planned").length;
+                const prepared   = all.filter((u) => u.phase === "prepared").length;
+                const dispatched = all.filter((u) => u.phase === "dispatched").length;
+                const allPrepared    = planned === 0 && all.length > 0;
+                const allDispatched  = dispatched === all.length && all.length > 0;
+                return (
+                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/[0.06]">
+                    {/* Stepper */}
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${planned > 0 ? "bg-white/10 text-white/60" : "bg-white/5 text-white/30"}`}>
+                        {t("phasePlanned")} {planned}
+                      </span>
+                      <ChevronRight className="w-3 h-3 text-white/30 flex-shrink-0" />
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prepared > 0 ? "bg-amber-500/20 text-amber-400" : "bg-white/5 text-white/30"}`}>
+                        {t("phasePrepared")} {prepared}
+                      </span>
+                      <ChevronRight className="w-3 h-3 text-white/30 flex-shrink-0" />
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${dispatched > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/30"}`}>
+                        {t("phaseDispatched")} {dispatched}
+                      </span>
+                    </div>
+                    {/* Bulk actions */}
+                    {!allPrepared && !allDispatched && (
+                      <button
+                        onClick={() => updatePhase.mutate({
+                          unitIds: (assignedUnits as any[]).filter((u) => u.phase === "planned").map((u) => u.id),
+                          phase: "prepared",
+                        })}
+                        disabled={updatePhase.isPending || planned === 0}
+                        className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-amber-400 border border-amber-500/30 hover:bg-amber-500/10 transition-colors disabled:opacity-40 flex-shrink-0"
+                      >
+                        {t("markAllPrepared")}
+                      </button>
+                    )}
                   </div>
-                  {(units as any[]).map((u) => {
-                    const isOut = u.status === "out";
-                    return (
-                      <div key={u.id} className="flex items-center gap-2 py-1.5 border-b border-white/[0.03] last:border-0">
-                        <div className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center ${
-                          isOut ? "bg-emerald-500/20" : "border border-white/10"
-                        }`}>
-                          {isOut
-                            ? <Check className="w-3 h-3 text-emerald-400" strokeWidth={3} />
-                            : <div className="w-2 h-2 rounded-sm bg-white/8" />
-                          }
+                );
+              })()}
+
+              {/* Unit list grouped by item */}
+              <div className="space-y-4">
+                {grouped.map(([itemName, units]) => (
+                  <div key={itemName}>
+                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex-1 truncate">{itemName}</p>
+                      <span className="text-[9px] text-white/60 flex-shrink-0">{units.length}</span>
+                    </div>
+                    {(units as any[]).map((u) => {
+                      const phase = u.phase ?? "planned";
+                      const nextPhase = phase === "planned" ? "prepared" : phase === "prepared" ? "dispatched" : null;
+                      return (
+                        <div key={u.id} className="flex items-center gap-2 py-1.5 border-b border-white/[0.03] last:border-0">
+                          {/* Phase dot */}
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            phase === "dispatched" ? "bg-emerald-400" :
+                            phase === "prepared"   ? "bg-amber-400" :
+                            "bg-white/20"
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-white/70 truncate">{u.name}</p>
+                            {u.serialNumber && (
+                              <p className="text-[10px] text-white/40 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>
+                            )}
+                          </div>
+                          {/* Phase badge + advance button */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
+                              phase === "dispatched" ? "bg-emerald-500/15 text-emerald-400" :
+                              phase === "prepared"   ? "bg-amber-500/15 text-amber-400" :
+                              "bg-white/5 text-white/40"
+                            }`}>
+                              {t(`phase_${phase}`)}
+                            </span>
+                            {nextPhase && (
+                              <button
+                                onClick={() => updatePhase.mutate({ unitIds: [u.id], phase: nextPhase as any })}
+                                disabled={updatePhase.isPending}
+                                title={t(`advanceTo_${nextPhase}`)}
+                                className="p-1 rounded text-white/40 hover:text-[#FFFF00] hover:bg-[#FFFF00]/10 transition-colors disabled:opacity-30"
+                              >
+                                <ChevronRight className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs truncate ${isOut ? "text-white/70" : "text-white/60"}`}>{u.name}</p>
-                          {u.serialNumber && (
-                            <p className="text-[10px] text-white/40 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>
-                          )}
-                        </div>
-                        <span className={`text-[9px] px-1.5 rounded-full font-medium flex-shrink-0 ${
-                          isOut            ? "bg-blue-400/10 text-blue-400/70" :
-                          u.status === "maintenance" ? "bg-amber-400/10 text-amber-400/60" :
-                          "bg-white/5 text-white/40"
-                        }`}>
-                          {tc(`statusEnum.${u.status}`, { defaultValue: u.status })}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
@@ -405,6 +475,7 @@ export const JobsPage = (): JSX.Element => {
   const [createPullSheetOpen, setCreatePullSheetOpen] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [deleteJobTarget, setDeleteJobTarget] = useState<any>(null);
+  const [assignCrewTabJob, setAssignCrewTabJob] = useState<any>(null);
   const { token, userRole } = useAppStore();
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
@@ -474,6 +545,7 @@ export const JobsPage = (): JSX.Element => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["pull-sheets"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
       setDeleteJobTarget(null);
     },
   });
@@ -519,6 +591,12 @@ export const JobsPage = (): JSX.Element => {
           jobId={manageJob.id}
           jobName={manageJob.name}
           onClose={() => setManageJob(null)}
+        />
+      )}
+      {assignCrewTabJob && (
+        <AssignCrewModal
+          jobId={assignCrewTabJob.id}
+          onClose={() => setAssignCrewTabJob(null)}
         />
       )}
       {createPullSheetOpen && (
@@ -578,6 +656,7 @@ export const JobsPage = (): JSX.Element => {
       </div>
 
       {activeTab === "jobs" && (
+        <div className="space-y-6">
         <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -691,6 +770,17 @@ export const JobsPage = (): JSX.Element => {
             </tbody>
           </table>
         </div>
+
+        {/* Schedule view */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarRange className="w-3.5 h-3.5 text-[#FFFF00]/40" />
+            <span className="text-[10px] font-bold text-[#FFFF00]/40 uppercase tracking-wider">ตารางงาน</span>
+          </div>
+          <JobScheduleView jobs={jobs as any[]} />
+        </div>
+
+        </div>
       )}
 
       {activeTab === "pullsheets" && (
@@ -770,89 +860,12 @@ export const JobsPage = (): JSX.Element => {
       )}
 
       {activeTab === "crew" && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 p-3 bg-[#FFFF00]/5 border border-[#FFFF00]/10 rounded-lg">
-            <Bell className="w-4 h-4 text-[#FFFF00]" />
-            <span className="text-xs text-[#FFFF00]/70">{t("crewNotificationHint")}</span>
-          </div>
-
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-7 bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#FFFF00]" />
-                <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("crewAndAssignments")}</span>
-              </div>
-              <div className="divide-y divide-white/[0.04]">
-                {crewMembers.map((crew) => (
-                  <div key={crew.id} className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.02] transition-colors" data-testid={`crew-${crew.initials.toLowerCase()}`}>
-                    <div className="w-8 h-8 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-xs font-bold text-[#FFFF00]/70">{crew.initials}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2"><span className="text-sm font-medium text-white/80">{crew.name}</span><span className="text-[10px] text-white/60">{crew.role}</span></div>
-                      <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
-                        <span>{t("currentLabel")} <span className={crew.currentJob !== "—" ? "text-emerald-400/70" : "text-white/60"}>{crew.currentJob}</span></span>
-                        <span>{t("nextLabel")} <span className="text-white/60">{crew.nextJob}</span></span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-xs"><Package className="w-3 h-3 text-white/60" /><span className="text-white/50 font-medium">{crew.items}</span><span className="text-white/60">{tc("items")}</span></div>
-                      <div className="flex items-center gap-1 text-[10px] text-white/60 mt-0.5"><CheckCircle2 className="w-3 h-3" />{t("tasksCount", { count: crew.tasksToday })}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="col-span-5 space-y-4">
-              <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-[#FFFF00]" />
-                  <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("myTasksLabel")}</span>
-                  <span className="ml-auto text-[10px] text-white/60">{t("pendingCount", { count: myTasks.filter((task) => task.status !== "Done").length })}</span>
-                </div>
-                <div className="divide-y divide-white/[0.04]">
-                  {myTasks.map((task) => (
-                    <div key={task.id} className={`flex items-start gap-2.5 px-4 py-2.5 hover:bg-white/[0.02] transition-colors ${task.status === "Done" ? "opacity-50" : ""}`} data-testid={`task-${task.id}`}>
-                      <div className="mt-0.5">
-                        {task.status === "Done" ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : task.status === "In Progress" ? <div className="w-3.5 h-3.5 rounded-full border-2 border-[#FFFF00] border-t-transparent animate-spin" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5"><span className={`text-xs ${task.status === "Done" ? "line-through text-white/60" : "text-white/70"}`}>{task.title}</span><span className={`px-1 py-0.5 rounded text-[8px] font-semibold ${priorityColors[task.priority]}`}>{tc(`statusEnum.${task.priority.toLowerCase()}`, { defaultValue: task.priority })}</span></div>
-                        <span className="text-[10px] text-white/60">{task.due}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-[#FFFF00]" />
-                  <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("responsibilityLog")}</span>
-                </div>
-                <div className="divide-y divide-white/[0.04]">
-                  {responsibilityLog.map((log) => {
-                    const actionLabels: Record<string, string> = {
-                      "Checked Out": t("actionCheckedOut"),
-                      Returned: t("actionReturned"),
-                      "Reported Damage": t("actionReportedDamage"),
-                    };
-                    return (
-                      <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors" data-testid={`responsibility-${log.id}`}>
-                        <div className={`w-6 h-6 rounded flex items-center justify-center ${actionColors[log.action]}`}>
-                          {log.action === "Checked Out" ? <ArrowRight className="w-3 h-3" /> : log.action === "Returned" ? <CheckCircle2 className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5"><span className={`text-[10px] font-semibold ${actionColors[log.action]?.split(" ")[0]}`}>{actionLabels[log.action] ?? log.action}</span><span className="text-[9px] text-white/40">{log.time}</span></div>
-                          <p className="text-xs text-white/50"><span className="text-white/70">{log.person}</span> — {log.items}</p>
-                        </div>
-                        {log.signature && <CheckCircle2 className="w-3 h-3 text-emerald-400/40" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="-m-6 border border-white/[0.06] rounded-xl overflow-hidden bg-[#0a0a0a]" style={{ height: "calc(100vh - 160px)" }}>
+          <CrewScheduleView
+            jobs={jobs}
+            crewMembers={crewMembers}
+            onAssignCrew={(job) => setAssignCrewTabJob(job)}
+          />
         </div>
       )}
 

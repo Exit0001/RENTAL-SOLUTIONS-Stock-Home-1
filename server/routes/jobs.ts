@@ -141,6 +141,20 @@ jobsRouter.delete("/pullsheets/:id", async (req, res) => {
   }
 });
 
+// GET /api/jobs/crew-matrix — ทุก job_crew rows ของบริษัทนี้ (สำหรับ crew matrix view)
+jobsRouter.get("/crew-matrix", async (req, res) => {
+  try {
+    const rows = await db
+      .select({ jobId: jobCrew.jobId, userId: jobCrew.userId })
+      .from(jobCrew)
+      .innerJoin(jobs, eq(jobs.id, jobCrew.jobId))
+      .where(eq(jobs.companyId, req.companyId));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch crew matrix" });
+  }
+});
+
 // GET /api/jobs/crew — users + job assignments + tasks (pull sheets) + responsibility log
 // ต้องอยู่ก่อน /:id เพื่อกัน Express จับ "crew" เป็น :id
 jobsRouter.get("/crew", async (req, res) => {
@@ -344,8 +358,9 @@ jobsRouter.get("/:id/units", async (req, res) => {
 
     if (assigned.length === 0) return res.json([]);
 
-    const unitIds = assigned.map((a) => a.stockUnitId);
-    const units   = await db
+    const unitIds  = assigned.map((a) => a.stockUnitId);
+    const phaseMap = Object.fromEntries(assigned.map((a) => [a.stockUnitId, { phase: a.phase, jobUnitId: a.id }]));
+    const units    = await db
       .select()
       .from(stockUnits)
       .where(inArray(stockUnits.id, unitIds));
@@ -357,7 +372,12 @@ jobsRouter.get("/:id/units", async (req, res) => {
       : [];
     const itemMap  = Object.fromEntries(items.map((i) => [i.id, i.name]));
 
-    res.json(units.map((u) => ({ ...u, itemName: itemMap[u.stockItemId] ?? "Unknown" })));
+    res.json(units.map((u) => ({
+      ...u,
+      itemName:  itemMap[u.stockItemId] ?? "Unknown",
+      phase:     phaseMap[u.id]?.phase ?? "planned",
+      jobUnitId: phaseMap[u.id]?.jobUnitId,
+    })));
   } catch {
     res.status(500).json({ message: "Failed to fetch job units" });
   }
@@ -367,16 +387,49 @@ jobsRouter.get("/:id/units", async (req, res) => {
 jobsRouter.post("/:id/units", async (req, res) => {
   try {
     const { unitIds }: { unitIds: string[] } = req.body;
+    const newIds = unitIds ?? [];
+
+    // ดึง unit IDs ที่อยู่ใน job ปัจจุบันก่อน replace
+    const existing = await db
+      .select({ stockUnitId: jobUnits.stockUnitId })
+      .from(jobUnits)
+      .where(eq(jobUnits.jobId, req.params.id));
+    const oldIds = existing.map((r) => r.stockUnitId);
 
     await db.delete(jobUnits).where(eq(jobUnits.jobId, req.params.id));
 
-    if (unitIds && unitIds.length > 0) {
+    if (newIds.length > 0) {
       await db.insert(jobUnits).values(
-        unitIds.map((uid) => ({ jobId: req.params.id, stockUnitId: uid }))
+        newIds.map((uid) => ({ jobId: req.params.id, stockUnitId: uid }))
       );
     }
 
+    // sync stock status: added → out, removed → available
+    const added   = newIds.filter((id) => !oldIds.includes(id));
+    const removed = oldIds.filter((id) => !newIds.includes(id));
+    await Promise.all([setUnitsOut(added), setUnitsAvailable(removed)]);
+
     res.json({ message: "Units updated" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PUT /api/jobs/:id/units/phase — อัปเดต phase ให้หลาย units พร้อมกัน
+jobsRouter.put("/:id/units/phase", async (req, res) => {
+  try {
+    const { stockUnitIds, phase } = req.body as { stockUnitIds: string[]; phase: string };
+    if (!Array.isArray(stockUnitIds) || stockUnitIds.length === 0 || !phase) {
+      return res.status(400).json({ message: "stockUnitIds and phase required" });
+    }
+    await db
+      .update(jobUnits)
+      .set({ phase: phase as any })
+      .where(and(
+        eq(jobUnits.jobId, req.params.id),
+        inArray(jobUnits.stockUnitId, stockUnitIds),
+      ));
+    res.json({ message: "Phase updated", count: stockUnitIds.length });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -464,12 +517,18 @@ jobsRouter.delete("/:id/containers/:containerId", async (req, res) => {
 
     await db.update(containers).set({ isOut: false }).where(eq(containers.id, req.params.containerId));
 
-    // ของในแร็คนี้กลับเข้าคลังแล้ว — sync สถานะ
+    // ของในแร็คนี้กลับเข้าคลังแล้ว — sync สถานะ + ลบออกจาก job_units ด้วย
     const unitLinks = await db
       .select({ stockUnitId: containerUnits.stockUnitId })
       .from(containerUnits)
       .where(eq(containerUnits.containerId, req.params.containerId));
-    await setUnitsAvailable(unitLinks.map((l) => l.stockUnitId));
+    const unitIds = unitLinks.map((l) => l.stockUnitId);
+    await setUnitsAvailable(unitIds);
+    if (unitIds.length) {
+      await db.delete(jobUnits).where(
+        and(eq(jobUnits.jobId, req.params.id), inArray(jobUnits.stockUnitId, unitIds))
+      );
+    }
 
     res.json({ message: "Container removed from job" });
   } catch {
@@ -569,6 +628,16 @@ jobsRouter.delete("/:id/crew/:userId", async (req, res) => {
     res.json({ message: "Crew member removed from job" });
   } catch {
     res.status(500).json({ message: "Failed to remove crew member from job" });
+  }
+});
+
+// GET /api/jobs/:id/stock — bulk item quantities assigned to this job
+jobsRouter.get("/:id/stock", async (req, res) => {
+  try {
+    const rows = await db.select().from(jobStock).where(eq(jobStock.jobId, req.params.id));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job stock" });
   }
 });
 
@@ -728,6 +797,13 @@ jobsRouter.delete("/:id", async (req, res) => {
   }
 
   try {
+    // คืน stock ก่อน cascade ลบ job_units — ป้องกัน unit ค้างสถานะ "out"
+    const assignedUnits = await db
+      .select({ stockUnitId: jobUnits.stockUnitId })
+      .from(jobUnits)
+      .where(eq(jobUnits.jobId, req.params.id));
+    await setUnitsAvailable(assignedUnits.map((r) => r.stockUnitId));
+
     const [deleted] = await db
       .delete(jobs)
       .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)))

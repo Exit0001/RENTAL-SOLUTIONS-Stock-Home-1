@@ -178,6 +178,16 @@ containersRouter.delete("/:id", async (req, res) => {
 
     if (!current) return res.status(404).json({ message: "Container not found" });
 
+    // ป้องกันการลบแร็คที่ยังอยู่ในงาน
+    const [jobLink] = await db
+      .select({ jobId: jobContainers.jobId })
+      .from(jobContainers)
+      .where(eq(jobContainers.containerId, req.params.id))
+      .limit(1);
+    if (jobLink) {
+      return res.status(409).json({ message: "ไม่สามารถลบได้: แร็คนี้ยังอยู่ในงาน กรุณานำออกจากงานก่อน" });
+    }
+
     // ถ้าแร็คเช็คเอาท์อยู่ — คืนสถานะอุปกรณ์ข้างในเป็น "พร้อมใช้งาน" ก่อนลบ
     if (current.isOut) {
       const unitLinks = await db

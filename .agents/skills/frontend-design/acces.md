@@ -90,56 +90,6 @@ notifications, push_subscriptions
 
 All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, `stockUnitStatusEnum`, `containerTypeEnum`, `maintenanceTypeEnum`, `quoteStatusEnum`, `invoiceStatusEnum`, `incidentSeverityEnum`, `activityTypeEnum`, `maintenanceStatusEnum`, `subRentalStatusEnum`, `incidentStatusEnum`, `pullSheetStatusEnum`.
 
-## Stock Unit Status — Sync Contract
-
-`stock_units.status` is the single source of truth for whether a unit is available.
-**Every path that moves a unit into or out of a job MUST keep this in sync.**
-
-### Rules (enforce in every new route / feature)
-
-| Event | Required call |
-|---|---|
-| Unit added to job (`POST /jobs/:id/units`) | `setUnitsOut(addedIds)` |
-| Unit removed from job (same route, diff set) | `setUnitsAvailable(removedIds)` |
-| Container added to job (`POST /jobs/:id/containers`) | `setUnitsOut(unitIds)` |
-| Container removed from job (`DELETE /jobs/:id/containers/:cid`) | `setUnitsAvailable(unitIds)` |
-| Job deleted (`DELETE /jobs/:id`) | `setUnitsAvailable(allUnitIds)` **before** cascade |
-| ScanModal checkout | `stockApi.updateUnit(id, { status:"out" })` + `jobsApi.updatePhase(id,"dispatched")` |
-| ScanModal return | `stockApi.updateUnit(id, { status:"available" })` + `jobsApi.updatePhase(id,"planned")` |
-
-### availableCount / status display
-
-`stock_units.status` is the **only** source of truth — both `GET /api/stock` and `GET /api/stock/:id`
-count `status = 'available'` directly. Do **not** add a virtual overlay based on `job_units` membership:
-a unit is legitimately in `job_units` with `status='available'` after a ScanModal return scan
-(returned to warehouse but still on the job manifest). Overlaying `job_units` hides the return from
-the count and breaks the badge.
-
-### Client cache invalidation rule
-
-Every client mutation that changes unit assignment or status **must** also invalidate `["stock"]`
-so the Inventory badge (`availableCount / unitCount`) reflects the change immediately.
-For per-item detail views also invalidate `["stock", stockItemId]`.
-
-| Mutation | Required invalidations |
-|---|---|
-| ManageJobStockModal save | `["job-units", jobId]`, `["stock"]`, `["stock-with-units"]` |
-| AssignContainerModal assign | `["job-containers"]`, `["containers"]`, `["job-units"]`, `["stock"]` |
-| JobsPage removeContainer | `["job-containers"]`, `["containers"]`, `["stock"]` |
-| JobsPage deleteJob | `["jobs"]`, `["pull-sheets"]`, `["stock"]` |
-| ScanModal scan (any mode) | `["job-units", jobId]`, `["stock"]`, `["stock", unit.stockItemId]` |
-
-### Legacy data ⚠️ run this in Supabase SQL Editor
-
-Units assigned to jobs before 2026-07-06 have `status="available"` in the DB (the sync was added later).
-Run once to fix:
-```sql
-UPDATE stock_units su
-SET status = 'out'
-WHERE su.status = 'available'
-  AND EXISTS (SELECT 1 FROM job_units ju WHERE ju.stock_unit_id = su.id);
-```
-
 ## Current State (as of 2026-06-16)
 
 ### Data
@@ -307,6 +257,107 @@ rehearsalDate: timestamp("rehearsal_date"),          // วันซ้อม (o
   Exposed directly on the Jobs page via an "Outsource / Expenses" button next to Crew (opens
   the same `JobExpensesModal.tsx` used by Finance → Costing), so it doesn't require Finance
   access just to log a loading-crew payment.
+
+### Item Accessories — Auto-suggest accessories when adding stock to a job (2026-07-06)
+
+**Problem:** Many stock items must always travel with a specific accessory that is
+*itself* a real stock item with its own stock/quantity — not just a text note. e.g.
+`GSL8` (line array speaker) needs `Frame แขวน GSL8` + `สายแปลงผู้-ผู้`; `Y8` needs
+`Y Frame`. These accessories must be pulled and returned together with the parent,
+and must be trackable in stock like anything else (so a real stock_item, not a
+checklist string).
+
+**Decision:** Don't build a parallel checklist/pull-sheet system. An accessory is
+just a normal `stock_item` — link it to a parent `stock_item` so the UI can
+auto-suggest + pre-check it when the parent is added to a job. Once added, it
+becomes a normal `job_unit`/`job_stock` row and flows through the existing pull
+sheet / dispatch / return lifecycle with zero extra code.
+
+**✅ Already done (prototyped in a throwaway clone, re-apply to real repo):**
+- Schema: `item_accessories` table in `shared/schema.ts` (below `container_units`,
+  section 6b) — `parentStockItemId`, `accessoryStockItemId` (both FK →
+  `stock_items`), `quantityPerUnit` (default 1), `required` (default true).
+  `insertItemAccessorySchema` + `ItemAccessory`/`InsertItemAccessory` types added
+  next to the other `stock_items`-related exports.
+- Migration: generated via `npm run db:generate` → `migrations/0014_real_devos.sql`
+  (plain `CREATE TABLE item_accessories` + 3 FKs, no destructive changes). **Run
+  this in Supabase SQL Editor** (same workaround as the existing `0004_` journal
+  conflict — `db:migrate` is already broken per the note above):
+  ```sql
+  CREATE TABLE "item_accessories" (
+      "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "company_id" uuid NOT NULL,
+      "parent_stock_item_id" uuid NOT NULL,
+      "accessory_stock_item_id" uuid NOT NULL,
+      "quantity_per_unit" integer DEFAULT 1 NOT NULL,
+      "required" boolean DEFAULT true NOT NULL,
+      "created_at" timestamp DEFAULT now() NOT NULL
+  );
+  ALTER TABLE "item_accessories" ADD CONSTRAINT "item_accessories_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "item_accessories" ADD CONSTRAINT "item_accessories_parent_stock_item_id_stock_items_id_fk" FOREIGN KEY ("parent_stock_item_id") REFERENCES "public"."stock_items"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "item_accessories" ADD CONSTRAINT "item_accessories_accessory_stock_item_id_stock_items_id_fk" FOREIGN KEY ("accessory_stock_item_id") REFERENCES "public"."stock_items"("id") ON DELETE cascade ON UPDATE no action;
+  ```
+- Backend (`server/routes/stock.ts`):
+  - `GET /api/stock/:id/accessories` — links for one parent item, joined with
+    accessory name + live `availableCount` (counts `stock_units` with
+    `status = 'available'`).
+  - `POST /api/stock/:id/accessories` — link a new accessory
+    (`{ accessoryStockItemId, quantityPerUnit?, required? }`).
+  - `PUT /api/stock/accessories/:linkId` — update `quantityPerUnit`/`required`.
+  - `DELETE /api/stock/accessories/:linkId` — unlink.
+  - `GET /api/stock/accessories/all` — **all** links for the company in one call
+    (no joins — client already has `stock/all-with-units` loaded, so it looks up
+    accessory name/availableCount itself). This is the one the job-stock modal
+    should use (see pending work below).
+- Client API (`client/src/api/index.ts`): `ItemAccessory`/`InsertItemAccessory`
+  imported from `@shared/schema`; `ItemAccessoryWithInfo` type added
+  (`ItemAccessory & { accessoryName: string; availableCount: number }`).
+  `stockApi.getAccessories`, `getAllAccessoryLinks`, `addAccessory`,
+  `updateAccessory`, `removeAccessory` added.
+- UI — **setup side, done**: `ItemDetailPanel.tsx` (Inventory → click an item)
+  has a new **"Accessories" tab** (between Units and Details) — search existing
+  stock items, link as accessory with a qty-per-unit stepper and a
+  Required/Optional toggle, remove button. Locale keys added to both
+  `client/src/locales/th/stock.json` and `en/stock.json` (`tabAccessories`,
+  `accessoriesHint`, `noAccessoriesYet`, `addAccessory`,
+  `searchAccessoryPlaceholder`, `availableCountLabel`, `requiredLabel`,
+  `optionalLabel`, `requiredToggleHint`).
+
+**⏳ Pending — the actual "auto-suggest on job add" wiring (not started):**
+
+This is the whole point of the feature and is **not done yet**. Target file:
+`client/src/pages/sections/ManageJobStockModal.tsx` (the modal opened from a
+job to pick which stock units go on that job — selection is unit-level via a
+`Set<string> selectedIds` of `stock_unit.id`, toggled by `toggleUnit()`,
+saved via `jobsApi.setUnits(jobId, Array.from(selectedIds))`).
+
+Implementation plan:
+1. On modal open, fetch `stockApi.getAllAccessoryLinks()` once → build a map
+   `Map<parentStockItemId, { accessoryStockItemId, quantityPerUnit, required }[]>`.
+2. In `toggleUnit(unitId)`: when a unit is being turned **on**, look up its
+   `stockItemId` (need the parent group, not just the unit — `stockGroups` already
+   has `unit.stockItemId` via the nested structure) in the accessory map. For each
+   linked accessory with `required = true`, auto-select `quantityPerUnit` number of
+   **available** units from that accessory's own group in `stockGroups` (skip ones
+   already `selectedIds`) — same pattern as `toggleSelectAll`. Optional accessories
+   (`required = false`) should be suggested but not auto-ticked — surface them as a
+   dismissible inline hint under the parent group's row ("+ Frame แขวน GSL8 พร้อม 5
+   ชิ้น — เพิ่มไหม?") that adds on click.
+3. When a unit is turned **off**, do NOT auto-remove its accessories (crew may want
+   to keep a spare Frame on a job even if a specific GSL8 unit was swapped out) —
+   only auto-add, never auto-remove. Simpler and avoids surprising deletions.
+4. Visually, an auto-added accessory unit should look the same as any other
+   selected unit in the tree (no special styling needed) — the "why is this
+   ticked" question is answered well enough by the group being visibly nested
+   under the same category. A small toast/inline note the first time
+   ("✓ เพิ่ม Frame แขวน GSL8 ให้อัตโนมัติ") is a nice-to-have, not required.
+5. No new pull-sheet/return code needed — once an accessory's unit is in
+   `job_units`, the existing Pull Sheet, dispatch, and return flow already
+   handles it exactly like any other assigned unit.
+6. Same pattern can later be applied to `containers` (rack-level accessories,
+   e.g. every rack needs its own power cable) via a `container_accessories`
+   table — deliberately not built now since it wasn't asked for; mirror
+   `item_accessories` if/when needed.
 
 ### Lifecycle Close-Out: Job Status, Incident Resolve, Sub-Rental Return, Quotes/Invoices
 - **Job status**: `JobsPage.tsx` main table — Admin/Manager see a `<select>` over the status

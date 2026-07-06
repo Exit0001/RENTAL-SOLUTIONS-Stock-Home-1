@@ -196,7 +196,8 @@
   },
 
   "manageJobStock": {
-    "title": "Select Equipment"
+    "title": "Select Equipment",
+    "bulkAvailable": "{{available}} / {{total}} available"
   },
 
   "createPullSheet": {
@@ -261,6 +262,10 @@
     "subCategoryLabel": "Sub-Category",
     "descriptionPlaceholder": "Describe the item, its use case, and any important notes…",
     "itemImage": "Item Image",
+    "trackingModeLabel": "Tracking Mode",
+    "trackingModeUnit": "Individual Units",
+    "trackingModeBulk": "Bulk Quantity",
+    "bulkTotalQty": "Total Quantity",
 
     "procurement": "Procurement",
     "purchaseCostThb": "Purchase Cost (THB)",

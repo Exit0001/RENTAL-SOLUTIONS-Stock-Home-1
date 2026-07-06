@@ -196,7 +196,8 @@
   },
 
   "manageJobStock": {
-    "title": "เลือกอุปกรณ์"
+    "title": "เลือกอุปกรณ์",
+    "bulkAvailable": "{{available}} / {{total}} ชิ้นที่ว่าง"
   },
 
   "createPullSheet": {
@@ -261,6 +262,10 @@
     "subCategoryLabel": "หมวดหมู่ย่อย",
     "descriptionPlaceholder": "อธิบายสินค้า การใช้งาน และข้อมูลสำคัญ…",
     "itemImage": "รูปภาพสินค้า",
+    "trackingModeLabel": "โหมดการติดตาม",
+    "trackingModeUnit": "รายชิ้น",
+    "trackingModeBulk": "จำนวน (Bulk)",
+    "bulkTotalQty": "จำนวนทั้งหมด",
 
     "procurement": "การจัดซื้อ",
     "purchaseCostThb": "ราคาซื้อ (บาท)",
