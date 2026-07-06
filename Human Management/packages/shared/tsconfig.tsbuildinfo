@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/db/relations.ts","./src/db/schema.ts","./src/types/api.ts","./src/validation/assignments.schema.ts","./src/validation/jobs.schema.ts","./src/validation/staff.schema.ts","./src/validation/vehicles.schema.ts"],"version":"5.9.3"}

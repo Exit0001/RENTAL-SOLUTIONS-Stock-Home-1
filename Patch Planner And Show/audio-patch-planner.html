@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Patch Planner</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0f12;
+    --bg-2: #15171b;
+    --surface: #1a1c20;
+    --surface-2: #212328;
+    --border: #2a2d33;
+    --border-strong: #3b3f47;
+    --text: #eceeef;
+    --text-2: #9aa0a8;
+    --text-3: #5e636b;
+    --accent: #4f8cff;
+    --accent-dim: rgba(79,140,255,.16);
+    --accent-2: #f5a623;
+    --danger: #f0564a;
+    --danger-dim: rgba(240,86,74,.14);
+    --radius: 7px;
+    --shadow: 0 12px 32px rgba(0,0,0,.55);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  }
+
+  html { background: var(--bg); }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #4a4f59; }
+
+  button:focus-visible, .filter-select:focus-visible, #showSelect:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar .brand {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: var(--text);
+    margin-right: 4px;
+  }
+  .topbar .brand .brand-glyph {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    display: inline-block;
+    margin-right: 8px;
+  }
+  .topbar .brand span { color: var(--text-3); font-weight: 400; margin-left: 5px; }
+
+  .show-pill {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  #showSelect {
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 8px;
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+    max-width: 180px;
+  }
+  #showSelect option { background: var(--surface); color: var(--text); }
+  .show-pill button {
+    border: none;
+    border-left: 1px solid var(--border);
+    background: transparent;
+    padding: 6px 9px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-2);
+    line-height: 1;
+    transition: background .12s, color .12s;
+  }
+  .show-pill button:hover { background: var(--surface-2); color: var(--text); }
+
+  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+
+  .filter-select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    font-size: 12px;
+    padding: 6px 8px;
+    color: var(--text-2);
+    cursor: pointer;
+    outline: none;
+    transition: border-color .12s;
+  }
+  .filter-select:hover { border-color: var(--border-strong); }
+  .filter-select:focus { border-color: var(--accent); }
+  .filter-select option { background: var(--surface); color: var(--text); }
+
+  .topbar-right { margin-left: auto; display: flex; gap: 6px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 13px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .12s, border-color .12s, transform .08s;
+  }
+  .btn:hover { background: var(--surface-2); border-color: #4a4f59; }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { background: #6b9cff; border-color: #6b9cff; }
+  .btn.danger { color: var(--danger); border-color: rgba(240,86,74,.35); background: transparent; }
+  .btn.danger:hover { background: var(--danger-dim); }
+
+  /* ── STATS BAR ── */
+  .statsbar {
+    display: flex;
+    gap: 6px;
+    padding: 9px 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-2);
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 11px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    transition: border-color .12s, transform .12s;
+  }
+  .stat:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+  .stat .sl { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
+  .stat .sv { font-size: 16px; font-weight: 600; color: var(--text); }
+
+  /* ── GRID ── */
+  .grid-wrap { padding: 0; }
+
+  .grid-header {
+    display: grid;
+    grid-template-columns: 26px 56px 52px 1.1fr 120px 1.9fr 115px 70px;
+    gap: 4px;
+    padding: 7px 16px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-2);
+    position: sticky;
+    top: 53px;
+    z-index: 9;
+  }
+
+  .section-header {
+    padding: 8px 16px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-header .s-count {
+    background: var(--accent-dim);
+    color: #8db4ff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 20px;
+  }
+
+  .ch-row {
+    display: grid;
+    grid-template-columns: 26px 56px 52px 1.1fr 120px 1.9fr 115px 70px;
+    gap: 4px;
+    padding: 5px 16px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: background .12s, box-shadow .12s;
+    min-height: 38px;
+    position: relative;
+  }
+  .ch-row:hover { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
+  .ch-row.is-muted { opacity: .45; }
+  .ch-row.is-muted:hover { box-shadow: inset 3px 0 0 var(--danger); }
+
+  .row-top, .row-meta { display: contents; }
+  .field { display: contents; }
+  .cap { display: none; }
+
+  .cell-in {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px 7px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: var(--font);
+    outline: none;
+    transition: border-color .12s, background .12s, box-shadow .12s;
+  }
+  .cell-in::placeholder { color: var(--text-3); }
+  .cell-in:hover { border-color: var(--border); }
+  .cell-in:focus { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .cell-in.mono { font-family: var(--font-mono); font-size: 12px; }
+  .cell-in.ch-num { color: var(--text-2); font-family: var(--font-mono); font-size: 12px; }
+
+  select.cell-in {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 20px;
+  }
+  select.cell-in:focus { background-color: var(--surface-2); border-color: var(--accent); }
+  select.cell-in option { background: var(--surface); color: var(--text); }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 20px;
+    letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .b-sb  { background: rgba(79,140,255,.16);  color: #8db4ff; }
+  .b-di  { background: rgba(34,197,94,.16);   color: #86efac; }
+  .b-ear { background: rgba(245,166,35,.16);  color: #fbbf24; }
+  .b-ins { background: rgba(167,139,250,.16); color: #c4b5fd; }
+  .b-aux { background: rgba(45,212,191,.16);  color: #5eead4; }
+  .b-foh { background: rgba(251,146,60,.16);  color: #fdba74; }
+  .b-nil { background: rgba(255,255,255,.06); color: var(--text-3); }
+
+  /* ── ROW ACTIONS ── */
+  .row-acts { display: flex; gap: 3px; justify-content: flex-end; align-items: center; }
+  .act-btn {
+    width: 26px; height: 26px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-3);
+    transition: all .12s;
+  }
+  .act-btn:hover { background: var(--surface-2); color: var(--text-2); }
+  .act-btn.m-btn:hover { border-color: rgba(240,86,74,.35); color: var(--danger); background: var(--danger-dim); }
+  .act-btn.m-btn.active { border-color: rgba(240,86,74,.35); color: var(--danger); background: var(--danger-dim); }
+  .act-btn.del-btn:hover { color: var(--danger); background: var(--danger-dim); }
+  .act-btn.dup-btn:hover { color: var(--accent); background: var(--accent-dim); }
+
+  /* ── EMPTY ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 16px;
+    color: var(--text-3);
+  }
+  .empty-state .big { font-size: 32px; margin-bottom: 8px; opacity: .8; }
+  .empty-state p { font-size: 14px; }
+
+  /* ── MODAL ── */
+  .modal-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(3px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(.96) translateY(6px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 20px;
+    width: 360px;
+    max-width: 90vw;
+    box-shadow: var(--shadow);
+    animation: modalIn .16s ease;
+  }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+  .modal input, .modal select, .modal textarea {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: inherit;
+    outline: none;
+    margin-bottom: 8px;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .modal input::placeholder, .modal textarea::placeholder { color: var(--text-3); }
+  .modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+  /* ── SETUP MODAL ── */
+  .modal.modal-lg { width: 500px; max-height: 82vh; overflow-y: auto; }
+  .setup-body { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
+  .setup-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    background: var(--bg-2);
+  }
+  .setup-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .setup-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2); }
+  .qty-stepper { display: flex; align-items: center; gap: 8px; }
+  .qty-stepper button {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .12s;
+  }
+  .qty-stepper button:hover { background: var(--surface-2); }
+  .qty-stepper .qty-val { min-width: 16px; text-align: center; font-size: 13px; font-weight: 700; color: var(--text); }
+  .setup-items { display: flex; flex-direction: column; gap: 6px; }
+  .setup-item { display: flex; gap: 6px; align-items: center; }
+  .setup-item-name {
+    flex: 1 1 auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 4px 7px;
+  }
+  .setup-item input.cell-in { flex: 1 1 auto; background: var(--surface); border: 1px solid var(--border-strong); }
+  .setup-item select.cell-in { flex: 0 0 150px; background: var(--surface); border: 1px solid var(--border-strong); }
+  .setup-item input.setup-chcount { flex: 0 0 64px; background: var(--surface); border: 1px solid var(--border-strong); }
+  .setup-empty { font-size: 12px; color: var(--text-3); padding: 3px 2px; }
+  .setup-item input.setup-fromto { flex: 1 1 80px; background: var(--surface); border: 1px solid var(--border-strong); }
+  .setup-item input.setup-isocount { flex: 0 0 52px; background: var(--surface); border: 1px solid var(--border-strong); }
+
+  /* ── PATH EDITOR ── */
+  .path-hint { font-size: 12px; color: var(--text-3); margin-bottom: 10px; line-height: 1.4; }
+  .path-dir { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .hop-list { display: flex; flex-direction: column; gap: 8px; }
+  .hop-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); padding: 9px; }
+  .hop-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .hop-idx {
+    width: 20px; height: 20px; flex: 0 0 20px;
+    border-radius: 50%; background: var(--accent-dim); color: #8db4ff;
+    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .hop-kind { flex: 0 0 120px; background: var(--surface); border: 1px solid var(--border-strong); }
+  .hop-kind-name { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); flex: 1 1 auto; }
+  .hop-move { display: flex; gap: 2px; }
+  .hop-fields { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .hop-fields .cell-in { background: var(--surface); border: 1px solid var(--border-strong); flex: 1 1 130px; min-width: 90px; }
+  .hop-fields .cell-in.hop-pin { flex: 0 0 64px; min-width: 0; }
+  .hop-fields .cell-in.hop-proto { flex: 0 0 96px; }
+  .hop-inline { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+  .hop-inline .cell-in { flex: 0 0 70px; }
+  .branch-list { display: flex; flex-direction: column; gap: 6px; width: 100%; margin: 4px 0; }
+  .branch-row {
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+    padding: 7px; border: 1px dashed var(--border-strong); border-radius: 5px; background: var(--surface);
+  }
+  .branch-row .cell-in { background: var(--surface-2); border: 1px solid var(--border); flex: 1 1 90px; min-width: 70px; }
+  .branch-row .cell-in.hop-pin { flex: 0 0 56px; min-width: 0; }
+  .hop-add, .hop-tpl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+  .hop-add .btn, .hop-tpl .btn { font-size: 12px; padding: 5px 10px; }
+  .hop-tpl { border-top: 1px solid var(--border); padding-top: 10px; }
+
+  /* ── WARNING DOT ── (absolute so it stays out of the grid column flow) */
+  .warn-dot {
+    position: absolute;
+    left: 5px; top: 50%; transform: translateY(-50%);
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--danger);
+    box-shadow: 0 0 6px rgba(240,86,74,.8);
+    cursor: help; z-index: 1;
+  }
+
+  /* ── VIEW TABS ── */
+  .view-tabs {
+    display: flex;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .view-tab {
+    border: none;
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .view-tab + .view-tab { border-left: 1px solid var(--border); }
+  .view-tab:hover { background: var(--surface-2); color: var(--text); }
+  .view-tab.active { background: var(--accent); color: #fff; }
+
+  .direction-header {
+    padding: 10px 16px 7px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--accent-2);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border-strong);
+    border-top: 2px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .direction-header .s-count {
+    background: rgba(245,166,35,.16);
+    color: var(--accent-2);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 20px;
+  }
+
+  .stat-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; align-self: center; }
+
+  input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
+
+  /* ── BULK BAR ── */
+  .bulk-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--accent-dim);
+    border-bottom: 1px solid var(--accent);
+    flex-wrap: wrap;
+  }
+  .bulk-bar.show { display: flex; }
+  .bulk-bar .bulk-count { font-size: 12px; font-weight: 700; color: #8db4ff; margin-right: 2px; white-space: nowrap; }
+  .bulk-bar .filter-select { background: var(--surface); }
+
+  /* ── PATCH MODAL ── */
+  .patch-btn { text-align: left; font: inherit; appearance: none; -webkit-appearance: none; }
+  .patch-btn .placeholder { color: var(--text-3); }
+  .modal-label { display: block; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
+  .modal-check {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--text-2);
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+  .modal-check input { width: auto; margin: 0; }
+  .patch-slot-fields { display: none; gap: 8px; margin-bottom: 8px; }
+  .patch-slot-fields input:first-child { flex: 1 1 auto; }
+  .patch-slot-fields input:last-child { flex: 0 0 80px; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border-strong);
+    box-shadow: inset 3px 0 0 var(--accent), var(--shadow);
+    padding: 9px 16px; border-radius: var(--radius);
+    font-size: 13px; opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity .2s, transform .2s;
+    z-index: 200;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── NOTE TOOLTIP ── */
+  .note-cell { position: relative; }
+  .note-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 2px;
+    vertical-align: middle;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .grid-header { display: none; }
+
+    .ch-row {
+      display: block;
+      padding: 12px 14px;
+    }
+    .ch-row:hover { box-shadow: inset 3px 0 0 var(--accent); }
+
+    .row-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .row-top .cell-in.f-name { font-size: 14px; font-weight: 500; }
+
+    .row-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px 14px;
+    }
+    .field { display: flex; flex-direction: column; min-width: 0; }
+    .cap {
+      display: block;
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 2px;
+    }
+
+    .row-acts { justify-content: flex-end; margin-top: 8px; }
+  }
+
+  @media (max-width: 580px) {
+    .topbar { padding: 9px 12px; }
+    .topbar-right { margin-left: 0; width: 100%; justify-content: flex-end; }
+    .statsbar { padding: 8px 12px; flex-wrap: nowrap; overflow-x: auto; }
+    .stat { flex-shrink: 0; }
+    .ch-row { padding: 11px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand"><span class="brand-glyph"></span>Patch <span>Planner</span></div>
+  <div class="sep"></div>
+
+  <div class="show-pill">
+    <select id="showSelect" onchange="switchShow(this.value)"></select>
+    <button onclick="openNewShowModal()" title="New show">+</button>
+    <button onclick="renameShow()" title="Rename show">✎</button>
+    <button onclick="deleteShow()" title="Delete show" style="color:#f0564a">✕</button>
+  </div>
+
+  <button class="btn" onclick="openSetupModal()" title="Configure consoles, stage boxes &amp; splitters">⚙ Setup</button>
+
+  <div class="sep"></div>
+
+  <div class="view-tabs">
+    <button class="view-tab" data-view="foh" onclick="setView('foh')">FOH</button>
+    <button class="view-tab" data-view="mon" onclick="setView('mon')">MON</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <select class="filter-select" id="filterSrc" onchange="renderGrid()">
+    <option value="">All sources</option>
+    <option value="Stage Box">Stage Box</option>
+    <option value="Direct Out">Direct Out</option>
+    <option value="Ear / IEM">Ear / IEM</option>
+    <option value="Insert">Insert</option>
+    <option value="Aux / Matrix">Aux / Matrix</option>
+    <option value="FOH Tie Line">FOH Tie Line</option>
+  </select>
+
+  <select class="filter-select" id="filterSec" onchange="renderGrid()">
+    <option value="">All sections</option>
+  </select>
+
+  <div class="topbar-right">
+    <button class="btn" onclick="addChannel()">＋ Add channel</button>
+    <button class="btn" onclick="openBulkAddModal()">＋ Bulk add</button>
+    <button class="btn" onclick="exportCSV()">↓ CSV</button>
+    <button class="btn primary" onclick="saveAll()">Save</button>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="statsbar" id="statsbar"></div>
+
+<!-- BULK ACTION BAR -->
+<div class="bulk-bar" id="bulkBar">
+  <span class="bulk-count" id="bulkCount2"></span>
+  <select class="filter-select" id="bulkSection"></select>
+  <button class="btn" onclick="bulkApplySection()">Set section</button>
+  <select class="filter-select" id="bulkConsole"></select>
+  <button class="btn" onclick="bulkApplyConsole()">Set console</button>
+  <button class="btn" onclick="bulkMuteSelected()">Toggle mute</button>
+  <button class="btn danger" onclick="bulkDeleteSelected()">Delete</button>
+  <button class="btn" onclick="clearSelection()">Clear</button>
+</div>
+
+<!-- GRID -->
+<div class="grid-wrap">
+  <div class="grid-header">
+    <input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this.checked)" title="Select all visible">
+    <span>Ch</span>
+    <span>Src</span>
+    <span>Name</span>
+    <span>Section</span>
+    <span>Signal Path</span>
+    <span>Console</span>
+    <span></span>
+  </div>
+  <div id="grid"></div>
+</div>
+
+<!-- NEW SHOW MODAL -->
+<div class="modal-backdrop" id="newShowModal">
+  <div class="modal">
+    <h3>New show</h3>
+    <input id="newShowName" placeholder="Show name (e.g. BIG MOUNTAIN MAIN)" />
+    <input id="newShowVenue" placeholder="Venue (optional)" />
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModals()">Cancel</button>
+      <button class="btn primary" onclick="createShow()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTE MODAL -->
+<div class="modal-backdrop" id="noteModal">
+  <div class="modal">
+    <h3 id="noteModalTitle">Note</h3>
+    <textarea id="noteText" rows="4" style="width:100%;resize:vertical;" placeholder="Add a note for this channel..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModals()">Cancel</button>
+      <button class="btn primary" onclick="saveNote()">Save note</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP MODAL -->
+<div class="modal-backdrop" id="setupModal">
+  <div class="modal modal-lg">
+    <h3>System setup</h3>
+    <div id="setupBody" class="setup-body"></div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="closeModals()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- PATH EDITOR MODAL -->
+<div class="modal-backdrop" id="pathModal">
+  <div class="modal modal-lg">
+    <h3 id="pathModalTitle">Signal path</h3>
+    <p class="path-hint">Build the chain from physical origin to console. The <strong>Splitter</strong> hop is the branch point — add a Direct/Iso tap per destination console.</p>
+    <div id="pathBody" class="setup-body"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModals()">Cancel</button>
+      <button class="btn primary" onclick="savePath()">Save path</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK ADD MODAL -->
+<div class="modal-backdrop" id="bulkAddModal">
+  <div class="modal">
+    <h3>Bulk add channels</h3>
+
+    <div class="view-tabs" id="bulkModeTabs" style="margin-bottom:12px;">
+      <button class="view-tab active" data-mode="box" onclick="setBulkMode('box')">From Stage Box</button>
+      <button class="view-tab" data-mode="qty" onclick="setBulkMode('qty')">Custom quantity</button>
+    </div>
+
+    <div id="bulkBoxFields">
+      <span class="modal-label">Stage box</span>
+      <select id="bulkBoxSelect" onchange="onBulkBoxChange()"></select>
+    </div>
+
+    <span class="modal-label">Number of channels</span>
+    <input id="bulkCount" type="number" min="1" max="200" value="16">
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModals()">Cancel</button>
+      <button class="btn primary" onclick="confirmBulkAdd()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────
+const SOURCE_TYPES = ['Stage Box','Direct Out','Ear / IEM','Insert','Aux / Matrix','FOH Tie Line'];
+const SECTION_ORDER = ['Drums','Bass','Keys','Guitar','Brass','Strings','Vocals','FX','Comms','Mix','—'];
+const CONSOLE_TYPES = ['RIVAGE PM5','RIVAGE PM3','CL5','CL3','CL1','QL5','QL1','—'];
+const STAGEBOX_TYPES = ['Rio3224-D2','Rio1608-D2','Tio1608-D2','RPio622','R-Rack','—'];
+const SPLITTER_TYPES = ['Passive Iso 1:2','Passive Iso 1:3','Active Splitter','Stage Box Y-Split','—'];
+const MULTICORE_TYPES = ['Analog Multicore','Multipin (LK37/Socapex)','Cat (Dante)','Fiber (TWINLANe)','MADI','—'];
+const PROTOCOL_TYPES = ['Analog','Dante','AES3','AES50','MADI','TwinLan'];
+const CONSOLE_CHANNEL_DEFAULTS = {
+  'RIVAGE PM5': 144, 'RIVAGE PM3': 120, 'CL5': 72, 'CL3': 64, 'CL1': 48, 'QL5': 64, 'QL1': 32, '—': 64,
+};
+const STAGEBOX_CHANNEL_DEFAULTS = {
+  'Rio3224-D2': 32, 'Rio1608-D2': 16, 'Tio1608-D2': 16, 'RPio622': 32, 'R-Rack': 16, '—': 16,
+};
+const MULTICORE_CHANNEL_DEFAULTS = {
+  'Analog Multicore': 16, 'Multipin (LK37/Socapex)': 8, 'Cat (Dante)': 64, 'Fiber (TWINLANe)': 256, 'MADI': 64, '—': 16,
+};
+const OUTPUT_SOURCES = ['Ear / IEM','Aux / Matrix'];
+
+// ─── Signal-path hop model ──────────────────────────────────
+// A channel.path is an ordered list of hops from physical origin → console.
+// The splitter hop is the one branch point (carries branches[] → device → console).
+const HOP_KINDS = ['origin','multicore','adapter','splitter','device','console'];
+const HOP_KIND_LABEL = {
+  origin:'Origin', multicore:'Multicore', adapter:'Adapter', splitter:'Splitter', device:'Device', console:'Console',
+};
+const ORIGIN_LABELS = ['Mic','DI','Line','Wireless RX','Playback','Comms','—'];
+const ADAPTER_TYPES = ['XLR F-F','XLR M-M','Gender Changer','TRS↔XLR','Turnaround','Transformer','—'];
+const PHANTOM_OWNERS = ['OFF','FOH','MON'];
+const SPLIT_TAPS = ['direct','iso1','iso2'];
+const TAP_LABEL = { direct:'DIR', iso1:'ISO1', iso2:'ISO2' };
+const TAP_DESTS = ['FOH','MON','BCST','REC'];
+
+const SETUP_SECTIONS = [
+  { key:'foh',         label:'FOH Consoles',      statLabel:'FOH brd',  models: CONSOLE_TYPES,  hasChannelCount:true, uniqueWith:'mon',         channelDefaults: CONSOLE_CHANNEL_DEFAULTS },
+  { key:'mon',         label:'Monitor Consoles',  statLabel:'Mon brd',  models: CONSOLE_TYPES,  hasChannelCount:true, uniqueWith:'foh',         channelDefaults: CONSOLE_CHANNEL_DEFAULTS },
+  { key:'stageboxFoh', label:'Stage Boxes — FOH', statLabel:'SB (FOH)', models: STAGEBOX_TYPES, hasChannelCount:true, uniqueWith:'stageboxMon', channelDefaults: STAGEBOX_CHANNEL_DEFAULTS },
+  { key:'stageboxMon', label:'Stage Boxes — MON', statLabel:'SB (MON)', models: STAGEBOX_TYPES, hasChannelCount:true, uniqueWith:'stageboxFoh', channelDefaults: STAGEBOX_CHANNEL_DEFAULTS },
+  { key:'multicore',   label:'Multicores / Looms',statLabel:'Multi',    models: MULTICORE_TYPES,hasChannelCount:true, hasFromTo:true,           channelDefaults: MULTICORE_CHANNEL_DEFAULTS },
+  { key:'splitter',    label:'Splitter Cabinets', statLabel:'Splitter', models: SPLITTER_TYPES,  hasChannelCount:true, hasIsoCount:true,         channelDefaults: { '—':12 } },
+];
+
+const SRC_BADGE = {
+  'Stage Box':    { label:'SB',  cls:'b-sb'  },
+  'Direct Out':   { label:'DI',  cls:'b-di'  },
+  'Ear / IEM':    { label:'EAR', cls:'b-ear' },
+  'Insert':       { label:'INS', cls:'b-ins' },
+  'Aux / Matrix': { label:'AUX', cls:'b-aux' },
+  'FOH Tie Line': { label:'FOH', cls:'b-foh' },
+};
+
+// ─── State ───────────────────────────────────────────────────
+let shows = {};       // { showId: { name, venue, channels: [] } }
+let activeId = null;
+let noteTargetId = null;
+let activeView = 'foh'; // 'foh' | 'mon'
+let selectedIds = new Set();
+let lastRenderedIds = [];
+let bulkMode = 'box'; // 'box' | 'qty'
+let _idCounter = 1;
+
+function uid() { return 'ch_' + (Date.now()) + '_' + (_idCounter++); }
+function hid() { return 'h_' + (Date.now()) + '_' + (_idCounter++); }
+
+// ─── Persistence ─────────────────────────────────────────────
+function newHop(kind, extra) {
+  return Object.assign({
+    id: hid(), kind: kind || 'device', ref:'', label:'', pin:'',
+    protocol:'Analog', slotCard:'', slotNum:'', phantom:'OFF',
+    adapterType:'XLR F-F', flip:false, branches:[], note:'',
+  }, extra || {});
+}
+function newBranch(extra) {
+  return Object.assign({
+    tap:'direct', to:'FOH', dest:'', destPin:'', protocol:'Analog',
+    console:'', ch:'', groundLift:false, phantom:'OFF', note:'',
+  }, extra || {});
+}
+function clonePath(path) {
+  return (path || []).map(h => Object.assign({}, h, {
+    id: hid(),
+    branches: (h.branches || []).map(b => Object.assign({}, b)),
+  }));
+}
+
+function migrateChannel(ch) {
+  // Older versions stored "CH 1" / "MIX 1" / "AUX 1" labels; the Ch field is now a bare number.
+  if (ch.ch != null && /\D/.test(String(ch.ch))) {
+    const m = String(ch.ch).match(/(\d+)/);
+    ch.ch = m ? m[1] : '1';
+  }
+  // Older versions stored Box / Unit as a plain string; it's now {name, port}.
+  if (typeof ch.box === 'string') {
+    ch.box = { name: ch.box, port: '' };
+  } else if (!ch.box) {
+    ch.box = { name: '', port: '' };
+  }
+  // Direction: default from src; preserved/overridable for the line→ear flip case.
+  if (!ch.direction) ch.direction = OUTPUT_SOURCES.includes(ch.src) ? 'output' : 'input';
+  // Signal path: build a 2-hop path (source device → console) from the old flat fields.
+  if (!Array.isArray(ch.path)) {
+    const path = [];
+    if (ch.box && ch.box.name) {
+      path.push(newHop('device', { label: ch.box.name, pin: ch.box.port || '', protocol: (ch.patch && ch.patch.protocol) || 'Analog' }));
+    }
+    const p = ch.patch || {};
+    path.push(newHop('console', {
+      label: ch.console || '', pin: ch.ch || '',
+      protocol: p.protocol || 'Analog', slotCard: p.slotCard || '', slotNum: p.slotNum || '',
+    }));
+    ch.path = path;
+  }
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem('patchPlanner_v1');
+    if (raw) {
+      const data = JSON.parse(raw);
+      shows = data.shows || {};
+      activeId = data.activeId || null;
+      Object.values(shows).forEach(s => (s.channels || []).forEach(migrateChannel));
+    }
+  } catch(e) {}
+  if (!Object.keys(shows).length) {
+    // Seed demo data
+    const id = 'show_demo';
+    shows[id] = {
+      name: 'Demo Show',
+      venue: 'Main Stage',
+      setup: {
+        foh: [ { id:uid(), name:'CL5 #01', model:'CL5', channels:72 } ],
+        mon: [ { id:uid(), name:'QL5 #01', model:'QL5', channels:64 } ],
+        stageboxFoh: [ { id:uid(), name:'Rio3224-D2 #01', model:'Rio3224-D2', channels:32 } ],
+        stageboxMon: [ { id:uid(), name:'RPio622 #01', model:'RPio622', channels:32 } ],
+        multicore: [ { id:uid(), name:'Multicore A', model:'Analog Multicore', channels:64, from:'Stage / Receivers', to:'Splitter #01' } ],
+        splitter: [ { id:uid(), name:'Passive Iso 1:2 #01', model:'Passive Iso 1:2', channels:64, isoCount:1 } ],
+      },
+      channels: [
+        { id:uid(), ch:'1',  name:'Kick In',    section:'Drums',  src:'Stage Box',   box:{name:'Rio3224-D2 #01', port:'1'},    patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:'1'}, console:'CL5 #01', muted:false, note:'' },
+        { id:uid(), ch:'2',  name:'Kick Out',   section:'Drums',  src:'Stage Box',   box:{name:'Rio3224-D2 #01', port:'2'},    patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:'2'}, console:'CL5 #01', muted:false, note:'' },
+        { id:uid(), ch:'3',  name:'Snare Top',  section:'Drums',  src:'Stage Box',   box:{name:'Rio3224-D2 #01', port:'3'},    patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:'3'}, console:'CL5 #01', muted:false, note:'SM57' },
+        { id:uid(), ch:'4',  name:'HH',         section:'Drums',  src:'Stage Box',   box:{name:'Rio3224-D2 #01', port:'4'},    patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:'4'}, console:'CL5 #01', muted:false, note:'' },
+        { id:uid(), ch:'5',  name:'Bass DI',    section:'Bass',   src:'Direct Out',  box:{name:'DI Stage', port:'1'},        patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:'1'}, console:'CL5 #01', muted:false, note:'' },
+        { id:uid(), ch:'6',  name:'Bass Mic',   section:'Bass',   src:'Stage Box',   box:{name:'Rio3224-D2 #01', port:'6'},    patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:'6'}, console:'CL5 #01', muted:false, note:'' },
+        // Showcase: Mic → Multicore A ch64 → Splitter ch64 → DIRECT to FOH Rio / ISO1 to MON RPio (one row, both views)
+        { id:uid(), ch:'9',  name:'Lead Vox',   section:'Vocals', src:'Stage Box',  console:'CL5 #01', muted:false, note:'58A handheld — phantom owned by FOH', direction:'input',
+          path:[
+            newHop('origin',    { label:'Mic', phantom:'FOH' }),
+            newHop('multicore', { label:'Multicore A', pin:'64' }),
+            newHop('splitter',  { label:'Passive Iso 1:2 #01', pin:'64', branches:[
+              newBranch({ tap:'direct', to:'FOH', dest:'Rio3224-D2 #01', destPin:'9',  protocol:'Analog', console:'CL5 #01', ch:'9',  phantom:'FOH' }),
+              newBranch({ tap:'iso1',   to:'MON', dest:'RPio622 #01',    destPin:'9',  protocol:'Analog', console:'QL5 #01', ch:'9',  phantom:'OFF', groundLift:true }),
+            ] }),
+          ] },
+        { id:uid(), ch:'10', name:'BG Vox L',   section:'Vocals', src:'Stage Box',   box:{name:'Rio3224-D2 #01', port:'10'},   patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:'10'}, console:'CL5 #01', muted:false, note:'' },
+        { id:uid(), ch:'11', name:'FOH Delay',  section:'FX',     src:'Aux / Matrix',box:{name:'', port:''},                 patch:{protocol:'Dante', slotCard:'', slotNum:'', chNum:'1'}, console:'CL5 #01', muted:false, note:'' },
+        { id:uid(), ch:'1',  name:'IEM Drums',  section:'Mix',    src:'Ear / IEM',   box:{name:'RPio622 #01', port:'5'},     patch:{protocol:'Dante', slotCard:'RY', slotNum:'1', chNum:'12'}, console:'QL5 #01', muted:false, note:'' },
+        // Showcase: artist Line return → XLR F-F adapter (flips receive→send) → into Ear/IEM (output)
+        { id:uid(), ch:'4',  name:'Gtr Amp → Ear', section:'Mix', src:'Ear / IEM',  console:'QL5 #01', muted:false, note:'XLR F-F barrel flips line-in to a send into the IEM box', direction:'output',
+          path:[
+            newHop('origin',  { label:'Line' }),
+            newHop('adapter', { adapterType:'XLR F-F', flip:true, note:'receive → send' }),
+            newHop('device',  { label:'IEM Box', pin:'2', protocol:'Analog' }),
+            newHop('console', { label:'QL5 #01', pin:'4', protocol:'Analog' }),
+          ] },
+      ]
+    };
+    (shows[id].channels).forEach(migrateChannel);
+    activeId = id;
+  }
+  if (!activeId || !shows[activeId]) activeId = Object.keys(shows)[0] || null;
+}
+
+function save() {
+  localStorage.setItem('patchPlanner_v1', JSON.stringify({ shows, activeId }));
+}
+
+function saveAll() {
+  save();
+  toast('Saved');
+}
+
+// ─── Show Management ─────────────────────────────────────────
+function getShow() { return activeId ? shows[activeId] : null; }
+
+function getSetup(s) {
+  if (!s.setup) s.setup = { foh: [], mon: [], stageboxFoh: [], stageboxMon: [], multicore: [], splitter: [] };
+  const setup = s.setup;
+  // Migrate older single shared stage-box list into the FOH-side list.
+  if (setup.stagebox && !setup.stageboxFoh && !setup.stageboxMon) {
+    setup.stageboxFoh = setup.stagebox;
+    setup.stageboxMon = [];
+    delete setup.stagebox;
+  }
+  setup.foh = setup.foh || [];
+  setup.mon = setup.mon || [];
+  setup.stageboxFoh = setup.stageboxFoh || [];
+  setup.stageboxMon = setup.stageboxMon || [];
+  setup.multicore = setup.multicore || [];
+  setup.splitter = setup.splitter || [];
+  return setup;
+}
+
+function switchShow(id) {
+  if (id && shows[id]) { activeId = id; selectedIds.clear(); save(); renderAll(); }
+}
+
+function openNewShowModal() {
+  document.getElementById('newShowName').value = '';
+  document.getElementById('newShowVenue').value = '';
+  document.getElementById('newShowModal').classList.add('open');
+  setTimeout(() => document.getElementById('newShowName').focus(), 50);
+}
+
+function createShow() {
+  const name = document.getElementById('newShowName').value.trim() || 'New Show';
+  const venue = document.getElementById('newShowVenue').value.trim();
+  const id = 'show_' + Date.now();
+  shows[id] = { name, venue, channels: [], setup: { foh: [], mon: [], stageboxFoh: [], stageboxMon: [], multicore: [], splitter: [] } };
+  activeId = id;
+  closeModals();
+  save();
+  renderAll();
+  toast('Show created');
+  openSetupModal();
+}
+
+function renameShow() {
+  const s = getShow();
+  if (!s) return;
+  const name = prompt('Rename show:', s.name);
+  if (name && name.trim()) { s.name = name.trim(); save(); renderShowSelect(); toast('Renamed'); }
+}
+
+function deleteShow() {
+  if (Object.keys(shows).length <= 1) { toast('Cannot delete last show'); return; }
+  const s = getShow();
+  if (!s) return;
+  if (!confirm(`Delete "${s.name}"? All channels will be lost.`)) return;
+  delete shows[activeId];
+  activeId = Object.keys(shows)[0];
+  save();
+  renderAll();
+  toast('Show deleted');
+}
+
+// ─── Channel CRUD ─────────────────────────────────────────────
+function addChannel() {
+  const s = getShow(); if (!s) return;
+  const groupNames = consoleNamesForGroup(s, activeView);
+  const defaultConsole = groupNames[0] || consoleNameList(s)[0];
+  const ch = { id:uid(), ch:nextFreeChannelNumber(s, defaultConsole), name:'New Channel', section:'—', src:'Stage Box', direction:'input', box:{name:'', port:''}, patch:{protocol:'Analog', slotCard:'', slotNum:'', chNum:''}, console:defaultConsole, muted:false, note:'',
+    path:[ newHop('device', { protocol:'Analog' }), newHop('console', { label:defaultConsole, pin:nextFreeChannelNumber(s, defaultConsole) }) ] };
+  s.channels.push(ch);
+  save();
+  renderGrid();
+  // Focus name of last row after render
+  setTimeout(() => {
+    const rows = document.querySelectorAll('.ch-row');
+    if (rows.length) {
+      const lastInput = rows[rows.length-1].querySelector('.f-name');
+      if (lastInput) { lastInput.focus(); lastInput.select && lastInput.select(); }
+    }
+  }, 30);
+}
+
+function deleteChannel(id) {
+  const s = getShow(); if (!s) return;
+  s.channels = s.channels.filter(c => c.id !== id);
+  save(); renderGrid();
+}
+
+function duplicateChannel(id) {
+  const s = getShow(); if (!s) return;
+  const idx = s.channels.findIndex(c => c.id === id);
+  if (idx < 0) return;
+  const orig = s.channels[idx];
+  const copy = { ...orig, id: uid(), ch: nextFreeChannelNumber(s, orig.console), patch: { ...orig.patch }, box: { ...orig.box }, path: clonePath(orig.path) };
+  s.channels.splice(idx + 1, 0, copy);
+  save(); renderGrid();
+}
+
+function toggleMute(id) {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === id);
+  if (ch) { ch.muted = !ch.muted; save(); renderGrid(); }
+}
+
+function updateField(id, field, value) {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === id);
+  if (!ch) return;
+  ch[field] = value;
+  save();
+  if (['section','src','console','ch'].includes(field)) renderGrid();
+  if (field === 'console') {
+    const grp = getConsoleGroup(s, value);
+    if (grp && grp !== activeView) toast(`Moved to ${grp.toUpperCase()} view`);
+  }
+}
+
+// ─── Note Modal ───────────────────────────────────────────────
+function openNote(id) {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === id);
+  if (!ch) return;
+  noteTargetId = id;
+  document.getElementById('noteModalTitle').textContent = `Note — ${ch.name}`;
+  document.getElementById('noteText').value = ch.note || '';
+  document.getElementById('noteModal').classList.add('open');
+  setTimeout(() => document.getElementById('noteText').focus(), 50);
+}
+
+function saveNote() {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === noteTargetId);
+  if (ch) { ch.note = document.getElementById('noteText').value; save(); renderGrid(); }
+  closeModals();
+}
+
+function closeModals() {
+  document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
+}
+
+// ─── Signal-path resolvers ──────────────────────────────────────
+function splitHop(ch) {
+  return (ch.path || []).find(h => h.kind === 'splitter' && h.branches && h.branches.length);
+}
+// Which views (foh/mon) a row participates in: its primary console group + every split branch group.
+function viewsForChannel(s, ch) {
+  const set = new Set();
+  const primary = getConsoleGroup(s, ch.console);
+  if (primary) set.add(primary);
+  const sp = splitHop(ch);
+  if (sp) sp.branches.forEach(b => { const g = getConsoleGroup(s, b.console); if (g) set.add(g); });
+  if (!set.size) { set.add('foh'); set.add('mon'); } // unmatched console → keep visible in both
+  return set;
+}
+// The console/ch/labels relevant to a given view (picks the branch leg landing in that view).
+function routeForView(s, ch, view) {
+  const sp = splitHop(ch);
+  if (sp) {
+    const br = sp.branches.find(b => getConsoleGroup(s, b.console) === view);
+    if (br) return { console: br.console, ch: br.ch || ch.ch, isBranch: true, branch: br };
+  }
+  return { console: ch.console, ch: ch.ch, isBranch: false };
+}
+
+function protoLabel(proto, n) {
+  if (!n) return '';
+  return (!proto || proto === 'Analog') ? `AN ${n}` : `${proto} ${n}`;
+}
+function hopToken(h) {
+  switch (h.kind) {
+    case 'origin':    return (h.label || 'Src') + (h.phantom && h.phantom !== 'OFF' ? ` +48(${h.phantom})` : '');
+    case 'multicore': return `${h.label || 'Multicore'}${h.pin ? ' c' + h.pin : ''}`;
+    case 'adapter':   return `${h.adapterType || 'Adapter'}${h.flip ? ' ⇄' : ''}`;
+    case 'device':    return `${h.label || 'Device'}${h.pin ? ' c' + h.pin : ''}`;
+    case 'console':   return `${h.label || 'Console'}${h.pin ? ' CH' + h.pin : ''}`;
+    case 'splitter':  return `${h.label || 'Splitter'}${h.pin ? ' c' + h.pin : ''}`;
+  }
+  return '';
+}
+function branchToken(b) {
+  return `${TAP_LABEL[b.tap] || b.tap}→${b.to}${b.dest ? ' ' + b.dest : ''}${b.destPin ? ' c' + b.destPin : ''}`;
+}
+function formatPath(ch, view) {
+  const hops = ch.path || [];
+  if (!hops.length) return '';
+  const s = getShow();
+  const parts = [];
+  hops.forEach(h => {
+    parts.push(hopToken(h));
+    if (h.kind === 'splitter' && h.branches && h.branches.length) {
+      let brs = h.branches;
+      if (view && s) { const f = brs.filter(b => getConsoleGroup(s, b.console) === view); if (f.length) brs = f; }
+      parts[parts.length - 1] += ' [' + brs.map(branchToken).join(' | ') + ']';
+    }
+  });
+  return parts.join(' ▸ ');
+}
+
+// ─── Validation ─────────────────────────────────────────────────
+function multicoreUsage(s) {
+  const m = {};
+  s.channels.forEach(c => (c.path || []).forEach(h => {
+    if (h.kind === 'multicore' && h.label) (m[h.label] = m[h.label] || new Set()).add(String(h.pin || ''));
+  }));
+  return m;
+}
+function devicePortIndex(s) {
+  const idx = {};
+  s.channels.forEach(c => (c.path || []).forEach(h => {
+    if (h.kind === 'device' && h.label && h.pin) { const k = h.label + '|' + h.pin; idx[k] = (idx[k] || 0) + 1; }
+    if (h.kind === 'splitter') (h.branches || []).forEach(b => { if (b.dest && b.destPin) { const k = b.dest + '|' + b.destPin; idx[k] = (idx[k] || 0) + 1; } });
+  }));
+  return idx;
+}
+function consoleChIndex(s) {
+  const idx = {};
+  s.channels.forEach(c => {
+    const sp = splitHop(c);
+    if (sp) sp.branches.forEach(b => { if (b.console && b.ch) { const k = b.console + '|' + b.ch; idx[k] = (idx[k] || 0) + 1; } });
+    else if (c.console && c.ch) { const k = c.console + '|' + c.ch; idx[k] = (idx[k] || 0) + 1; }
+  });
+  return idx;
+}
+let _issueCtx = null;
+function refreshIssueCtx(s) {
+  _issueCtx = { mc: multicoreUsage(s), ports: devicePortIndex(s), cons: consoleChIndex(s), setup: getSetup(s) };
+}
+function channelIssues(s, ch) {
+  if (!_issueCtx) refreshIssueCtx(s);
+  const out = [];
+  const sp = splitHop(ch);
+  // Phantom: gather all owners across origin + branches; transformer iso cannot carry phantom.
+  const owners = new Set();
+  (ch.path || []).forEach(h => { if (h.kind === 'origin' && h.phantom && h.phantom !== 'OFF') owners.add(h.phantom); });
+  if (sp) sp.branches.forEach(b => {
+    if (b.phantom && b.phantom !== 'OFF') {
+      owners.add(b.phantom);
+      if (b.tap !== 'direct') out.push(`Phantom on isolated split (${TAP_LABEL[b.tap]}) — transformer blocks +48V`);
+    }
+  });
+  if (owners.size > 1) out.push(`Phantom owned by multiple consoles (${[...owners].join(', ')})`);
+  // Multicore capacity
+  (ch.path || []).forEach(h => {
+    if (h.kind === 'multicore' && h.label) {
+      const item = _issueCtx.setup.multicore.find(x => x.name === h.label);
+      const used = _issueCtx.mc[h.label] ? _issueCtx.mc[h.label].size : 0;
+      if (item && Number(item.channels) && used > Number(item.channels)) out.push(`Multicore "${h.label}" over capacity (${used}/${item.channels})`);
+      if (item && h.pin && Number(h.pin) > Number(item.channels)) out.push(`Channel ${h.pin} exceeds "${h.label}" size (${item.channels})`);
+    }
+  });
+  // Duplicate device port
+  (ch.path || []).forEach(h => {
+    if (h.kind === 'device' && h.label && h.pin && _issueCtx.ports[h.label + '|' + h.pin] > 1) out.push(`Port ${h.label} c${h.pin} used by another channel`);
+  });
+  if (sp) sp.branches.forEach(b => { if (b.dest && b.destPin && _issueCtx.ports[b.dest + '|' + b.destPin] > 1) out.push(`Port ${b.dest} c${b.destPin} used by another channel`); });
+  // Duplicate console channel
+  if (sp) sp.branches.forEach(b => { if (b.console && b.ch && _issueCtx.cons[b.console + '|' + b.ch] > 1) out.push(`${b.console} CH${b.ch} used twice`); });
+  else if (ch.console && ch.ch && _issueCtx.cons[ch.console + '|' + ch.ch] > 1) out.push(`${ch.console} CH${ch.ch} used twice`);
+  return out;
+}
+
+// ─── Path Editor Modal ──────────────────────────────────────────
+let pathTargetId = null, pathDraft = [], pathDir = 'input';
+
+function openPathModal(id) {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === id);
+  if (!ch) return;
+  pathTargetId = id;
+  pathDraft = clonePath(ch.path && ch.path.length ? ch.path : [newHop('device'), newHop('console', { label: ch.console, pin: ch.ch })]);
+  pathDir = ch.direction || 'input';
+  document.getElementById('pathModalTitle').textContent = `Signal path — ${ch.name}`;
+  renderPathModal();
+  document.getElementById('pathModal').classList.add('open');
+}
+
+function pathDatalists(s) {
+  const setup = getSetup(s);
+  return {
+    multicore: setup.multicore.map(m => m.name),
+    splitter: setup.splitter.map(m => m.name),
+    device: [...setup.stageboxFoh, ...setup.stageboxMon].map(b => b.name),
+    console: consoleNameList(s),
+  };
+}
+function optlist(arr, cur) {
+  return (arr || []).map(v => `<option${v === cur ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+}
+function dlOptions(arr) { return (arr || []).map(v => `<option value="${escapeHtml(v)}">`).join(''); }
+
+function renderPathModal() {
+  const s = getShow(); if (!s) return;
+  const dl = pathDatalists(s);
+  const body = document.getElementById('pathBody');
+  const hopsHtml = pathDraft.map((h, i) => renderHopCard(h, i, dl)).join('');
+  body.innerHTML = `
+    <div class="path-dir">
+      <span class="modal-label" style="margin:0;">Direction</span>
+      <div class="view-tabs">
+        <button class="view-tab ${pathDir === 'input' ? 'active' : ''}" type="button" onclick="pathSetDir('input')">Input</button>
+        <button class="view-tab ${pathDir === 'output' ? 'active' : ''}" type="button" onclick="pathSetDir('output')">Output</button>
+      </div>
+    </div>
+    <datalist id="dlMc">${dlOptions(dl.multicore)}</datalist>
+    <datalist id="dlSplit">${dlOptions(dl.splitter)}</datalist>
+    <datalist id="dlDev">${dlOptions(dl.device)}</datalist>
+    <datalist id="dlCon">${dlOptions(dl.console)}</datalist>
+    <div class="hop-list">${hopsHtml || '<div class="setup-empty">No hops — add the first one below.</div>'}</div>
+    <div class="hop-add">
+      ${HOP_KINDS.map(k => `<button class="btn" type="button" onclick="pathAddHop('${k}')">＋ ${HOP_KIND_LABEL[k]}</button>`).join('')}
+    </div>
+    <div class="hop-tpl">
+      <span class="modal-label" style="margin:0 6px 0 0;">Templates</span>
+      <button class="btn" type="button" onclick="pathTemplate('split')">Mic→Multicore→Splitter→Rio (FOH/MON)</button>
+      <button class="btn" type="button" onclick="pathTemplate('flip')">Line→Adapter(flip)→Ear</button>
+    </div>`;
+}
+
+function renderHopCard(h, i, dl) {
+  const protoSel = (val, on) => `<select class="cell-in" onchange="${on}">${optlistProto(val)}</select>`;
+  let fields = '';
+  if (h.kind === 'origin') {
+    fields = `
+      <input class="cell-in" list="dlOrigin" value="${escapeHtml(h.label)}" placeholder="Mic / DI / Line…" onchange="pathSetHop(${i},'label',this.value)">
+      <datalist id="dlOrigin">${dlOptions(ORIGIN_LABELS)}</datalist>
+      <label class="hop-inline">+48V <select class="cell-in" onchange="pathSetHop(${i},'phantom',this.value)">${optlist(PHANTOM_OWNERS, h.phantom)}</select></label>`;
+  } else if (h.kind === 'multicore') {
+    fields = `
+      <input class="cell-in" list="dlMc" value="${escapeHtml(h.label)}" placeholder="Multicore name" onchange="pathSetHop(${i},'label',this.value)">
+      <input class="cell-in hop-pin" type="number" min="1" value="${escapeHtml(h.pin)}" placeholder="ch" onchange="pathSetHop(${i},'pin',this.value)">`;
+  } else if (h.kind === 'adapter') {
+    fields = `
+      <select class="cell-in" onchange="pathSetHop(${i},'adapterType',this.value)">${optlist(ADAPTER_TYPES, h.adapterType)}</select>
+      <label class="hop-inline"><input type="checkbox" ${h.flip ? 'checked' : ''} onchange="pathSetHop(${i},'flip',this.checked)"> flip dir</label>
+      <input class="cell-in" value="${escapeHtml(h.note)}" placeholder="note" onchange="pathSetHop(${i},'note',this.value)">`;
+  } else if (h.kind === 'device') {
+    fields = `
+      <input class="cell-in" list="dlDev" value="${escapeHtml(h.label)}" placeholder="Rio / RPio / box" onchange="pathSetHop(${i},'label',this.value)">
+      <input class="cell-in hop-pin" type="number" min="1" value="${escapeHtml(h.pin)}" placeholder="port" onchange="pathSetHop(${i},'pin',this.value)">
+      <select class="cell-in hop-proto" onchange="pathSetHop(${i},'protocol',this.value)">${optlistProto(h.protocol)}</select>`;
+  } else if (h.kind === 'console') {
+    fields = `
+      <input class="cell-in" list="dlCon" value="${escapeHtml(h.label)}" placeholder="Console" onchange="pathSetHop(${i},'label',this.value)">
+      <input class="cell-in hop-pin" type="number" min="1" value="${escapeHtml(h.pin)}" placeholder="ch" onchange="pathSetHop(${i},'pin',this.value)">
+      <select class="cell-in hop-proto" onchange="pathSetHop(${i},'protocol',this.value)">${optlistProto(h.protocol)}</select>`;
+  } else if (h.kind === 'splitter') {
+    const branches = (h.branches || []).map((b, bi) => `
+      <div class="branch-row">
+        <select class="cell-in" onchange="pathSetBranch(${i},${bi},'tap',this.value)">${optlist(SPLIT_TAPS.map(t => t), b.tap)}</select>
+        <select class="cell-in" onchange="pathSetBranch(${i},${bi},'to',this.value)">${optlist(TAP_DESTS, b.to)}</select>
+        <input class="cell-in" list="dlDev" value="${escapeHtml(b.dest)}" placeholder="dest device" onchange="pathSetBranch(${i},${bi},'dest',this.value)">
+        <input class="cell-in hop-pin" type="number" min="1" value="${escapeHtml(b.destPin)}" placeholder="port" onchange="pathSetBranch(${i},${bi},'destPin',this.value)">
+        <input class="cell-in" list="dlCon" value="${escapeHtml(b.console)}" placeholder="console" onchange="pathSetBranch(${i},${bi},'console',this.value)">
+        <input class="cell-in hop-pin" type="number" min="1" value="${escapeHtml(b.ch)}" placeholder="ch" onchange="pathSetBranch(${i},${bi},'ch',this.value)">
+        <label class="hop-inline">+48 <select class="cell-in" onchange="pathSetBranch(${i},${bi},'phantom',this.value)">${optlist(PHANTOM_OWNERS, b.phantom)}</select></label>
+        <label class="hop-inline"><input type="checkbox" ${b.groundLift ? 'checked' : ''} onchange="pathSetBranch(${i},${bi},'groundLift',this.checked)"> gnd lift</label>
+        <button class="act-btn del-btn" type="button" onclick="pathRemoveBranch(${i},${bi})" title="Remove tap">✕</button>
+      </div>`).join('');
+    fields = `
+      <input class="cell-in" list="dlSplit" value="${escapeHtml(h.label)}" placeholder="Splitter unit" onchange="pathSetHop(${i},'label',this.value)">
+      <input class="cell-in hop-pin" type="number" min="1" value="${escapeHtml(h.pin)}" placeholder="split ch" onchange="pathSetHop(${i},'pin',this.value)">
+      <div class="branch-list">${branches || '<div class="setup-empty">No taps yet.</div>'}</div>
+      <button class="btn" type="button" onclick="pathAddBranch(${i})">＋ Tap (direct / iso)</button>`;
+  }
+  return `
+    <div class="hop-card">
+      <div class="hop-head">
+        <span class="hop-idx">${i + 1}</span>
+        <select class="cell-in hop-kind" onchange="pathSetKind(${i},this.value)">${optlist(HOP_KINDS.map(k => k), h.kind)}</select>
+        <span class="hop-kind-name">${HOP_KIND_LABEL[h.kind]}</span>
+        <div class="hop-move">
+          <button class="act-btn" type="button" onclick="pathMoveHop(${i},-1)" title="Up">▲</button>
+          <button class="act-btn" type="button" onclick="pathMoveHop(${i},1)" title="Down">▼</button>
+          <button class="act-btn del-btn" type="button" onclick="pathRemoveHop(${i})" title="Remove hop">✕</button>
+        </div>
+      </div>
+      <div class="hop-fields">${fields}</div>
+    </div>`;
+}
+function optlistProto(cur) { return PROTOCOL_TYPES.map(p => `<option${p === cur ? ' selected' : ''}>${p}</option>`).join(''); }
+
+function pathSetDir(v) { pathDir = v; renderPathModal(); }
+function pathSetHop(i, field, value) {
+  if (!pathDraft[i]) return;
+  pathDraft[i][field] = value;
+  // No re-render for plain field edits (keeps focus); structural changes use dedicated fns.
+}
+function pathSetKind(i, kind) {
+  if (!pathDraft[i]) return;
+  const keep = pathDraft[i];
+  pathDraft[i] = newHop(kind, { id: keep.id, label: keep.label, pin: keep.pin, protocol: keep.protocol, note: keep.note });
+  renderPathModal();
+}
+function pathAddHop(kind) { pathDraft.push(newHop(kind)); renderPathModal(); }
+function pathRemoveHop(i) { pathDraft.splice(i, 1); renderPathModal(); }
+function pathMoveHop(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= pathDraft.length) return;
+  [pathDraft[i], pathDraft[j]] = [pathDraft[j], pathDraft[i]];
+  renderPathModal();
+}
+function pathAddBranch(i) {
+  const h = pathDraft[i]; if (!h) return;
+  h.branches = h.branches || [];
+  const next = h.branches.length === 0 ? 'direct' : (h.branches.length === 1 ? 'iso1' : 'iso2');
+  h.branches.push(newBranch({ tap: next, to: next === 'direct' ? 'FOH' : 'MON' }));
+  renderPathModal();
+}
+function pathSetBranch(i, bi, field, value) {
+  const h = pathDraft[i]; if (!h || !h.branches[bi]) return;
+  h.branches[bi][field] = value;
+}
+function pathRemoveBranch(i, bi) {
+  const h = pathDraft[i]; if (!h) return;
+  h.branches.splice(bi, 1);
+  renderPathModal();
+}
+function pathTemplate(name) {
+  const s = getShow();
+  const setup = s ? getSetup(s) : { multicore: [], splitter: [], stageboxFoh: [], stageboxMon: [], foh: [], mon: [] };
+  const mcName = (setup.multicore[0] && setup.multicore[0].name) || 'Multicore A';
+  const splName = (setup.splitter[0] && setup.splitter[0].name) || 'Splitter #01';
+  const fohDev = (setup.stageboxFoh[0] && setup.stageboxFoh[0].name) || 'Rio (FOH)';
+  const monDev = (setup.stageboxMon[0] && setup.stageboxMon[0].name) || 'RPio (MON)';
+  const fohCon = (setup.foh[0] && setup.foh[0].name) || '';
+  const monCon = (setup.mon[0] && setup.mon[0].name) || '';
+  if (name === 'split') {
+    pathDir = 'input';
+    pathDraft = [
+      newHop('origin', { label: 'Mic', phantom: 'FOH' }),
+      newHop('multicore', { label: mcName, pin: '' }),
+      newHop('splitter', { label: splName, pin: '', branches: [
+        newBranch({ tap: 'direct', to: 'FOH', dest: fohDev, console: fohCon, phantom: 'FOH' }),
+        newBranch({ tap: 'iso1', to: 'MON', dest: monDev, console: monCon, phantom: 'OFF', groundLift: true }),
+      ] }),
+    ];
+  } else if (name === 'flip') {
+    pathDir = 'output';
+    pathDraft = [
+      newHop('origin', { label: 'Line' }),
+      newHop('adapter', { adapterType: 'XLR F-F', flip: true, note: 'receive → send' }),
+      newHop('device', { label: 'IEM Box', pin: '' }),
+      newHop('console', { label: monCon || fohCon, pin: '' }),
+    ];
+  }
+  renderPathModal();
+}
+// Keep legacy box/patch/ch/console in sync with the path so views, CSV and counts stay correct.
+function syncLegacyFromPath(ch) {
+  const sp = splitHop(ch);
+  const consoleHop = (ch.path || []).slice().reverse().find(h => h.kind === 'console');
+  const deviceHop = (ch.path || []).find(h => h.kind === 'device');
+  if (consoleHop) { ch.console = consoleHop.label || ch.console; ch.ch = consoleHop.pin || ch.ch; }
+  else if (sp && sp.branches[0]) { ch.console = sp.branches[0].console || ch.console; ch.ch = sp.branches[0].ch || ch.ch; }
+  if (deviceHop) {
+    ch.box = { name: deviceHop.label || '', port: deviceHop.pin || '' };
+    ch.patch = { protocol: deviceHop.protocol || 'Analog', slotCard: deviceHop.slotCard || '', slotNum: deviceHop.slotNum || '', chNum: deviceHop.pin || '' };
+  } else if (sp && sp.branches[0]) {
+    ch.box = { name: sp.branches[0].dest || '', port: sp.branches[0].destPin || '' };
+  }
+}
+function savePath() {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === pathTargetId);
+  if (!ch) return;
+  ch.path = pathDraft;
+  ch.direction = pathDir;
+  syncLegacyFromPath(ch);
+  save(); renderGrid(); closeModals();
+}
+
+function formatPatch(p) {
+  if (!p) return '';
+  const n = p.chNum || '';
+  if (p.slotCard && p.slotNum) return `${p.slotCard} SLOT ${p.slotNum} Channel ${n}`.trim();
+  if (!n) return '';
+  if (!p.protocol || p.protocol === 'Analog') return `AN ${n}`;
+  return `${p.protocol} Input ${n}`;
+}
+
+function formatBox(box) {
+  if (!box || !box.name) return '';
+  return box.port ? `${box.name} Channel ${box.port}` : box.name;
+}
+
+// ─── Bulk Add ───────────────────────────────────────────────────
+function openBulkAddModal() {
+  const s = getShow(); if (!s) return;
+  const setup = getSetup(s);
+  const boxes = [
+    ...setup.stageboxFoh.map(b => ({ name: b.name, label: `${b.name} (FOH)`, channels: b.channels })),
+    ...setup.stageboxMon.map(b => ({ name: b.name, label: `${b.name} (MON)`, channels: b.channels })),
+  ];
+  const sel = document.getElementById('bulkBoxSelect');
+  if (boxes.length) {
+    sel.innerHTML = boxes.map(b => `<option value="${escapeHtml(b.name)}" data-channels="${b.channels || 16}">${escapeHtml(b.label)}</option>`).join('');
+    sel.disabled = false;
+  } else {
+    sel.innerHTML = `<option value="">No stage boxes configured — use custom quantity</option>`;
+    sel.disabled = true;
+  }
+  setBulkMode(boxes.length ? 'box' : 'qty');
+  document.getElementById('bulkAddModal').classList.add('open');
+}
+
+function setBulkMode(mode) {
+  bulkMode = mode;
+  document.querySelectorAll('#bulkModeTabs .view-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+  document.getElementById('bulkBoxFields').style.display = mode === 'box' ? 'block' : 'none';
+  if (mode === 'box') onBulkBoxChange();
+}
+
+function onBulkBoxChange() {
+  const sel = document.getElementById('bulkBoxSelect');
+  const opt = sel.options[sel.selectedIndex];
+  if (opt && opt.dataset.channels) document.getElementById('bulkCount').value = opt.dataset.channels;
+}
+
+function nextInputNumber(s) {
+  let max = 0;
+  s.channels.forEach(c => {
+    const m = c.name && String(c.name).match(/^Input (\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  });
+  return max + 1;
+}
+
+function bulkCreateChannels(s, count, boxName) {
+  const groupNames = consoleNamesForGroup(s, activeView);
+  const defaultConsole = groupNames[0] || consoleNameList(s)[0];
+  let n = nextInputNumber(s);
+  for (let i = 0; i < count; i++) {
+    const chNo = nextFreeChannelNumber(s, defaultConsole);
+    const port = String(i + 1);
+    s.channels.push({
+      id: uid(),
+      ch: chNo,
+      name: `Input ${n}`,
+      section: '—',
+      src: 'Stage Box',
+      direction: 'input',
+      box: boxName ? { name: boxName, port } : { name: '', port: '' },
+      patch: { protocol:'Analog', slotCard:'', slotNum:'', chNum:'' },
+      console: defaultConsole,
+      muted: false,
+      note: '',
+      path: [
+        newHop('device',  { label: boxName || '', pin: boxName ? port : '', protocol:'Analog' }),
+        newHop('console', { label: defaultConsole, pin: chNo, protocol:'Analog' }),
+      ],
+    });
+    n++;
+  }
+}
+
+function confirmBulkAdd() {
+  const s = getShow(); if (!s) return;
+  const count = parseInt(document.getElementById('bulkCount').value, 10);
+  if (!count || count < 1) { toast('Enter a valid quantity'); return; }
+  const boxName = bulkMode === 'box' ? (document.getElementById('bulkBoxSelect').value || '') : '';
+  bulkCreateChannels(s, count, boxName);
+  save();
+  closeModals();
+  renderGrid();
+  toast(`Added ${count} channel(s)`);
+}
+
+// ─── Row Selection & Bulk Edit ───────────────────────────────────
+function toggleRowSelect(id, checked) {
+  if (checked) selectedIds.add(id); else selectedIds.delete(id);
+  syncSelectAllCheckbox();
+  renderBulkBar();
+}
+
+function toggleSelectAll(checked) {
+  if (checked) lastRenderedIds.forEach(id => selectedIds.add(id));
+  else lastRenderedIds.forEach(id => selectedIds.delete(id));
+  renderGrid();
+}
+
+function syncSelectAllCheckbox() {
+  const cb = document.getElementById('selectAllCb');
+  if (!cb) return;
+  const visible = lastRenderedIds.filter(id => selectedIds.has(id));
+  cb.checked = lastRenderedIds.length > 0 && visible.length === lastRenderedIds.length;
+  cb.indeterminate = visible.length > 0 && visible.length < lastRenderedIds.length;
+}
+
+function renderBulkBar() {
+  const s = getShow();
+  const bar = document.getElementById('bulkBar');
+  const n = selectedIds.size;
+  bar.classList.toggle('show', n > 0);
+  if (n === 0) return;
+  document.getElementById('bulkCount2').textContent = `${n} selected`;
+  document.getElementById('bulkSection').innerHTML = `<option value="">Set section…</option>` + secOptions('');
+  document.getElementById('bulkConsole').innerHTML = `<option value="">Set console…</option>` + conOptions('', s);
+}
+
+function bulkApplySection() {
+  const s = getShow(); if (!s) return;
+  const value = document.getElementById('bulkSection').value;
+  if (!value) return;
+  s.channels.forEach(c => { if (selectedIds.has(c.id)) c.section = value; });
+  save(); renderGrid();
+  toast(`Section updated for ${selectedIds.size} channel(s)`);
+}
+
+function bulkApplyConsole() {
+  const s = getShow(); if (!s) return;
+  const value = document.getElementById('bulkConsole').value;
+  if (!value) return;
+  s.channels.forEach(c => { if (selectedIds.has(c.id)) c.console = value; });
+  save(); renderGrid();
+  toast(`Console updated for ${selectedIds.size} channel(s)`);
+}
+
+function bulkMuteSelected() {
+  const s = getShow(); if (!s) return;
+  const ids = [...selectedIds];
+  const allMuted = ids.every(id => { const c = s.channels.find(x => x.id === id); return c && c.muted; });
+  s.channels.forEach(c => { if (selectedIds.has(c.id)) c.muted = !allMuted; });
+  save(); renderGrid();
+}
+
+function bulkDeleteSelected() {
+  const s = getShow(); if (!s) return;
+  const n = selectedIds.size;
+  if (!confirm(`Delete ${n} channel(s)?`)) return;
+  s.channels = s.channels.filter(c => !selectedIds.has(c.id));
+  selectedIds.clear();
+  save(); renderGrid();
+  toast(`Deleted ${n} channel(s)`);
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  renderGrid();
+}
+
+// ─── Setup Modal ────────────────────────────────────────────────
+function openSetupModal() {
+  renderSetupModal();
+  document.getElementById('setupModal').classList.add('open');
+}
+
+function renderSetupModal() {
+  const s = getShow(); if (!s) return;
+  const setup = getSetup(s);
+  const body = document.getElementById('setupBody');
+  body.innerHTML = SETUP_SECTIONS.map(sec => {
+    const items = setup[sec.key];
+    const itemsHtml = items.map((it, i) => `
+      <div class="setup-item">
+        <span class="setup-item-name">${escapeHtml(it.name)}</span>
+        <select class="cell-in" onchange="setupUpdateItem('${sec.key}',${i},'model',this.value)">
+          ${sec.models.map(m => `<option${m === it.model ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+        </select>
+        ${sec.hasFromTo ? `<input class="cell-in setup-fromto" value="${escapeHtml(it.from || '')}" title="From" placeholder="from" onchange="setupUpdateItem('${sec.key}',${i},'from',this.value)">
+        <input class="cell-in setup-fromto" value="${escapeHtml(it.to || '')}" title="To" placeholder="to" onchange="setupUpdateItem('${sec.key}',${i},'to',this.value)">` : ''}
+        ${sec.hasChannelCount ? `<input class="cell-in setup-chcount" type="number" min="1" value="${it.channels || 64}" title="Channel count" onchange="setupUpdateItem('${sec.key}',${i},'channels',this.value)">` : ''}
+        ${sec.hasIsoCount ? `<input class="cell-in setup-isocount" type="number" min="1" max="2" value="${it.isoCount || 1}" title="Iso outputs" onchange="setupUpdateItem('${sec.key}',${i},'isoCount',this.value)">` : ''}
+        <button class="act-btn del-btn" onclick="setupRemoveItem('${sec.key}',${i})" title="Remove">✕</button>
+      </div>`).join('');
+    return `
+      <div class="setup-section">
+        <div class="setup-section-head">
+          <span class="setup-label">${sec.label}</span>
+          <div class="qty-stepper">
+            <button type="button" onclick="setupQtyStep('${sec.key}',-1)">−</button>
+            <span class="qty-val">${items.length}</span>
+            <button type="button" onclick="setupQtyStep('${sec.key}',1)">+</button>
+          </div>
+        </div>
+        <div class="setup-items">${itemsHtml || '<div class="setup-empty">None added — click + to add one</div>'}</div>
+      </div>`;
+  }).join('');
+}
+
+// Auto-name = "{model} #{nn}", where nn is the next free zero-padded number for that
+// model — checked against the section's own list AND its FOH/MON counterpart so
+// console/box names stay unique across both (names are used to detect which view a row belongs to).
+function modelItemName(setup, sec, model, excludeItem) {
+  const pool = [...setup[sec.key], ...(sec.uniqueWith ? setup[sec.uniqueWith] : [])];
+  const used = new Set();
+  pool.forEach(it => {
+    if (it === excludeItem || it.model !== model) return;
+    const m = it.name && String(it.name).match(/(\d+)$/);
+    if (m) used.add(parseInt(m[1], 10));
+  });
+  let n = 1;
+  while (used.has(n)) n++;
+  return `${model} #${String(n).padStart(2, '0')}`;
+}
+
+function setupQtyStep(key, delta) {
+  const s = getShow(); if (!s) return;
+  const setup = getSetup(s);
+  const list = setup[key];
+  if (delta > 0) {
+    const sec = SETUP_SECTIONS.find(x => x.key === key);
+    const model = sec.models[0];
+    const item = { id: uid(), model, name: modelItemName(setup, sec, model) };
+    if (sec.hasChannelCount) item.channels = sec.channelDefaults[model] || 64;
+    if (sec.hasFromTo) { item.from = ''; item.to = ''; }
+    if (sec.hasIsoCount) item.isoCount = 1;
+    list.push(item);
+  } else if (list.length) {
+    list.pop();
+  }
+  save(); renderSetupModal(); renderGrid();
+}
+
+function setupRemoveItem(key, idx) {
+  const s = getShow(); if (!s) return;
+  getSetup(s)[key].splice(idx, 1);
+  save(); renderSetupModal(); renderGrid();
+}
+
+function setupUpdateItem(key, idx, field, value) {
+  const s = getShow(); if (!s) return;
+  const setup = getSetup(s);
+  const item = setup[key][idx];
+  if (!item) return;
+  item[field] = value;
+  if (field === 'model') {
+    const sec = SETUP_SECTIONS.find(x => x.key === key);
+    item.name = modelItemName(setup, sec, value, item);
+    if (sec.hasChannelCount) item.channels = sec.channelDefaults[value] || item.channels;
+  }
+  save(); renderGrid(); renderSetupModal();
+}
+
+function consoleNameList(s) {
+  const setup = getSetup(s);
+  const names = [...setup.foh, ...setup.mon].map(c => c.name).filter(Boolean);
+  return names.length ? names : CONSOLE_TYPES;
+}
+
+function getConsoleGroup(s, consoleName) {
+  const setup = getSetup(s);
+  if (setup.foh.some(c => c.name === consoleName)) return 'foh';
+  if (setup.mon.some(c => c.name === consoleName)) return 'mon';
+  return null;
+}
+
+function consoleChannelCount(s, consoleName) {
+  const setup = getSetup(s);
+  const item = [...setup.foh, ...setup.mon].find(c => c.name === consoleName);
+  return (item && Number(item.channels)) || 64;
+}
+
+function consoleNamesForGroup(s, group) {
+  const setup = getSetup(s);
+  return (group === 'mon' ? setup.mon : setup.foh).map(c => c.name);
+}
+
+function getDirection(src) {
+  return OUTPUT_SOURCES.includes(src) ? 'Output' : 'Input';
+}
+// Row direction prefers the explicit per-channel override (set in the path editor, e.g. a
+// line-in flipped to an Ear/IEM send), falling back to the source-type default.
+function rowDirection(ch) {
+  if (ch.direction === 'output') return 'Output';
+  if (ch.direction === 'input') return 'Input';
+  return getDirection(ch.src);
+}
+
+function chPrefix(src) {
+  if (src === 'Ear / IEM') return 'MIX';
+  if (src === 'Aux / Matrix') return 'AUX';
+  return 'CH';
+}
+
+function chLabel(ch) {
+  return `${chPrefix(ch.src)} ${ch.ch}`;
+}
+
+function nextFreeChannelNumber(s, consoleName) {
+  const used = s.channels.filter(c => c.console === consoleName).map(c => Number(c.ch));
+  let n = 1;
+  while (used.includes(n)) n++;
+  return String(n);
+}
+
+function setView(view) {
+  activeView = view;
+  selectedIds.clear();
+  renderGrid();
+}
+
+// ─── Render ───────────────────────────────────────────────────
+function getFiltered() {
+  const s = getShow();
+  if (!s) return [];
+  const fs = document.getElementById('filterSrc').value;
+  const fsec = document.getElementById('filterSec').value;
+  return s.channels.filter(c =>
+    (!fs || c.src === fs) &&
+    (!fsec || c.section === fsec)
+  );
+}
+
+function renderShowSelect() {
+  const sel = document.getElementById('showSelect');
+  sel.innerHTML = Object.entries(shows).map(([id, s]) =>
+    `<option value="${id}" ${id === activeId ? 'selected' : ''}>${s.name}</option>`
+  ).join('');
+}
+
+function renderFilterSec() {
+  const s = getShow();
+  const sections = s ? [...new Set(s.channels.map(c => c.section))] : [];
+  const sel = document.getElementById('filterSec');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All sections</option>' +
+    SECTION_ORDER.filter(sec => sections.includes(sec))
+      .map(sec => `<option value="${sec}" ${cur === sec ? 'selected' : ''}>${sec}</option>`).join('');
+}
+
+function renderStats(channels) {
+  const total = channels.length;
+  let html = `<div class="stat"><span class="sl">Total</span><span class="sv">${total}</span></div>`;
+  SOURCE_TYPES.forEach(src => {
+    const n = channels.filter(c => c.src === src).length;
+    if (n) html += `<div class="stat"><span class="sl">${SRC_BADGE[src].label}</span><span class="sv">${n}</span></div>`;
+  });
+  const muted = channels.filter(c => c.muted).length;
+  if (muted) html += `<div class="stat"><span class="sl" style="color:#f0564a">Muted</span><span class="sv" style="color:#f0564a">${muted}</span></div>`;
+
+  const s = getShow();
+  if (s) {
+    if (!_issueCtx) refreshIssueCtx(s);
+    const flagged = channels.filter(c => channelIssues(s, c).length).length;
+    if (flagged) html += `<div class="stat" title="Channels with validation warnings"><span class="sl" style="color:#f0564a">⚠ Issues</span><span class="sv" style="color:#f0564a">${flagged}</span></div>`;
+  }
+
+  if (s) {
+    const setup = getSetup(s);
+    const setupHtml = SETUP_SECTIONS
+      .map(sec => setup[sec.key].length ? `<div class="stat"><span class="sl">${sec.statLabel}</span><span class="sv">${setup[sec.key].length}</span></div>` : '')
+      .join('');
+    if (setupHtml) html += `<div class="stat-sep"></div>${setupHtml}`;
+  }
+
+  document.getElementById('statsbar').innerHTML = html;
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function srcOptions(cur) {
+  return SOURCE_TYPES.map(s => `<option${s === cur ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
+}
+function secOptions(cur) {
+  return SECTION_ORDER.map(s => `<option${s === cur ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
+}
+function conOptions(cur, s) {
+  const list = consoleNameList(s);
+  const all = (!cur || list.includes(cur)) ? list : [...list, cur];
+  return all.map(v => `<option${v === cur ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+}
+function chOptions(cur, max) {
+  const n = parseInt(cur, 10) || 0;
+  const upper = Math.max(max || 64, n);
+  let opts = '';
+  for (let i = 1; i <= upper; i++) opts += `<option${i === n ? ' selected' : ''}>${i}</option>`;
+  return opts;
+}
+
+function renderChRow(ch, s) {
+  const b = SRC_BADGE[ch.src] || { label:'—', cls:'b-nil' };
+  const noteBtn = `<button class="act-btn" onclick="openNote('${ch.id}')" title="Note${ch.note ? ': ' + ch.note.substring(0,30) : ''}" style="font-size:13px;">${ch.note ? '📝' : '📄'}</button>`;
+  const route = routeForView(s, ch, activeView);
+  const issues = channelIssues(s, ch);
+  const warnDot = issues.length ? `<span class="warn-dot" title="${escapeHtml(issues.join(' • '))}"></span>` : '';
+  // Split rows surface a per-view branch leg → its console/ch are read-only here (edit them in the path modal).
+  const chCell = route.isBranch
+    ? `<span class="cell-in ch-num f-ch" title="Set via Signal Path" style="opacity:.8">${escapeHtml(route.ch || '—')}</span>`
+    : `<select class="cell-in ch-num f-ch" onchange="updateField('${ch.id}','ch',this.value)">${chOptions(ch.ch, consoleChannelCount(s, ch.console))}</select>`;
+  const consoleCell = route.isBranch
+    ? `<span class="cell-in mono f-console" title="Set via Signal Path" style="opacity:.8">${escapeHtml(route.console || '—')}</span>`
+    : `<select class="cell-in f-console" onchange="updateField('${ch.id}','console',this.value)">${conOptions(ch.console, s)}</select>`;
+  const pathStr = formatPath(ch, activeView);
+  return `
+      <div class="ch-row ${ch.muted ? 'is-muted' : ''}" id="row-${ch.id}">
+        ${warnDot}
+        <div class="row-top">
+          <input type="checkbox" class="row-select" ${selectedIds.has(ch.id) ? 'checked' : ''} onchange="toggleRowSelect('${ch.id}', this.checked)">
+
+          ${chCell}
+
+          <span class="f-src"><span class="badge ${b.cls}">${b.label}</span></span>
+
+          <input class="cell-in f-name" value="${escapeHtml(ch.name)}" placeholder="Channel name"
+            onchange="updateField('${ch.id}','name',this.value)"
+            onblur="updateField('${ch.id}','name',this.value)">
+        </div>
+
+        <div class="row-meta">
+          <div class="field">
+            <span class="cap">Section</span>
+            <select class="cell-in f-section" onchange="updateField('${ch.id}','section',this.value)">${secOptions(ch.section)}</select>
+          </div>
+
+          <div class="field">
+            <span class="cap">Signal Path</span>
+            <button type="button" class="cell-in mono f-path patch-btn" onclick="openPathModal('${ch.id}')">${pathStr ? escapeHtml(pathStr) : '<span class=\'placeholder\'>Set signal path…</span>'}</button>
+          </div>
+
+          <div class="field">
+            <span class="cap">Console</span>
+            ${consoleCell}
+          </div>
+        </div>
+
+        <div class="row-acts">
+          <button class="act-btn m-btn ${ch.muted ? 'active' : ''}" onclick="toggleMute('${ch.id}')" title="${ch.muted ? 'Unmute' : 'Mute'}">M</button>
+          ${noteBtn}
+          <button class="act-btn dup-btn" onclick="duplicateChannel('${ch.id}')" title="Duplicate">⧉</button>
+          <button class="act-btn del-btn" onclick="deleteChannel('${ch.id}')" title="Delete">✕</button>
+        </div>
+      </div>`;
+}
+
+function renderGrid() {
+  renderFilterSec();
+  const s = getShow();
+
+  document.querySelectorAll('.view-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.view === activeView));
+
+  if (s) refreshIssueCtx(s);
+  let filtered = getFiltered();
+  let setup = null;
+  let noConsolesConfigured = true;
+  if (s) {
+    setup = getSetup(s);
+    noConsolesConfigured = setup.foh.length === 0 && setup.mon.length === 0;
+    if (!noConsolesConfigured) {
+      filtered = filtered.filter(c => viewsForChannel(s, c).has(activeView));
+    }
+  }
+  renderStats(filtered);
+  lastRenderedIds = filtered.map(c => c.id);
+  syncSelectAllCheckbox();
+  renderBulkBar();
+
+  const grid = document.getElementById('grid');
+
+  if (!filtered.length) {
+    const msg = noConsolesConfigured
+      ? `No consoles configured yet — open <strong>⚙ Setup</strong> to add ${activeView.toUpperCase()} consoles.`
+      : `No channels patched to the ${activeView.toUpperCase()} view yet — click <strong>＋ Add channel</strong> to start patching.`;
+    grid.innerHTML = `<div class="empty-state"><div class="big">🎛️</div><p>${msg}</p></div>`;
+    return;
+  }
+
+  let html = '';
+  ['Input','Output'].forEach(direction => {
+    const dirRows = filtered.filter(c => rowDirection(c) === direction);
+    if (!dirRows.length) return;
+    html += `<div class="direction-header">${direction === 'Input' ? 'Inputs' : 'Outputs'}<span class="s-count">${dirRows.length}</span></div>`;
+
+    const grouped = {};
+    SECTION_ORDER.forEach(sec => {
+      const rows = dirRows.filter(c => c.section === sec)
+        .sort((a, b) => Number(routeForView(s, a, activeView).ch) - Number(routeForView(s, b, activeView).ch));
+      if (rows.length) grouped[sec] = rows;
+    });
+
+    for (const [sec, rows] of Object.entries(grouped)) {
+      html += `<div class="section-header">${escapeHtml(sec)}<span class="s-count">${rows.length}</span></div>`;
+      rows.forEach(ch => { html += renderChRow(ch, s); });
+    }
+  });
+  grid.innerHTML = html;
+}
+
+function renderAll() {
+  renderShowSelect();
+  renderGrid();
+}
+
+// ─── Export ───────────────────────────────────────────────────
+function exportCSV() {
+  const s = getShow(); if (!s) return;
+  const header = ['Ch','Name','Section','Direction','Source','Signal Path','Box / Unit','Port','Console','Muted','Note'];
+  const rows = [header, ...s.channels.map(c => [chLabel(c), c.name, c.section, rowDirection(c), c.src, formatPath(c), formatBox(c.box), formatPatch(c.patch), c.console, c.muted ? 'yes' : '', c.note])];
+  const csv = rows.map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = s.name.replace(/[^a-z0-9]/gi,'_') + '-patch.csv';
+  a.click();
+  toast('Exported CSV');
+}
+
+// ─── Toast ────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ─── Keyboard shortcuts ───────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModals();
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); saveAll(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    const m = document.querySelector('.modal-backdrop.open');
+    if (m && m.id === 'newShowModal') createShow();
+    if (m && m.id === 'noteModal') saveNote();
+    if (m && m.id === 'pathModal') savePath();
+    if (m && m.id === 'bulkAddModal') confirmBulkAdd();
+  }
+});
+
+// Click outside modal to close
+document.querySelectorAll('.modal-backdrop').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModals(); });
+});
+
+// ─── Init ─────────────────────────────────────────────────────
+load();
+renderAll();
+</script>
+</body>
+</html>
