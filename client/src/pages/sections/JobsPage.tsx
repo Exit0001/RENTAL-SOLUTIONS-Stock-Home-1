@@ -55,6 +55,8 @@ import { AssignCrewModal } from "./AssignCrewModal";
 import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { AddVehicleModal } from "./AddVehicleModal";
 import { JobExpensesModal } from "./JobExpensesModal";
+import { RackBuildModal } from "./RackBuildModal";
+import { JobOperationsModal } from "./JobOperationsModal";
 
 type JobTab = "jobs" | "pullsheets" | "crew" | "incidents" | "schedule";
 
@@ -109,6 +111,7 @@ const JobDetailRow = ({ job }: { job: any }) => {
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
   const [assignContainerOpen, setAssignContainerOpen] = useState(false);
+  const [rackBuildOpen, setRackBuildOpen] = useState(false);
   const [assignCrewOpen, setAssignCrewOpen] = useState(false);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
@@ -210,12 +213,20 @@ const JobDetailRow = ({ job }: { job: any }) => {
             <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
               <Layers className="w-3 h-3" /> {t("racksLabel")}
             </p>
-            <button
-              onClick={() => setAssignContainerOpen(true)}
-              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-            >
-              <Plus className="w-3 h-3" /> {t("addRack")}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setRackBuildOpen(true)}
+                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+              >
+                <ScanLine className="w-3 h-3" /> Build Racks
+              </button>
+              <button
+                onClick={() => setAssignContainerOpen(true)}
+                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+              >
+                <Plus className="w-3 h-3" /> {t("addRack")}
+              </button>
+            </div>
           </div>
           {containersLoading ? (
             <div className="flex items-center gap-2 text-white/60 text-xs py-1">
@@ -449,6 +460,12 @@ const JobDetailRow = ({ job }: { job: any }) => {
         {assignContainerOpen && (
           <AssignContainerModal jobId={job.id} onClose={() => setAssignContainerOpen(false)} />
         )}
+        <RackBuildModal
+          open={rackBuildOpen}
+          onClose={() => setRackBuildOpen(false)}
+          jobId={job.id}
+          jobName={job.name}
+        />
         {assignCrewOpen && (
           <AssignCrewModal jobId={job.id} onClose={() => setAssignCrewOpen(false)} />
         )}
@@ -472,6 +489,7 @@ export const JobsPage = (): JSX.Element => {
   const [addJobOpen, setAddJobOpen] = useState(false);
   const [scanJob, setScanJob]       = useState<any>(null);
   const [manageJob, setManageJob]   = useState<any>(null);
+  const [opsJob, setOpsJob]         = useState<any>(null);
   const [createPullSheetOpen, setCreatePullSheetOpen] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [deleteJobTarget, setDeleteJobTarget] = useState<any>(null);
@@ -579,6 +597,13 @@ export const JobsPage = (): JSX.Element => {
           onCreated={() => qc.invalidateQueries({ queryKey: ["jobs"] })}
         />
       )}
+      {opsJob && (
+        <JobOperationsModal
+          open={!!opsJob}
+          onClose={() => setOpsJob(null)}
+          job={opsJob}
+        />
+      )}
       {scanJob && (
         <ScanModal
           jobId={scanJob.id}
@@ -657,6 +682,15 @@ export const JobsPage = (): JSX.Element => {
 
       {activeTab === "jobs" && (
         <div className="space-y-6">
+        {/* Schedule view */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarRange className="w-3.5 h-3.5 text-[#FFFF00]/40" />
+            <span className="text-[10px] font-bold text-[#FFFF00]/40 uppercase tracking-wider">ตารางงาน</span>
+          </div>
+          <JobScheduleView jobs={jobs as any[]} />
+        </div>
+
         <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -742,9 +776,16 @@ export const JobsPage = (): JSX.Element => {
                           <Package className="w-3 h-3" /> {t("editUnits")}
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); setScanJob(job); }}
+                          onClick={(e) => { e.stopPropagation(); setOpsJob(job); }}
                           className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-bold text-black transition-opacity hover:opacity-80"
                           style={{ backgroundColor: "#FFFF00" }}
+                        >
+                          <Layers className="w-3 h-3" /> Operations
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setScanJob(job); }}
+                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-semibold text-white/60
+                            border border-white/[0.08] hover:border-white/20 hover:text-white transition-colors"
                         >
                           <ScanLine className="w-3 h-3" /> {t("scanButton")}
                         </button>
@@ -769,15 +810,6 @@ export const JobsPage = (): JSX.Element => {
               })}
             </tbody>
           </table>
-        </div>
-
-        {/* Schedule view */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <CalendarRange className="w-3.5 h-3.5 text-[#FFFF00]/40" />
-            <span className="text-[10px] font-bold text-[#FFFF00]/40 uppercase tracking-wider">ตารางงาน</span>
-          </div>
-          <JobScheduleView jobs={jobs as any[]} />
         </div>
 
         </div>

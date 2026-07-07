@@ -7,6 +7,7 @@ import {
   jobExpenses, insertJobExpenseSchema, jobVehicles, insertJobVehicleSchema,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
+import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
 import { notify } from "../lib/notify";
 import { sendLineMessage } from "../lib/line";
 import { setUnitsOut, setUnitsAvailable } from "../lib/stockUnitStatus";
@@ -536,6 +537,52 @@ jobsRouter.delete("/:id/containers/:containerId", async (req, res) => {
   }
 });
 
+// POST /api/jobs/:id/containers/:containerId/load — Load-out: mark rack units as dispatched+out
+jobsRouter.post("/:id/containers/:containerId/load", async (req, res) => {
+  try {
+    // ตรวจสอบว่า job อยู่ในบริษัทนี้
+    const [job] = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    // ดึง units ทั้งหมดในแร็คนี้
+    const unitLinks = await db
+      .select({ stockUnitId: containerUnits.stockUnitId })
+      .from(containerUnits)
+      .where(eq(containerUnits.containerId, req.params.containerId));
+
+    if (unitLinks.length === 0) return res.json({ loaded: 0, skipped: 0 });
+
+    const rackUnitIds = unitLinks.map((l) => l.stockUnitId);
+
+    // กรองเฉพาะที่อยู่ใน job_units ของ job นี้
+    const jobUnitRows = await db
+      .select({ stockUnitId: jobUnits.stockUnitId })
+      .from(jobUnits)
+      .where(and(eq(jobUnits.jobId, req.params.id), inArray(jobUnits.stockUnitId, rackUnitIds)));
+
+    const matchingUnitIds = jobUnitRows.map((r) => r.stockUnitId);
+    const skipped = rackUnitIds.length - matchingUnitIds.length;
+
+    if (matchingUnitIds.length > 0) {
+      // เลื่อน phase → dispatched
+      await db
+        .update(jobUnits)
+        .set({ phase: "dispatched" })
+        .where(and(eq(jobUnits.jobId, req.params.id), inArray(jobUnits.stockUnitId, matchingUnitIds)));
+
+      // sync stock unit status → out
+      await setUnitsOut(matchingUnitIds);
+    }
+
+    res.json({ loaded: matchingUnitIds.length, skipped });
+  } catch {
+    res.status(500).json({ message: "Failed to load container" });
+  }
+});
+
 // GET /api/jobs/:id/crew — ทีมงานที่ assign ให้ job นี้
 jobsRouter.get("/:id/crew", async (req, res) => {
   try {
@@ -733,6 +780,79 @@ jobsRouter.get("/:id/pullsheet/pdf", async (req, res) => {
     doc.end();
   } catch (err: any) {
     res.status(500).json({ message: err?.message ?? "Failed to generate pull sheet PDF" });
+  }
+});
+
+// GET /api/jobs/:id/packing-sheet/pdf — Packing Sheet PDF เฉพาะแร็คที่อยู่ใน job นี้
+jobsRouter.get("/:id/packing-sheet/pdf", async (req, res) => {
+  try {
+    const [job] = await db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const [company] = await db
+      .select({ name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, req.companyId));
+
+    // ดึง containers ที่อยู่ใน job นี้
+    const jobContainerLinks = await db
+      .select({ containerId: jobContainers.containerId })
+      .from(jobContainers)
+      .where(eq(jobContainers.jobId, req.params.id));
+
+    const containerIds = jobContainerLinks.map((l) => l.containerId);
+
+    const result = containerIds.length
+      ? await db.select().from(containers).where(inArray(containers.id, containerIds))
+      : [];
+
+    const links = containerIds.length
+      ? await db.select().from(containerUnits).where(inArray(containerUnits.containerId, containerIds))
+      : [];
+
+    const unitIds = Array.from(new Set(links.map((l) => l.stockUnitId)));
+    const units = unitIds.length
+      ? await db.select().from(stockUnits).where(inArray(stockUnits.id, unitIds))
+      : [];
+
+    const itemIds = Array.from(new Set(units.map((u) => u.stockItemId)));
+    const items = itemIds.length
+      ? await db.select({ id: stockItems.id, name: stockItems.name, category: stockItems.category })
+          .from(stockItems).where(inArray(stockItems.id, itemIds))
+      : [];
+
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const itemMap = Object.fromEntries(items.map((i) => [i.id, i]));
+
+    const containersWithItems = result.map((c) => ({
+      ...c,
+      items: links
+        .filter((l) => l.containerId === c.id)
+        .map((l) => unitMap[l.stockUnitId])
+        .filter(Boolean)
+        .map((u) => ({
+          ...u,
+          itemName: itemMap[u.stockItemId]?.name ?? "Unknown",
+          category: itemMap[u.stockItemId]?.category ?? "Uncategorized",
+        })),
+    }));
+
+    const doc = generatePackingSheetPdf({
+      companyName: company?.name ?? "Company",
+      containers: containersWithItems,
+      jobName: job.name,
+    });
+
+    const safeName = job.name.replace(/[^a-z0-9-_]+/gi, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="packing-sheet-${safeName}.pdf"`);
+    doc.pipe(res);
+    doc.end();
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to generate packing sheet PDF" });
   }
 });
 

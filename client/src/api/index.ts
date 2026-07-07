@@ -110,14 +110,24 @@ export type ContainerWithItems = Container & {
 };
 
 export const containersApi = {
-  getAll:         () => api.get<ContainerWithItems[]>("/containers"),
-  create:         (data: Omit<InsertContainer, "companyId">) => api.post<Container>("/containers", data),
-  toggleCheckout: (id: string) => api.put<Container>(`/containers/${id}/checkout`, {}),
-  delete:         (id: string) => api.delete<{ message: string }>(`/containers/${id}`),
-  setUnits:       (id: string, unitIds: string[]) => api.post<void>(`/containers/${id}/units`, { unitIds }),
+  getAll:              () => api.get<ContainerWithItems[]>("/containers"),
+  create:              (data: Omit<InsertContainer, "companyId">) => api.post<Container>("/containers", data),
+  toggleCheckout:      (id: string) => api.put<Container>(`/containers/${id}/checkout`, {}),
+  delete:              (id: string) => api.delete<{ message: string }>(`/containers/${id}`),
+  setUnits:            (id: string, unitIds: string[]) => api.post<void>(`/containers/${id}/units`, { unitIds }),
+  addUnit:             (id: string, unitId: string) => api.post<void>(`/containers/${id}/units/add`, { unitId }),
+  removeUnit:          (id: string, unitId: string) => api.delete<void>(`/containers/${id}/units/${unitId}`),
+  downloadPackingSheet: () => fetchBlob("/containers/packing-sheet/pdf"),
 };
 
 // ─── Jobs ─────────────────────────────────────────────────
+
+export type JobStockRow = {
+  id:          string;
+  jobId:       string;
+  stockItemId: string;
+  quantity:    number;
+};
 
 export type PullSheetRow = {
   id: string;
@@ -193,6 +203,9 @@ export const jobsApi = {
                    api.post<PullSheet>(`/jobs/${jobId}/pullsheets`, data),
   deletePullSheet: (id: string) => api.delete<void>(`/jobs/pullsheets/${id}`),
   downloadPullSheetPdf: (jobId: string) => fetchBlob(`/jobs/${jobId}/pullsheet/pdf`),
+  downloadContainersPackingSheet: (jobId: string) => fetchBlob(`/jobs/${jobId}/packing-sheet/pdf`),
+  loadContainer: (jobId: string, containerId: string) =>
+    api.post<{ loaded: number; skipped: number }>(`/jobs/${jobId}/containers/${containerId}/load`, {}),
   getCrew:       () => api.get<CrewData>("/jobs/crew"),
   getIncidents:  () => api.get<Incident[]>("/jobs/all/incidents"),
   createIncident:(jobId: string, data: Omit<InsertIncident, "companyId" | "jobId">) =>

@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { containers, containerUnits, stockUnits, stockItems, jobContainers, jobs, insertContainerSchema } from "@shared/schema";
+import { containers, containerUnits, stockUnits, stockItems, jobContainers, jobs, insertContainerSchema, companies } from "@shared/schema";
 import { setUnitsOut, setUnitsAvailable } from "../lib/stockUnitStatus";
+import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
 
 export const containersRouter = Router();
 
@@ -90,6 +91,122 @@ containersRouter.post("/", async (req, res) => {
     res.status(201).json(container);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/containers/packing-sheet/pdf — All-Racks Summary PDF สำหรับบริษัท
+containersRouter.get("/packing-sheet/pdf", async (req, res) => {
+  try {
+    const [company] = await db
+      .select({ name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, req.companyId));
+
+    const result = await db
+      .select()
+      .from(containers)
+      .where(eq(containers.companyId, req.companyId));
+
+    const containerIds = result.map((c) => c.id);
+    const links = containerIds.length
+      ? await db.select().from(containerUnits).where(inArray(containerUnits.containerId, containerIds))
+      : [];
+
+    const unitIds = Array.from(new Set(links.map((l) => l.stockUnitId)));
+    const units = unitIds.length
+      ? await db.select().from(stockUnits).where(inArray(stockUnits.id, unitIds))
+      : [];
+
+    const itemIds = Array.from(new Set(units.map((u) => u.stockItemId)));
+    const items = itemIds.length
+      ? await db.select({ id: stockItems.id, name: stockItems.name, category: stockItems.category })
+          .from(stockItems).where(inArray(stockItems.id, itemIds))
+      : [];
+
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const itemMap = Object.fromEntries(items.map((i) => [i.id, i]));
+
+    const containersWithItems = result.map((c) => ({
+      ...c,
+      items: links
+        .filter((l) => l.containerId === c.id)
+        .map((l) => unitMap[l.stockUnitId])
+        .filter(Boolean)
+        .map((u) => ({
+          ...u,
+          itemName: itemMap[u.stockItemId]?.name ?? "Unknown",
+          category: itemMap[u.stockItemId]?.category ?? "Uncategorized",
+        })),
+    }));
+
+    const doc = generatePackingSheetPdf({
+      companyName: company?.name ?? "Company",
+      containers: containersWithItems,
+    });
+
+    const safeName = (company?.name ?? "racks").replace(/[^a-z0-9-_]+/gi, "_");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="packing-sheet-${safeName}.pdf"`);
+    doc.pipe(res);
+    doc.end();
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to generate packing sheet PDF" });
+  }
+});
+
+// POST /api/containers/:id/units/add — เพิ่ม unit ชิ้นเดียว (auto-move จาก container อื่น)
+containersRouter.post("/:id/units/add", async (req, res) => {
+  try {
+    const { unitId }: { unitId: string } = req.body;
+    if (!unitId) return res.status(400).json({ message: "unitId required" });
+
+    // ตรวจสอบว่า container นี้อยู่ในบริษัทนี้
+    const [container] = await db
+      .select()
+      .from(containers)
+      .where(and(eq(containers.id, req.params.id), eq(containers.companyId, req.companyId)));
+    if (!container) return res.status(404).json({ message: "Container not found" });
+
+    // ลบออกจาก container อื่น (auto-move)
+    await db.delete(containerUnits).where(eq(containerUnits.stockUnitId, unitId));
+
+    // เพิ่มเข้า container นี้
+    await db.insert(containerUnits).values({ containerId: req.params.id, stockUnitId: unitId });
+
+    // ถ้า container check out อยู่ → sync สถานะ unit
+    if (container.isOut) {
+      await setUnitsOut([unitId]);
+    }
+
+    res.json({ message: "Unit added" });
+  } catch (err: any) {
+    res.status(400).json({ message: err?.message ?? "Failed to add unit" });
+  }
+});
+
+// DELETE /api/containers/:id/units/:unitId — ลบ unit ชิ้นเดียวออกจาก container
+containersRouter.delete("/:id/units/:unitId", async (req, res) => {
+  try {
+    const [container] = await db
+      .select()
+      .from(containers)
+      .where(and(eq(containers.id, req.params.id), eq(containers.companyId, req.companyId)));
+    if (!container) return res.status(404).json({ message: "Container not found" });
+
+    await db.delete(containerUnits).where(
+      and(
+        eq(containerUnits.containerId, req.params.id),
+        eq(containerUnits.stockUnitId, req.params.unitId)
+      )
+    );
+
+    if (container.isOut) {
+      await setUnitsAvailable([req.params.unitId]);
+    }
+
+    res.json({ message: "Unit removed" });
+  } catch {
+    res.status(500).json({ message: "Failed to remove unit" });
   }
 });
 

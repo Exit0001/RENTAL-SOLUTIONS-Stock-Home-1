@@ -50,7 +50,7 @@ export const StockHome = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0a0a0a] flex flex-col">
+    <div className="h-screen w-full bg-[#0a0a0a] flex flex-col overflow-hidden">
       <GlobalLoadingBar />
       <StockManagementHeaderSection activeSection={activePage} />
 
@@ -84,7 +84,7 @@ export const StockHome = (): JSX.Element => {
           </div>
         </aside>
 
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        <div className="flex flex-col flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
           {renderPage()}
         </div>
       </div>

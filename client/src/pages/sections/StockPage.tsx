@@ -33,6 +33,7 @@ import {
 import { BrandCategoryModal } from "./BrandCategoryModal";
 import { AddNewItemModal } from "./AddNewItemModal";
 import { AddContainerModal } from "./AddContainerModal";
+import { RackBuildModal } from "./RackBuildModal";
 import { ManageContainerUnitsModal } from "./ManageContainerUnitsModal";
 import { AddIndividualUnitModal } from "./AddIndividualUnitModal";
 import { AddLocationModal } from "./AddLocationModal";
@@ -87,6 +88,7 @@ export const StockPage = (): JSX.Element => {
   const [brandCategoryOpen, setBrandCategoryOpen] = useState(false);
   const [addNewItemOpen, setAddNewItemOpen] = useState(false);
   const [addContainerOpen, setAddContainerOpen] = useState(false);
+  const [rackBuildOpen, setRackBuildOpen] = useState(false);
   const [addIndividualUnitOpen, setAddIndividualUnitOpen] = useState(false);
   const [addLocationOpen, setAddLocationOpen] = useState(false);
   const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
@@ -373,6 +375,7 @@ export const StockPage = (): JSX.Element => {
       {addContainerOpen && (
         <AddContainerModal onClose={() => setAddContainerOpen(false)} onAdd={handleAddContainer} />
       )}
+      <RackBuildModal open={rackBuildOpen} onClose={() => setRackBuildOpen(false)} />
       {addIndividualUnitOpen && (
         <AddIndividualUnitModal
           onClose={() => setAddIndividualUnitOpen(false)}
@@ -464,9 +467,13 @@ export const StockPage = (): JSX.Element => {
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
           <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
-            <ScanLine className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
-            <span className="text-sm text-white/60">{t("scanContainerHint")}</span>
             <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setRackBuildOpen(true)}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold border border-[#FFFF00]/40 text-[#FFFF00] transition-opacity hover:opacity-90 hover:bg-[#FFFF00]/10"
+              >
+                <ScanLine className="w-4 h-4" /> Rack Build Mode
+              </button>
               <button
                 onClick={() => setAddContainerOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
