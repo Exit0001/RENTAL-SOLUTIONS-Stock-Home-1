@@ -70,8 +70,10 @@ export type StockUnitWithContainer = StockUnit & {
   containerName: string | null;
   containerType: string | null;
 };
-export type StockItemWithUnits  = StockItem & { units: StockUnitWithContainer[]; availableCount?: number };
-export type AssignedUnit        = StockUnit & { itemName: string; phase: "planned" | "prepared" | "dispatched"; jobUnitId: string };
+export type PlannedJob         = { id: string; name: string; startDate: string | null; status: string };
+export type StockUnitWithPlan  = StockUnitWithContainer & { plannedJob: PlannedJob | null };
+export type StockItemWithUnits = StockItem & { units: StockUnitWithPlan[]; availableCount?: number; plannedCount?: number };
+export type AssignedUnit        = StockUnit & { itemName: string; phase: "planned" | "prepared" | "dispatched" | "returned"; jobUnitId: string };
 export type ItemAccessoryWithInfo = ItemAccessory & { accessoryName: string; availableCount: number };
 
 export const stockApi = {
@@ -196,7 +198,7 @@ export const jobsApi = {
   getUnits:      (jobId: string) => api.get<AssignedUnit[]>(`/jobs/${jobId}/units`),
   setUnits:      (jobId: string, unitIds: string[]) =>
                    api.post<void>(`/jobs/${jobId}/units`, { unitIds }),
-  updatePhase:   (jobId: string, stockUnitIds: string[], phase: "planned" | "prepared" | "dispatched") =>
+  updatePhase:   (jobId: string, stockUnitIds: string[], phase: "planned" | "prepared" | "dispatched" | "returned") =>
                    api.put<{ message: string; count: number }>(`/jobs/${jobId}/units/phase`, { stockUnitIds, phase }),
   getPullSheets: () => api.get<PullSheetRow[]>("/jobs/pullsheets"),
   createPullSheet: (jobId: string, data: Omit<InsertPullSheet, "jobId">) =>

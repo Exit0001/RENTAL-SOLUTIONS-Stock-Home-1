@@ -33,7 +33,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { jobsApi, jobVehiclesApi } from "@/api";
+import { jobsApi, jobVehiclesApi, stockApi } from "@/api";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -48,7 +48,6 @@ import { JobScheduleView } from "./JobScheduleView";
 import { CrewScheduleView } from "./CrewScheduleView";
 import { AddIncidentModal } from "./AddIncidentModal";
 import { AddJobModal } from "./AddJobModal";
-import { ScanModal } from "./ScanModal";
 import { ManageJobStockModal } from "./ManageJobStockModal";
 import { AssignContainerModal } from "./AssignContainerModal";
 import { AssignCrewModal } from "./AssignCrewModal";
@@ -163,9 +162,16 @@ const JobDetailRow = ({ job }: { job: any }) => {
   });
 
   const updatePhase = useMutation({
-    mutationFn: ({ unitIds, phase }: { unitIds: string[]; phase: "planned" | "prepared" | "dispatched" }) =>
-      jobsApi.updatePhase(job.id, unitIds, phase),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["job-units", job.id] }),
+    mutationFn: async ({ unitIds, phase }: { unitIds: string[]; phase: "planned" | "prepared" | "dispatched" | "returned" }) => {
+      await jobsApi.updatePhase(job.id, unitIds, phase);
+      if (phase === "dispatched") {
+        await Promise.all(unitIds.map((id) => stockApi.updateUnit(id, { status: "out" })));
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["job-units", job.id] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+    },
   });
 
   const start = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -367,12 +373,13 @@ const JobDetailRow = ({ job }: { job: any }) => {
                 const planned    = all.filter((u) => u.phase === "planned").length;
                 const prepared   = all.filter((u) => u.phase === "prepared").length;
                 const dispatched = all.filter((u) => u.phase === "dispatched").length;
+                const returned   = all.filter((u) => u.phase === "returned").length;
                 const allPrepared    = planned === 0 && all.length > 0;
                 const allDispatched  = dispatched === all.length && all.length > 0;
                 return (
                   <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/[0.06]">
                     {/* Stepper */}
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${planned > 0 ? "bg-white/10 text-white/60" : "bg-white/5 text-white/30"}`}>
                         {t("phasePlanned")} {planned}
                       </span>
@@ -381,23 +388,14 @@ const JobDetailRow = ({ job }: { job: any }) => {
                         {t("phasePrepared")} {prepared}
                       </span>
                       <ChevronRight className="w-3 h-3 text-white/30 flex-shrink-0" />
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${dispatched > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/30"}`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${dispatched > 0 ? "bg-blue-500/20 text-blue-400" : "bg-white/5 text-white/30"}`}>
                         {t("phaseDispatched")} {dispatched}
                       </span>
+                      <ChevronRight className="w-3 h-3 text-white/30 flex-shrink-0" />
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${returned > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/30"}`}>
+                        {t("phaseReturned")} {returned}
+                      </span>
                     </div>
-                    {/* Bulk actions */}
-                    {!allPrepared && !allDispatched && (
-                      <button
-                        onClick={() => updatePhase.mutate({
-                          unitIds: (assignedUnits as any[]).filter((u) => u.phase === "planned").map((u) => u.id),
-                          phase: "prepared",
-                        })}
-                        disabled={updatePhase.isPending || planned === 0}
-                        className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-amber-400 border border-amber-500/30 hover:bg-amber-500/10 transition-colors disabled:opacity-40 flex-shrink-0"
-                      >
-                        {t("markAllPrepared")}
-                      </button>
-                    )}
                   </div>
                 );
               })()}
@@ -412,12 +410,13 @@ const JobDetailRow = ({ job }: { job: any }) => {
                     </div>
                     {(units as any[]).map((u) => {
                       const phase = u.phase ?? "planned";
-                      const nextPhase = phase === "planned" ? "prepared" : phase === "prepared" ? "dispatched" : null;
+                      const nextPhase = phase === "prepared" ? "dispatched" : null;
                       return (
                         <div key={u.id} className="flex items-center gap-2 py-1.5 border-b border-white/[0.03] last:border-0">
                           {/* Phase dot */}
                           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            phase === "dispatched" ? "bg-emerald-400" :
+                            phase === "returned"   ? "bg-emerald-400" :
+                            phase === "dispatched" ? "bg-blue-400" :
                             phase === "prepared"   ? "bg-amber-400" :
                             "bg-white/20"
                           }`} />
@@ -427,21 +426,22 @@ const JobDetailRow = ({ job }: { job: any }) => {
                               <p className="text-[10px] text-white/40 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>
                             )}
                           </div>
-                          {/* Phase badge + advance button */}
+                          {/* Phase badge + override button (prepared→dispatched only, admin/manager) */}
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                              phase === "dispatched" ? "bg-emerald-500/15 text-emerald-400" :
+                              phase === "returned"   ? "bg-emerald-500/15 text-emerald-400" :
+                              phase === "dispatched" ? "bg-blue-500/15 text-blue-400" :
                               phase === "prepared"   ? "bg-amber-500/15 text-amber-400" :
                               "bg-white/5 text-white/40"
                             }`}>
                               {t(`phase_${phase}`)}
                             </span>
-                            {nextPhase && (
+                            {nextPhase && canManage && (
                               <button
                                 onClick={() => updatePhase.mutate({ unitIds: [u.id], phase: nextPhase as any })}
                                 disabled={updatePhase.isPending}
-                                title={t(`advanceTo_${nextPhase}`)}
-                                className="p-1 rounded text-white/40 hover:text-[#FFFF00] hover:bg-[#FFFF00]/10 transition-colors disabled:opacity-30"
+                                title={`Override: ${t(`advanceTo_${nextPhase}`)}`}
+                                className="p-1 rounded text-white/25 hover:text-amber-400 hover:bg-amber-400/10 transition-colors disabled:opacity-30"
                               >
                                 <ChevronRight className="w-3 h-3" />
                               </button>
@@ -487,7 +487,6 @@ export const JobsPage = (): JSX.Element => {
   const [expandedJobs, setExpandedJobs] = useState<string[]>([]);
   const [addIncidentOpen, setAddIncidentOpen] = useState(false);
   const [addJobOpen, setAddJobOpen] = useState(false);
-  const [scanJob, setScanJob]       = useState<any>(null);
   const [manageJob, setManageJob]   = useState<any>(null);
   const [opsJob, setOpsJob]         = useState<any>(null);
   const [createPullSheetOpen, setCreatePullSheetOpen] = useState(false);
@@ -602,13 +601,6 @@ export const JobsPage = (): JSX.Element => {
           open={!!opsJob}
           onClose={() => setOpsJob(null)}
           job={opsJob}
-        />
-      )}
-      {scanJob && (
-        <ScanModal
-          jobId={scanJob.id}
-          jobName={scanJob.name}
-          onClose={() => setScanJob(null)}
         />
       )}
       {manageJob && (
@@ -781,13 +773,6 @@ export const JobsPage = (): JSX.Element => {
                           style={{ backgroundColor: "#FFFF00" }}
                         >
                           <Layers className="w-3 h-3" /> Operations
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setScanJob(job); }}
-                          className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-semibold text-white/60
-                            border border-white/[0.08] hover:border-white/20 hover:text-white transition-colors"
-                        >
-                          <ScanLine className="w-3 h-3" /> {t("scanButton")}
                         </button>
                         {canManage && (
                           <button

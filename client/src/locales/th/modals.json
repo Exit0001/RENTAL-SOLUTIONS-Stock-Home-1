@@ -240,8 +240,10 @@
     "notInManifest": "⚠ ไม่อยู่ใน manifest",
     "scannedCountLabel": "สแกนแล้ว {{count}}",
     "errorsCountLabel": "{{count}} ข้อผิดพลาด",
-    "outBadge": "ออก",
-    "inBadge": "เข้า",
+    "outBadge": "ออกงาน",
+    "inBadge": "คืนแล้ว",
+    "alreadyReturned": "คืนแล้ว",
+    "noDispatchedUnits": "ยังไม่มีอุปกรณ์ที่ออกงาน",
     "defaultScanError": "ไม่พบ barcode นี้"
   },
 

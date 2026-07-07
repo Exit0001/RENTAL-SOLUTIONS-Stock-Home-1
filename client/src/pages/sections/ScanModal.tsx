@@ -45,15 +45,23 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
     enabled: !!token,
   });
 
+  // In return mode: show only dispatched+returned units (already left warehouse)
+  // In checkout mode: show all units
+  const manifestUnits = useMemo(() =>
+    mode === "return"
+      ? assignedUnits.filter((u) => u.phase === "dispatched" || u.phase === "returned")
+      : assignedUnits,
+  [assignedUnits, mode]);
+
   const grouped = useMemo(() => {
     const map: Record<string, AssignedUnit[]> = {};
-    for (const u of assignedUnits) {
+    for (const u of manifestUnits) {
       const key = (u as any).itemName ?? t("scan.unknownItem");
       if (!map[key]) map[key] = [];
       map[key].push(u);
     }
     return Object.entries(map);
-  }, [assignedUnits]);
+  }, [manifestUnits, t]);
 
   const barcodeToUnit = useMemo(() => {
     const m: Record<string, AssignedUnit> = {};
@@ -63,8 +71,20 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
     return m;
   }, [assignedUnits]);
 
-  const scannedCount = scannedIds.size;
-  const totalCount   = assignedUnits.length;
+  // Pre-populate scanned set: in return mode, already-returned units count as ticked
+  const alreadyReturnedIds = useMemo(() =>
+    new Set(assignedUnits.filter((u) => u.phase === "returned").map((u) => u.id)),
+  [assignedUnits]);
+
+  // Merge session scans + already returned (for display ticking)
+  const allTickedIds = useMemo(() => {
+    const s = new Set(scannedIds);
+    if (mode === "return") alreadyReturnedIds.forEach((id) => s.add(id));
+    return s;
+  }, [scannedIds, alreadyReturnedIds, mode]);
+
+  const scannedCount = mode === "return" ? allTickedIds.size : scannedIds.size;
+  const totalCount   = mode === "return" ? manifestUnits.length : assignedUnits.length;
 
   useEffect(() => { inputRef.current?.focus(); }, [mode]);
 
@@ -78,8 +98,8 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
       const newStatus = mode === "checkout" ? "out" : "available";
       await stockApi.updateUnit(unit.id, { status: newStatus });
 
-      // sync phase in job_units: checkout → dispatched, return → planned
-      const newPhase = mode === "checkout" ? "dispatched" : "planned";
+      // sync phase in job_units: checkout → dispatched, return → returned
+      const newPhase = mode === "checkout" ? "dispatched" : "returned";
       await jobsApi.updatePhase(jobId, [unit.id], newPhase);
       qc.invalidateQueries({ queryKey: ["job-units", jobId] });
       qc.invalidateQueries({ queryKey: ["stock"] });
@@ -172,16 +192,20 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
               {!isLoading && assignedUnits.length === 0 && (
                 <p className="text-xs text-white/60 italic py-6 text-center">{t("scan.noEquipmentAssigned")}</p>
               )}
+              {!isLoading && grouped.length === 0 && mode === "return" && (
+                <p className="text-xs text-white/40 italic py-6 text-center">{t("scan.noDispatchedUnits")}</p>
+              )}
               {!isLoading && grouped.map(([itemName, units]) => (
                 <div key={itemName}>
                   <div className="flex items-center gap-2 mb-2 pb-1 border-b border-white/[0.05]">
                     <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider flex-1">{itemName}</p>
                     <span className="text-[9px] text-emerald-400/60">
-                      {units.filter((u) => scannedIds.has(u.id)).length}/{units.length}
+                      {units.filter((u) => allTickedIds.has(u.id)).length}/{units.length}
                     </span>
                   </div>
                   {units.map((u) => {
-                    const ticked = scannedIds.has(u.id);
+                    const ticked       = allTickedIds.has(u.id);
+                    const preReturned  = !scannedIds.has(u.id) && alreadyReturnedIds.has(u.id);
                     return (
                       <div
                         key={u.id}
@@ -208,10 +232,18 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
                           ticked
                             ? modeCheckout
                               ? "bg-blue-400/15 text-blue-300"
-                              : "bg-emerald-400/15 text-emerald-300"
+                              : preReturned
+                                ? "bg-emerald-400/10 text-emerald-400/60"
+                                : "bg-emerald-400/15 text-emerald-300"
                             : "bg-white/5 text-white/60"
                         }`}>
-                          {ticked ? (modeCheckout ? t("scan.outBadge") : t("scan.inBadge")) : tc(`statusEnum.${u.status}`, { defaultValue: u.status })}
+                          {ticked
+                            ? modeCheckout
+                              ? t("scan.outBadge")
+                              : preReturned
+                                ? t("scan.alreadyReturned")
+                                : t("scan.inBadge")
+                            : tc(`statusEnum.${u.status}`, { defaultValue: u.status })}
                         </span>
                       </div>
                     );

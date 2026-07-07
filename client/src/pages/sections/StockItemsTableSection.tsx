@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon, Layers } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -22,31 +23,45 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
-import type { StockUnitWithContainer } from "@/api";
+import type { StockUnitWithPlan } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
 
-type StockItemWithCount = StockItem & { unitCount: number; availableCount: number };
+type StockItemWithCount = StockItem & { unitCount: number; availableCount: number; plannedCount?: number };
 
-const AvailabilityBadge = ({ available, total }: { available: number; total: number }) => {
+const AvailabilityBadge = ({ available, total, planned }: { available: number; total: number; planned?: number }) => {
   const { t } = useTranslation("stock");
-  const allAvailable  = available === total && total > 0;
-  const noneAvailable = available === 0;
-  const partial       = !allAvailable && !noneAvailable;
+  const free          = available - (planned ?? 0);
+  const allFree       = free === total && total > 0;
+  const noneFree      = free === 0 && available === 0;
+  const hasPlanned    = (planned ?? 0) > 0;
 
-  const color = allAvailable
+  const color = allFree && !hasPlanned
     ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/40"
-    : partial
-    ? "bg-amber-950/60 text-amber-400 border-amber-800/40"
-    : "bg-red-950/60 text-red-400 border-red-800/40";
+    : noneFree
+    ? "bg-red-950/60 text-red-400 border-red-800/40"
+    : "bg-amber-950/60 text-amber-400 border-amber-800/40";
 
-  const dot = allAvailable ? "bg-emerald-400" : partial ? "bg-amber-400" : "bg-red-400";
-  const label = allAvailable ? t("allAvailable") : noneAvailable ? t("unavailable") : t("availableOfTotal", { available, total });
+  const dot = allFree && !hasPlanned ? "bg-emerald-400" : noneFree ? "bg-red-400" : "bg-amber-400";
+
+  const label = allFree && !hasPlanned
+    ? t("allAvailable")
+    : noneFree
+    ? t("unavailable")
+    : t("availableOfTotal", { available: free, total });
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${color}`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-      {label}
-    </span>
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${color}`}>
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+        {label}
+      </span>
+      {hasPlanned && (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold border bg-blue-950/50 text-blue-300 border-blue-800/40 whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+          {planned} จัดเตรียม
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -92,8 +107,10 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["stock", itemId],
@@ -106,7 +123,13 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock", itemId] });
       qc.invalidateQueries({ queryKey: ["stock"] });
+      setSaveError(null);
       setEditingId(null);
+    },
+    onError: (err: any) => {
+      const msg = err?.message ?? "เกิดข้อผิดพลาด";
+      setSaveError(msg);
+      toast({ title: "ไม่สามารถบันทึกได้", description: msg, variant: "destructive" });
     },
   });
 
@@ -152,7 +175,7 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
     );
   }
 
-  const units: StockUnitWithContainer[] = data?.units ?? [];
+  const units: StockUnitWithPlan[] = (data?.units ?? []) as StockUnitWithPlan[];
 
   if (units.length === 0) {
     return (
@@ -218,13 +241,16 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
                       <option value="retired"     className="bg-[#111]">{tc("statusEnum.retired")}</option>
                     </select>
                   </div>
-                  <div className="flex items-center gap-2 justify-end">
-                    <button onClick={() => setEditingId(null)}
+                  <div className="flex items-center gap-2 justify-end flex-wrap">
+                    {saveError && (
+                      <span className="text-[11px] text-red-400 flex-1 min-w-0 truncate">{saveError}</span>
+                    )}
+                    <button onClick={() => { setEditingId(null); setSaveError(null); }}
                       className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-colors">
                       {tc("cancel")}
                     </button>
                     <button
-                      onClick={() => saveEdit(unit.id)}
+                      onClick={() => { setSaveError(null); saveEdit(unit.id); }}
                       disabled={updateUnit.isPending}
                       className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50 transition-opacity hover:opacity-80"
                       style={{ backgroundColor: "#FFFF00" }}
@@ -249,17 +275,26 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
                         <>{fmtDate(wExp)}{expired && " ⚠"}{soon && " !"}</>
                       ) : <span className="text-white/60">—</span>}
                     </span>
-                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold w-fit
-                      ${unit.status === "available"  ? "bg-emerald-950/60 text-emerald-400" :
-                        unit.status === "maintenance" ? "bg-amber-950/60 text-amber-400" :
-                        unit.status === "out"         ? "bg-blue-950/60 text-blue-400" :
-                        "bg-white/[0.06] text-white/60"}`}>
-                      <span className={`w-1 h-1 rounded-full ${
-                        unit.status === "available"  ? "bg-emerald-400" :
-                        unit.status === "maintenance" ? "bg-amber-400" :
-                        unit.status === "out"         ? "bg-blue-400" : "bg-white/30"}`} />
-                      {tc(`statusEnum.${unit.status}`, { defaultValue: unit.status }).toUpperCase()}
-                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold w-fit
+                        ${unit.status === "available"  ? "bg-emerald-950/60 text-emerald-400" :
+                          unit.status === "maintenance" ? "bg-amber-950/60 text-amber-400" :
+                          unit.status === "out"         ? "bg-blue-950/60 text-blue-400" :
+                          "bg-white/[0.06] text-white/60"}`}>
+                        <span className={`w-1 h-1 rounded-full ${
+                          unit.status === "available"  ? "bg-emerald-400" :
+                          unit.status === "maintenance" ? "bg-amber-400" :
+                          unit.status === "out"         ? "bg-blue-400" : "bg-white/30"}`} />
+                        {tc(`statusEnum.${unit.status}`, { defaultValue: unit.status }).toUpperCase()}
+                      </span>
+                      {(unit as StockUnitWithPlan).plannedJob && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold w-fit bg-blue-950/50 text-blue-300 border border-blue-800/30 max-w-[140px]"
+                          title={`จัดเตรียมสำหรับ: ${(unit as StockUnitWithPlan).plannedJob!.name}`}>
+                          <span className="w-1 h-1 rounded-full bg-blue-400 flex-shrink-0" />
+                          <span className="truncate">{(unit as StockUnitWithPlan).plannedJob!.name}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {/* Edit button */}
                   <button
@@ -272,11 +307,20 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
                 </div>
               )}
               {!isEditing && (
-                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/40 pl-0">
+                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/40 pl-0 flex-wrap">
                   <span>{t("addedOn", { date: fmtDate(unit.createdAt) ?? "—" })}</span>
                   {unit.containerName && (
                     <span className="inline-flex items-center gap-1 text-[#FFFF00]/40">
                       <Layers className="w-2.5 h-2.5" /> {t("inContainer", { name: unit.containerName })}
+                    </span>
+                  )}
+                  {(unit as StockUnitWithPlan).plannedJob && (
+                    <span className="inline-flex items-center gap-1 text-blue-400/60">
+                      <span>→ งาน:</span>
+                      <span className="font-medium text-blue-300/70">{(unit as StockUnitWithPlan).plannedJob!.name}</span>
+                      {(unit as StockUnitWithPlan).plannedJob!.startDate && (
+                        <span className="text-blue-400/40">({fmtDate((unit as StockUnitWithPlan).plannedJob!.startDate)})</span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -557,7 +601,7 @@ export const StockItemsTableSection = ({
                             <span className="font-bold text-white/80">{totalForBadge}</span>
                           </TableCell>
                           <TableCell className="py-2.5 align-middle">
-                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} />
+                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} />
                           </TableCell>
                           <TableCell className="py-2.5 pr-6 text-right align-middle">
                             <ActionIcons

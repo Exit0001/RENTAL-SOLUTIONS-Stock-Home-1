@@ -47,6 +47,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { containersApi, jobsApi, maintenanceApi, stockApi } from "@/api";
+import { useToast } from "@/hooks/use-toast";
 import type { ContainerWithItems, CrewMember, StockItemWithUnits } from "@/api";
 
 type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
@@ -110,6 +111,7 @@ export const StockPage = (): JSX.Element => {
   const [expandedMaintenanceCategories, setExpandedMaintenanceCategories] = useState<Set<string>>(new Set());
 
   const { token, expandedContainers, toggleContainer, userRole } = useAppStore();
+  const { toast } = useToast();
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
 
@@ -297,6 +299,7 @@ export const StockPage = (): JSX.Element => {
   const createStockItem = useMutation({
     mutationFn: (data: Parameters<typeof stockApi.create>[0]) => stockApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["stock"] }),
+    onError:   (err: any) => toast({ title: "ไม่สามารถเพิ่มอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
   });
 
   // Mutation สำหรับแก้ไข stock item
@@ -307,6 +310,7 @@ export const StockPage = (): JSX.Element => {
       qc.invalidateQueries({ queryKey: ["stock"] });
       qc.invalidateQueries({ queryKey: ["stock", selectedItem?.id] });
     },
+    onError: (err: any) => toast({ title: "ไม่สามารถแก้ไขอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
   });
 
   // Mutation สำหรับเพิ่ม unit ให้กับ stock item ที่มีอยู่ (เรียกทีละตัว)
@@ -322,6 +326,7 @@ export const StockPage = (): JSX.Element => {
       qc.invalidateQueries({ queryKey: ["stock"] });
       qc.invalidateQueries({ queryKey: ["stock", stockItemId] });
     },
+    onError: (err: any) => toast({ title: "ไม่สามารถเพิ่มหน่วยอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
   });
 
   const toggleBrand = (brand: string) =>

@@ -1,8 +1,50 @@
 import { Router } from "express";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql, ne } from "drizzle-orm";
 import { db } from "../db";
 import { stockItems, stockUnits, containers, containerUnits, users, itemAccessories, jobUnits, jobStock, jobs, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
 import { notifyCompany } from "../lib/notify";
+
+// ─── Uniqueness helpers ───────────────────────────────────────────────────────
+
+async function checkItemNameUnique(companyId: string, name: string, excludeId?: string) {
+  const rows = await db
+    .select({ id: stockItems.id })
+    .from(stockItems)
+    .where(and(
+      eq(stockItems.companyId, companyId),
+      sql`LOWER(${stockItems.name}) = LOWER(${name})`,
+      ...(excludeId ? [ne(stockItems.id, excludeId)] : [])
+    ))
+    .limit(1);
+  if (rows.length > 0) throw new Error(`ชื่ออุปกรณ์ "${name}" มีอยู่แล้วในระบบ`);
+}
+
+async function checkUnitUnique(companyId: string, { serialNumber, barcode }: { serialNumber?: string | null; barcode?: string | null }, excludeId?: string) {
+  if (serialNumber && serialNumber.trim() !== "") {
+    const rows = await db
+      .select({ id: stockUnits.id })
+      .from(stockUnits)
+      .where(and(
+        eq(stockUnits.companyId, companyId),
+        sql`LOWER(${stockUnits.serialNumber}) = LOWER(${serialNumber.trim()})`,
+        ...(excludeId ? [ne(stockUnits.id, excludeId)] : [])
+      ))
+      .limit(1);
+    if (rows.length > 0) throw new Error(`Serial number "${serialNumber.trim()}" มีอยู่แล้วในระบบ`);
+  }
+  if (barcode && barcode.trim() !== "") {
+    const rows = await db
+      .select({ id: stockUnits.id })
+      .from(stockUnits)
+      .where(and(
+        eq(stockUnits.companyId, companyId),
+        sql`LOWER(${stockUnits.barcode}) = LOWER(${barcode.trim()})`,
+        ...(excludeId ? [ne(stockUnits.id, excludeId)] : [])
+      ))
+      .limit(1);
+    if (rows.length > 0) throw new Error(`Barcode "${barcode.trim()}" มีอยู่แล้วในระบบ`);
+  }
+}
 
 export const stockRouter = Router();
 
@@ -22,9 +64,10 @@ stockRouter.get("/", async (req, res) => {
     const unitItemIds = items.filter((i) => i.trackingMode === "unit").map((i) => i.id);
     const bulkItemIds = items.filter((i) => i.trackingMode === "bulk").map((i) => i.id);
 
-    // Unit items — count individual stock_units as before
+    // Unit items — count individual stock_units
     const totalCounts     = new Map<string, number>();
     const availableCounts = new Map<string, number>();
+    const plannedCounts   = new Map<string, number>(); // available but reserved in a job plan
 
     if (unitItemIds.length > 0) {
       const units = await db
@@ -36,6 +79,23 @@ stockRouter.get("/", async (req, res) => {
         totalCounts.set(u.stockItemId, (totalCounts.get(u.stockItemId) ?? 0) + 1);
         if (u.status === "available") {
           availableCounts.set(u.stockItemId, (availableCounts.get(u.stockItemId) ?? 0) + 1);
+        }
+      }
+
+      // plannedCount = available units that are assigned to a non-cancelled job
+      const unitIds = units.filter((u) => u.status === "available").map((u) => u.id);
+      if (unitIds.length > 0) {
+        const planned = await db
+          .select({ stockUnitId: jobUnits.stockUnitId, stockItemId: stockUnits.stockItemId })
+          .from(jobUnits)
+          .innerJoin(jobs, eq(jobs.id, jobUnits.jobId))
+          .innerJoin(stockUnits, eq(stockUnits.id, jobUnits.stockUnitId))
+          .where(and(
+            inArray(jobUnits.stockUnitId, unitIds),
+            sql`${jobs.status} != 'cancelled'`,
+          ));
+        for (const p of planned) {
+          plannedCounts.set(p.stockItemId, (plannedCounts.get(p.stockItemId) ?? 0) + 1);
         }
       }
     }
@@ -68,6 +128,7 @@ stockRouter.get("/", async (req, res) => {
       ...i,
       unitCount:      totalCounts.get(i.id)     ?? 0,
       availableCount: availableCounts.get(i.id) ?? 0,
+      plannedCount:   plannedCounts.get(i.id)   ?? 0,
     })));
   } catch {
     res.status(500).json({ message: "Failed to fetch stock items" });
@@ -186,6 +247,31 @@ stockRouter.get("/:id", async (req, res) => {
     const containerMap = Object.fromEntries(containerRows.map((c) => [c.id, c]));
     const unitContainerMap = Object.fromEntries(links.map((l) => [l.stockUnitId, l.containerId]));
 
+    // Find which job (if any) each unit is assigned to
+    const plannedJobMap = new Map<string, { id: string; name: string; startDate: Date | null; status: string }>();
+    if (unitIds.length > 0) {
+      const assignments = await db
+        .select({
+          stockUnitId: jobUnits.stockUnitId,
+          jobId:       jobs.id,
+          jobName:     jobs.name,
+          startDate:   jobs.startDate,
+          jobStatus:   jobs.status,
+        })
+        .from(jobUnits)
+        .innerJoin(jobs, eq(jobs.id, jobUnits.jobId))
+        .where(and(
+          inArray(jobUnits.stockUnitId, unitIds),
+          sql`${jobs.status} != 'cancelled'`,
+        ));
+      for (const a of assignments) {
+        // keep the first (earliest) job if somehow in multiple
+        if (!plannedJobMap.has(a.stockUnitId)) {
+          plannedJobMap.set(a.stockUnitId, { id: a.jobId, name: a.jobName, startDate: a.startDate, status: a.jobStatus });
+        }
+      }
+    }
+
     const unitsWithContainer = units.map((u) => {
       const cId = unitContainerMap[u.id] ?? null;
       const c = cId ? containerMap[cId] : null;
@@ -194,6 +280,7 @@ stockRouter.get("/:id", async (req, res) => {
         containerId:   c?.id ?? null,
         containerName: c?.name ?? null,
         containerType: c?.type ?? null,
+        plannedJob:    plannedJobMap.get(u.id) ?? null,
       };
     });
 
@@ -210,6 +297,8 @@ stockRouter.post("/", async (req, res) => {
       ...req.body,
       companyId: req.companyId,
     });
+
+    await checkItemNameUnique(req.companyId, data.name);
 
     const [item] = await db.insert(stockItems).values(data as typeof stockItems.$inferInsert).returning();
 
@@ -242,6 +331,8 @@ stockRouter.put("/:id", async (req, res) => {
 
     // Fields ที่ห้าม overwrite จาก client
     const { id: _id, companyId: _cid, createdAt: _ca, ...rest } = raw;
+
+    if (rest.name) await checkItemNameUnique(req.companyId, rest.name, req.params.id);
 
     const payload = {
       ...rest,
@@ -322,6 +413,8 @@ stockRouter.post("/:id/units", async (req, res) => {
       companyId: req.companyId,
     });
 
+    await checkUnitUnique(req.companyId, { serialNumber: data.serialNumber, barcode: data.barcode });
+
     const [unit] = await db.insert(stockUnits).values(data).returning();
 
     const [item] = await db.select({ name: stockItems.name }).from(stockItems).where(eq(stockItems.id, req.params.id));
@@ -350,6 +443,8 @@ stockRouter.put("/units/:unitId", async (req, res) => {
     };
 
     const { id: _id, companyId: _cid, stockItemId: _sid, createdAt: _ca, ...rest } = req.body;
+
+    await checkUnitUnique(req.companyId, { serialNumber: rest.serialNumber, barcode: rest.barcode }, req.params.unitId);
 
     const payload = {
       ...rest,

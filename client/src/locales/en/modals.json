@@ -241,7 +241,9 @@
     "scannedCountLabel": "{{count}} scanned",
     "errorsCountLabel": "{{count}} errors",
     "outBadge": "OUT",
-    "inBadge": "IN",
+    "inBadge": "RETURNED",
+    "alreadyReturned": "Already returned",
+    "noDispatchedUnits": "No dispatched units yet",
     "defaultScanError": "Barcode not found"
   },
 

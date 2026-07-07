@@ -77,6 +77,7 @@
   "phasePlanned": "วางแผน",
   "phasePrepared": "จัดเตรียม",
   "phaseDispatched": "ออกงานแล้ว",
+  "phaseReturned": "คืนแล้ว",
   "markAllPrepared": "จัดเตรียมทั้งหมด",
   "scanMode": "โหมดสแกน",
   "exitScan": "ออกจากสแกน",
@@ -86,6 +87,8 @@
   "phase_planned": "วางแผน",
   "phase_prepared": "จัดเตรียมแล้ว",
   "phase_dispatched": "ออกงานแล้ว",
+  "phase_returned": "คืนแล้ว",
   "advanceTo_prepared": "ทำเครื่องหมายว่าจัดเตรียมแล้ว",
-  "advanceTo_dispatched": "ทำเครื่องหมายว่าออกงานแล้ว"
+  "advanceTo_dispatched": "ทำเครื่องหมายว่าออกงานแล้ว",
+  "advanceTo_returned": "ทำเครื่องหมายว่าคืนแล้ว"
 }

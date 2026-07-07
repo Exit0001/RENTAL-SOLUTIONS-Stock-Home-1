@@ -36,7 +36,7 @@ export const incidentSeverityEnum = pgEnum("incident_severity", ["low", "medium"
 export const incidentStatusEnum = pgEnum("incident_status", ["open", "resolved"]);
 export const activityTypeEnum = pgEnum("activity_type", ["stock", "finance", "maintenance", "jobs"]);
 export const jobExpenseCategoryEnum = pgEnum("job_expense_category", ["staff", "transport"]);
-export const jobUnitPhaseEnum        = pgEnum("job_unit_phase", ["planned", "prepared", "dispatched"]);
+export const jobUnitPhaseEnum        = pgEnum("job_unit_phase", ["planned", "prepared", "dispatched", "returned"]);
 export const stockTrackingModeEnum  = pgEnum("stock_tracking_mode", ["unit", "bulk"]);
 export const notificationTypeEnum = pgEnum("notification_type", [
   "job_assigned", "job_removed", "job_updated",

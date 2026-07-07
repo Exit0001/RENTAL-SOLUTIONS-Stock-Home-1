@@ -77,6 +77,7 @@
   "phasePlanned": "Planned",
   "phasePrepared": "Prepared",
   "phaseDispatched": "Dispatched",
+  "phaseReturned": "Returned",
   "markAllPrepared": "Mark All Prepared",
   "scanMode": "Scan Mode",
   "exitScan": "Exit Scan",
@@ -86,6 +87,8 @@
   "phase_planned": "Planned",
   "phase_prepared": "Prepared",
   "phase_dispatched": "Dispatched",
+  "phase_returned": "Returned",
   "advanceTo_prepared": "Mark as Prepared",
-  "advanceTo_dispatched": "Mark as Dispatched"
+  "advanceTo_dispatched": "Mark as Dispatched",
+  "advanceTo_returned": "Mark as Returned"
 }

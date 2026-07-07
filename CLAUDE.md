@@ -88,42 +88,52 @@ catalog: brands, categories, sub_categories, locations, container_types
 notifications, push_subscriptions
 ```
 
-All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, `stockUnitStatusEnum`, `containerTypeEnum`, `maintenanceTypeEnum`, `quoteStatusEnum`, `invoiceStatusEnum`, `incidentSeverityEnum`, `activityTypeEnum`, `maintenanceStatusEnum`, `subRentalStatusEnum`, `incidentStatusEnum`, `pullSheetStatusEnum`.
+All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, `stockUnitStatusEnum`, `containerTypeEnum`, `maintenanceTypeEnum`, `quoteStatusEnum`, `invoiceStatusEnum`, `incidentSeverityEnum`, `activityTypeEnum`, `maintenanceStatusEnum`, `subRentalStatusEnum`, `incidentStatusEnum`, `pullSheetStatusEnum`, `stockTrackingModeEnum`.
 
 ## Stock Unit Status — Sync Contract
 
-`stock_units.status` is the single source of truth for whether a unit is available.
-**Every path that moves a unit into or out of a job MUST keep this in sync.**
+`stock_units.status` reflects **physical location** only (warehouse vs dispatched).
+**Job plan assignment does NOT touch status.** Only ScanModal events change status.
 
 ### Rules (enforce in every new route / feature)
 
-| Event | Required call |
+| Event | Status change |
 |---|---|
-| Unit added to job (`POST /jobs/:id/units`) | `setUnitsOut(addedIds)` |
-| Unit removed from job (same route, diff set) | `setUnitsAvailable(removedIds)` |
-| Container added to job (`POST /jobs/:id/containers`) | `setUnitsOut(unitIds)` |
-| Container removed from job (`DELETE /jobs/:id/containers/:cid`) | `setUnitsAvailable(unitIds)` |
-| Job deleted (`DELETE /jobs/:id`) | `setUnitsAvailable(allUnitIds)` **before** cascade |
+| Unit added to job plan (`POST /jobs/:id/units`) | **none** — status unchanged |
+| Unit removed from job plan | **none** — status unchanged |
+| Container added to job (`POST /jobs/:id/containers`) | **none** — status unchanged |
+| Container removed from job | **none** — status unchanged |
+| Job deleted (`DELETE /jobs/:id`) | `setUnitsAvailable(allUnitIds)` — safety net for any 'out' units |
 | ScanModal checkout | `stockApi.updateUnit(id, { status:"out" })` + `jobsApi.updatePhase(id,"dispatched")` |
 | ScanModal return | `stockApi.updateUnit(id, { status:"available" })` + `jobsApi.updatePhase(id,"planned")` |
 
-### availableCount / status display
+### availableCount / plannedCount display
 
-`stock_units.status` is the **only** source of truth — both `GET /api/stock` and `GET /api/stock/:id`
-count `status = 'available'` directly. Do **not** add a virtual overlay based on `job_units` membership:
-a unit is legitimately in `job_units` with `status='available'` after a ScanModal return scan
-(returned to warehouse but still on the job manifest). Overlaying `job_units` hides the return from
-the count and breaks the badge.
+`GET /api/stock` returns three fields per unit item:
+- `availableCount` = `COUNT(status = 'available')` — physical warehouse availability
+- `plannedCount` = count of available units that are assigned to a non-cancelled job plan
+- `unitCount` = total units
+
+The inventory badge (`AvailabilityBadge`) shows:
+- Green "พร้อมใช้งานทั้งหมด" when `availableCount - plannedCount === unitCount`
+- Amber partial count when some are out or planned
+- Blue "N จัดเตรียม" pill when `plannedCount > 0`
+
+Each expanded unit row shows a blue "→ งาน: [Job Name] (date)" indicator when `plannedJob` is set.
+
+A unit can legitimately be in `job_units` with `status='available'` — this is the normal "planned"
+state (assigned to a job but physically still in the warehouse). `plannedJob` is populated from
+`GET /api/stock/:id` via a JOIN on `job_units + jobs`.
 
 ### Client cache invalidation rule
 
-Every client mutation that changes unit assignment or status **must** also invalidate `["stock"]`
-so the Inventory badge (`availableCount / unitCount`) reflects the change immediately.
+Every client mutation that changes unit assignment or status **must** invalidate `["stock"]`
+so the Inventory badge (`availableCount / plannedCount`) reflects the change immediately.
 For per-item detail views also invalidate `["stock", stockItemId]`.
 
 | Mutation | Required invalidations |
 |---|---|
-| ManageJobStockModal save | `["job-units", jobId]`, `["stock"]`, `["stock-with-units"]` |
+| ManageJobStockModal save | `["job-units", jobId]`, `["stock"]`, `["stock-with-units"]`, `["stock", stockItemId]` |
 | AssignContainerModal assign | `["job-containers"]`, `["containers"]`, `["job-units"]`, `["stock"]` |
 | JobsPage removeContainer | `["job-containers"]`, `["containers"]`, `["stock"]` |
 | JobsPage deleteJob | `["jobs"]`, `["pull-sheets"]`, `["stock"]` |
@@ -140,7 +150,7 @@ WHERE su.status = 'available'
   AND EXISTS (SELECT 1 FROM job_units ju WHERE ju.stock_unit_id = su.id);
 ```
 
-## Current State (as of 2026-06-16)
+## Current State (as of 2026-07-07)
 
 ### Data
 - **2,188 stock_units** and **793 stock_items** migrated from `tenyear_backup_2026-06-09.sql` via `scripts/migrate-tenyear.js`
@@ -208,6 +218,15 @@ Already created in Supabase, no action needed.
 in `shared/schema.ts` and `migrations/0013_brief_riptide.sql`. Already created in Supabase,
 no action needed.
 
+**Pending (2026-07-07)** — `stock_tracking_mode` enum + `stock_items.tracking_mode` column
+for Bulk Quantity Mode (cables/consumables tracked by count, not individual units).
+Already in `shared/schema.ts`. Run in Supabase SQL Editor:
+```sql
+CREATE TYPE "public"."stock_tracking_mode" AS ENUM('unit', 'bulk');
+ALTER TABLE "stock_items" ADD COLUMN "tracking_mode" stock_tracking_mode DEFAULT 'unit' NOT NULL;
+```
+Until run, creating/editing a bulk-mode item will fail (column doesn't exist).
+
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
 
@@ -233,11 +252,11 @@ no action needed.
 ### Inventory page (`client/src/pages/sections/StockItemsTableSection.tsx`)
 - Items grouped by **Category** (19 groups, collapsed by default)
 - Click category header → expand to see models
-- Click model row → expand to see individual units
+- Click model row → expand to see individual units (unit items) or inline count badge (bulk items)
 - Each unit row: Name · Serial · Barcode · Location · Purchased · Warranty Exp. · Status
 - **Edit button per unit** — inline edit form with Save/Cancel
-- Filter sidebar (`StockFilterSidebarSection.tsx`) fetches brands/categories from DB (real data, not hardcoded)
-- Filter sidebar has search box inside Brand section (145 brands) + collapsible sections
+- **Pencil icon (item-level)** — opens Edit Item modal (NOT Detail Panel); uses separate `editingItem` state in `StockPage.tsx`
+- Filter sidebar (`StockFilterSidebarSection.tsx`) has three sections: Brand (145, with search), Category (19), Sub-Category (90, with search)
 - Table sorted A→Z via `localeCompare`
 
 ### Schema extra fields
@@ -245,6 +264,10 @@ no action needed.
 // stock_units
 purchasedAt:       timestamp("purchased_at"),        // วันที่ซื้อ
 warrantyExpiresAt: timestamp("warranty_expires_at"), // ประกันหมดอายุ
+
+// stock_items
+trackingMode: stockTrackingModeEnum("tracking_mode").default("unit").notNull(),
+// "unit" = individual stock_units (default), "bulk" = count-only via job_stock
 
 // jobs
 rehearsalDate: timestamp("rehearsal_date"),          // วันซ้อม (optional)
@@ -255,8 +278,12 @@ rehearsalDate: timestamp("rehearsal_date"),          // วันซ้อม (o
 - Skeleton rows on all main tables (Inventory, Jobs, Maintenance)
 
 ### API additions
-- `GET /api/stock` now returns `availableCount` per item (count of units with `status = 'available'`)
-- `PUT /api/stock/units/:unitId` handles date string → Date conversion for `purchasedAt` / `warrantyExpiresAt`
+- `GET /api/stock` — returns `availableCount` per item; bulk items compute it from `job_stock` aggregation
+- `GET /api/stock/all-with-units` — same `availableCount` logic for bulk items
+- `PUT /api/stock/units/:unitId` — handles date string → Date conversion for `purchasedAt` / `warrantyExpiresAt`
+- `GET /api/jobs/:id/stock` — bulk job assignments (`JobBulkEntry[]`)
+- `POST /api/jobs/:id/stock` — replace-all bulk assignments for a job
+- `GET /api/jobs/crew-matrix` — all `{ jobId, userId }` pairs for the company (used by Gantt)
 
 ### Web Push Notifications
 - `server/lib/push.ts` — `sendPushToUser()` (sends via `web-push` to all of a user's stored
@@ -307,6 +334,91 @@ rehearsalDate: timestamp("rehearsal_date"),          // วันซ้อม (o
   Exposed directly on the Jobs page via an "Outsource / Expenses" button next to Crew (opens
   the same `JobExpensesModal.tsx` used by Finance → Costing), so it doesn't require Finance
   access just to log a loading-crew payment.
+
+### Bulk Quantity Mode (`trackingMode: 'unit' | 'bulk'`)
+For cables, consumables, and other items where individual unit tracking adds no value.
+
+- **`trackingMode = 'unit'`** (default): works identically to before — individual `stock_units`,
+  serial numbers, scan workflow, unit checkboxes in ManageJobStockModal.
+- **`trackingMode = 'bulk'`**: no `stock_units` rows — just a total count (`stock_items.quantity`)
+  and per-job quantities via the `job_stock` table (`jobId`, `stockItemId`, `quantity`).
+
+**`availableCount` for bulk items** = `quantity - SUM(job_stock.quantity WHERE job.status IN ('draft','scheduled','active'))`.
+Computed in `GET /api/stock` and `GET /api/stock/all-with-units` (same logic, added `job_stock` join).
+
+**UI differences for bulk items:**
+- Inventory table (`StockItemsTableSection.tsx`): amber `BULK` badge + `Layers` icon, no expand chevron, badge shows `N / total` count not units
+- Add/Edit Item modal (`AddNewItemModal.tsx`): tracking mode toggle (pill buttons) + "Total Quantity" number input shown when bulk selected
+- ManageJobStockModal (`ManageJobStockModal.tsx`): stepper `[ − ][ N ][ + ]` instead of unit checkboxes; pre-populated from `GET /api/jobs/:id/stock`; saves via `jobsApi.setJobStock()`
+
+**Endpoints:**
+- `GET /api/jobs/:id/stock` — returns `JobBulkEntry[]` (`{ id, jobId, stockItemId, quantity }`)
+- `POST /api/jobs/:id/stock` — replace-all bulk assignments for that job (`{ items: [{stockItemId, quantity}] }`)
+
+**Client types** (`client/src/api/index.ts`):
+```ts
+export type JobBulkEntry = { id: string; jobId: string; stockItemId: string; quantity: number };
+```
+
+**Cache key** for bulk assignments: `["job-bulk-stock", jobId]` — invalidate alongside `["stock"]` on any bulk save.
+
+### Inventory — Filter Sidebar Sub-Category
+`StockFilterSidebarSection.tsx` now has a third filter section: **Sub-Category** (90 sub-categories,
+with a search box inside the section, same pattern as Brand).
+
+- Props added: `selectedSubCategories: string[]`, `onSubCategoryChange: (id: string) => void`
+- Data from `catalogApi.getSubCategories()` (existing endpoint)
+- `StockPage.tsx` manages `selectedSubCategories` state + `toggleSubCategory` handler; passes down to sidebar + table
+- `StockItemsTableSection.tsx` filters by `subCategoryId` when `selectedSubCategories` is non-empty
+
+### Inventory — Edit Button Fix
+Previously clicking the pencil icon opened the Detail Panel (not the Edit modal) because both
+shared the same `selectedItem` state.
+
+Fix (`StockPage.tsx`): separate `editingItem` state that only opens the Edit modal —
+clicking pencil sets `editingItem` and `editItemOpen=true` without touching `selectedItem`.
+`StockItemsTableSection.tsx` has a separate `onEditItem` prop for this.
+
+### Inventory — Accessories Search Position
+In `ItemDetailPanel.tsx`, the accessories tab search input was moved to the **top** of the tab
+(above the hint text and list), so it's immediately visible without scrolling.
+
+### Jobs — Crew Tab (Gantt Timeline)
+The "ทีมงานและการมอบหมาย" section previously shown inside the Jobs tab was moved to its own
+**Crew tab** (`activeTab === "crew"` in `JobsPage.tsx`).
+
+The Crew tab renders `CrewScheduleView` — a **Gantt timeline calendar**:
+
+**Layout:**
+- Top toolbar: ← → week navigation + "วันนี้" button + date range label + status legend
+- Left sticky column: crew member avatar + name + role (stays fixed while timeline scrolls horizontally)
+- Right scrollable area: 35-day window (5 weeks), navigable by week
+
+**Timeline features:**
+- Month header row (groups day columns by month, Thai locale)
+- Day header row: DOW abbreviation (จ/อ/พ/พฤ/ศ/ส/อา) + date number; today gets yellow filled circle
+- Today column: faint yellow background tint + yellow vertical hairline through all rows
+- Weekend columns: slightly dimmed background
+- Job bars: rounded rectangles colored by status, show job name + colored dot, clip at view edges
+- Bars span `startDate` → `endDate`; single-day bar if no `endDate` (falls back to `startDate`)
+- Click a bar → `onAssignCrew(job)` → opens `AssignCrewModal`
+
+**Status colors for bars:**
+
+| Status | Background | Border | Text |
+|---|---|---|---|
+| draft | white/7% | white/12% | white/45% |
+| scheduled | blue/28% | blue/35% | blue-200/90% |
+| active | amber/30% | amber/40% | amber-200/90% |
+| completed | emerald/25% | emerald/35% | emerald-200/90% |
+| cancelled | red/8% | red/12% | red/30% |
+
+**Data source:** `GET /api/jobs/crew-matrix` → `{ jobId, userId }[]` (all job-crew assignments for
+the company). Endpoint is in `server/routes/jobs.ts` and must appear **before** the `/:id` routes.
+Client function: `jobsApi.getCrewMatrix()`, query key `["crew-matrix"]`.
+
+**`AssignCrewModal`** is still the assignment UI — triggered from `JobsPage.tsx` via
+`assignCrewTabJob` state when clicking a job bar in the Gantt.
 
 ### Lifecycle Close-Out: Job Status, Incident Resolve, Sub-Rental Return, Quotes/Invoices
 - **Job status**: `JobsPage.tsx` main table — Admin/Manager see a `<select>` over the status

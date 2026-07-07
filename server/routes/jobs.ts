@@ -405,10 +405,7 @@ jobsRouter.post("/:id/units", async (req, res) => {
       );
     }
 
-    // sync stock status: added → out, removed → available
-    const added   = newIds.filter((id) => !oldIds.includes(id));
-    const removed = oldIds.filter((id) => !newIds.includes(id));
-    await Promise.all([setUnitsOut(added), setUnitsAvailable(removed)]);
+    // Status is ONLY changed by physical scan (ScanModal). Planning does not touch status.
 
     res.json({ message: "Units updated" });
   } catch (err: any) {
@@ -499,8 +496,7 @@ jobsRouter.post("/:id/containers", async (req, res) => {
         await db.insert(jobUnits).values(newIds.map((stockUnitId) => ({ jobId: req.params.id, stockUnitId })));
       }
 
-      // ของในแร็คนี้ออกงานแล้ว — sync สถานะ
-      await setUnitsOut(unitIds);
+      // Status changed only by physical scan, not by container assignment
     }
 
     res.status(201).json({ message: "Container assigned" });
@@ -518,13 +514,12 @@ jobsRouter.delete("/:id/containers/:containerId", async (req, res) => {
 
     await db.update(containers).set({ isOut: false }).where(eq(containers.id, req.params.containerId));
 
-    // ของในแร็คนี้กลับเข้าคลังแล้ว — sync สถานะ + ลบออกจาก job_units ด้วย
+    // Remove container units from job_units manifest; status unchanged (scan-driven only)
     const unitLinks = await db
       .select({ stockUnitId: containerUnits.stockUnitId })
       .from(containerUnits)
       .where(eq(containerUnits.containerId, req.params.containerId));
     const unitIds = unitLinks.map((l) => l.stockUnitId);
-    await setUnitsAvailable(unitIds);
     if (unitIds.length) {
       await db.delete(jobUnits).where(
         and(eq(jobUnits.jobId, req.params.id), inArray(jobUnits.stockUnitId, unitIds))
@@ -917,7 +912,19 @@ jobsRouter.delete("/:id", async (req, res) => {
   }
 
   try {
-    // คืน stock ก่อน cascade ลบ job_units — ป้องกัน unit ค้างสถานะ "out"
+    // Reset containers.isOut before cascade deletes job_containers rows
+    const assignedContainers = await db
+      .select({ containerId: jobContainers.containerId })
+      .from(jobContainers)
+      .where(eq(jobContainers.jobId, req.params.id));
+    if (assignedContainers.length > 0) {
+      await db
+        .update(containers)
+        .set({ isOut: false })
+        .where(inArray(containers.id, assignedContainers.map((c) => c.containerId)));
+    }
+
+    // Reset any units that were physically scanned out (status='out') back to available
     const assignedUnits = await db
       .select({ stockUnitId: jobUnits.stockUnitId })
       .from(jobUnits)
