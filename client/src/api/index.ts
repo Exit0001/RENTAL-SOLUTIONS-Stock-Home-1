@@ -14,6 +14,7 @@ import type {
   Category, InsertCategory,
   SubCategory, InsertSubCategory,
   Location, InsertLocation,
+  Position, InsertPosition,
   ContainerType, InsertContainerType,
   Quote, InsertQuote, Invoice, InsertInvoice,
   PullSheet, InsertPullSheet,
@@ -22,6 +23,7 @@ import type {
   JobExpense, InsertJobExpense,
   JobVehicle, InsertJobVehicle,
   ItemAccessory, InsertItemAccessory,
+  JobTemplate, JobTemplateItem,
 } from "@shared/schema";
 
 // ─── Companies (ไม่ต้องการ auth) ─────────────────────────
@@ -73,7 +75,7 @@ export type StockUnitWithContainer = StockUnit & {
 export type PlannedJob         = { id: string; name: string; startDate: string | null; status: string };
 export type StockUnitWithPlan  = StockUnitWithContainer & { plannedJob: PlannedJob | null };
 export type StockItemWithUnits = StockItem & { units: StockUnitWithPlan[]; availableCount?: number; plannedCount?: number };
-export type AssignedUnit        = StockUnit & { itemName: string; phase: "planned" | "prepared" | "dispatched" | "returned"; jobUnitId: string };
+export type AssignedUnit        = StockUnit & { itemName: string; phase: "planned" | "prepared" | "dispatched" | "returned"; jobUnitId: string; position: string | null };
 export type ItemAccessoryWithInfo = ItemAccessory & { accessoryName: string; availableCount: number };
 
 export const stockApi = {
@@ -85,6 +87,8 @@ export const stockApi = {
   delete:         (id: string) => api.delete<void>(`/stock/${id}`),
   addUnit:        (itemId: string, data: Omit<InsertStockUnit, "companyId" | "stockItemId">) =>
                     api.post<StockUnit>(`/stock/${itemId}/units`, data),
+  addUnitsBatch:  (itemId: string, units: Omit<InsertStockUnit, "companyId" | "stockItemId">[]) =>
+                    api.post<StockUnit[]>(`/stock/${itemId}/units/batch`, { units }),
   updateUnit:     (unitId: string, data: Partial<InsertStockUnit>) =>
                     api.put<StockUnit>(`/stock/units/${unitId}`, data),
   scanBarcode:    (barcode: string) =>
@@ -182,12 +186,14 @@ export type JobStockItem    = { stockItemId: string; itemName: string; itemCateg
 export type JobDetail       = Job & { stock: JobStockItem[]; crew: unknown[]; pullSheets: unknown[] };
 export type JobContainerRow = Container & { itemCount: number };
 export type JobCrewMember   = { userId: string; name: string; initials: string; role: string };
-export type JobBulkEntry    = { id: string; jobId: string; stockItemId: string; quantity: number };
+export type JobBulkEntry    = { id: string; jobId: string; stockItemId: string; quantity: number; position: string | null };
 
 export const jobsApi = {
   getAll:        () => api.get<Job[]>("/jobs"),
   getById:       (id: string) => api.get<JobDetail>(`/jobs/${id}`),
   create:        (data: Omit<InsertJob, "companyId">) => api.post<Job>("/jobs", data),
+  duplicate:     (id: string, data?: { name?: string; startDate?: string; endDate?: string }) =>
+                   api.post<Job>(`/jobs/${id}/duplicate`, data ?? {}),
   update:        (id: string, data: Partial<InsertJob>) => api.put<Job>(`/jobs/${id}`, data),
   delete:        (id: string) => api.delete<{ message: string }>(`/jobs/${id}`),
   addStock:      (jobId: string, items: { stockItemId: string; quantity: number }[]) =>
@@ -200,6 +206,8 @@ export const jobsApi = {
                    api.post<void>(`/jobs/${jobId}/units`, { unitIds }),
   updatePhase:   (jobId: string, stockUnitIds: string[], phase: "planned" | "prepared" | "dispatched" | "returned") =>
                    api.put<{ message: string; count: number }>(`/jobs/${jobId}/units/phase`, { stockUnitIds, phase }),
+  setPositions:  (jobId: string, payload: { units?: { stockUnitId: string; position: string | null }[]; bulk?: { stockItemId: string; position: string | null }[] }) =>
+                   api.put<{ message: string }>(`/jobs/${jobId}/positions`, payload),
   getPullSheets: () => api.get<PullSheetRow[]>("/jobs/pullsheets"),
   createPullSheet: (jobId: string, data: Omit<InsertPullSheet, "jobId">) =>
                    api.post<PullSheet>(`/jobs/${jobId}/pullsheets`, data),
@@ -356,6 +364,9 @@ export const catalogApi = {
   getLocations:     () => api.get<Location[]>("/catalog/locations"),
   createLocation:   (data: Omit<InsertLocation, "companyId">) => api.post<Location>("/catalog/locations", data),
   deleteLocation:   (id: string) => api.delete<void>(`/catalog/locations/${id}`),
+  getPositions:     () => api.get<Position[]>("/catalog/positions"),
+  createPosition:   (data: Omit<InsertPosition, "companyId">) => api.post<Position>("/catalog/positions", data),
+  deletePosition:   (id: string) => api.delete<void>(`/catalog/positions/${id}`),
 
   getContainerTypes:   () => api.get<ContainerType[]>("/catalog/container-types"),
   createContainerType: (data: Omit<InsertContainerType, "companyId">) => api.post<ContainerType>("/catalog/container-types", data),
@@ -371,6 +382,24 @@ export const notificationsApi = {
   getUnreadCount: () => api.get<{ count: number }>("/notifications/unread-count"),
   markRead:       (id: string) => api.put<AppNotification>(`/notifications/${id}/read`, {}),
   markAllRead:    () => api.put<{ message: string }>("/notifications/read-all", {}),
+};
+
+// ─── Job Templates ────────────────────────────────────────
+
+export type JobTemplateSummary = JobTemplate & { itemCount: number; totalQty: number };
+export type JobTemplateItemDetail = JobTemplateItem & { itemName: string; trackingMode: "unit" | "bulk" };
+export type JobTemplateDetail = JobTemplate & { items: JobTemplateItemDetail[] };
+
+export const jobTemplatesApi = {
+  getAll:      () => api.get<JobTemplateSummary[]>("/job-templates"),
+  getById:     (id: string) => api.get<JobTemplateDetail>(`/job-templates/${id}`),
+  create:      (data: { name: string; notes?: string; items: { stockItemId: string; quantity: number }[] }) =>
+                 api.post<JobTemplate>("/job-templates", data),
+  saveFromJob: (jobId: string, data: { name: string; notes?: string }) =>
+                 api.post<JobTemplate & { itemCount: number }>(`/job-templates/from-job/${jobId}`, data),
+  delete:      (id: string) => api.delete<{ message: string }>(`/job-templates/${id}`),
+  createJob:   (id: string, data: Omit<InsertJob, "companyId">) =>
+                 api.post<Job & { shortfall: { stockItemId: string; wanted: number; got: number }[] }>(`/job-templates/${id}/create-job`, data),
 };
 
 // ─── Web Push ─────────────────────────────────────────────

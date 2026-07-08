@@ -313,12 +313,10 @@ export const StockPage = (): JSX.Element => {
     onError: (err: any) => toast({ title: "ไม่สามารถแก้ไขอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
   });
 
-  // Mutation สำหรับเพิ่ม unit ให้กับ stock item ที่มีอยู่ (เรียกทีละตัว)
+  // Mutation สำหรับเพิ่ม unit ให้กับ stock item ที่มีอยู่ (batch — insert ครั้งเดียว)
   const addStockUnits = useMutation({
     mutationFn: async ({ stockItemId, units }: { stockItemId: string; units: Parameters<typeof stockApi.addUnit>[1][] }) => {
-      for (const unit of units) {
-        await stockApi.addUnit(stockItemId, unit);
-      }
+      await stockApi.addUnitsBatch(stockItemId, units);
       return stockItemId;
     },
     onSuccess: (stockItemId) => {

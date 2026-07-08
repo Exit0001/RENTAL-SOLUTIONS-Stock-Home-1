@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db";
+import { asc } from "drizzle-orm";
 import {
-  brands, categories, subCategories, locations, containerTypes,
-  insertBrandSchema, insertCategorySchema, insertSubCategorySchema, insertLocationSchema, insertContainerTypeSchema,
+  brands, categories, subCategories, locations, containerTypes, positions,
+  insertBrandSchema, insertCategorySchema, insertSubCategorySchema, insertLocationSchema, insertContainerTypeSchema, insertPositionSchema,
 } from "@shared/schema";
 
 export const catalogRouter = Router();
@@ -151,6 +152,41 @@ catalogRouter.delete("/locations/:id", async (req, res) => {
     res.json({ message: "Deleted" });
   } catch {
     res.status(500).json({ message: "Failed to delete location" });
+  }
+});
+
+// ─── Positions (โซนในงาน: FOH / Monitors / Power / Stage) ──
+
+catalogRouter.get("/positions", async (req, res) => {
+  try {
+    const result = await db.select().from(positions)
+      .where(eq(positions.companyId, req.companyId))
+      .orderBy(asc(positions.sortOrder), asc(positions.name));
+    res.json(result);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch positions" });
+  }
+});
+
+catalogRouter.post("/positions", async (req, res) => {
+  try {
+    const data = insertPositionSchema.parse({ ...req.body, companyId: req.companyId });
+    const [position] = await db.insert(positions).values(data).returning();
+    res.status(201).json(position);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+catalogRouter.delete("/positions/:id", async (req, res) => {
+  try {
+    const [position] = await db.delete(positions)
+      .where(and(eq(positions.id, req.params.id), eq(positions.companyId, req.companyId)))
+      .returning();
+    if (!position) return res.status(404).json({ message: "Position not found" });
+    res.json({ message: "Deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete position" });
   }
 });
 

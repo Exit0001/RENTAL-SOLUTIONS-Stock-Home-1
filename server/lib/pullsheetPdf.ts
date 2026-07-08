@@ -5,6 +5,7 @@ export type PullSheetItem = {
   category: string;
   itemName: string;
   quantity: number;
+  zone?:    string | null;  // โซนในงาน (FOH/Mon/Power/Stage) — จัด section ตามนี้
 };
 
 export type GeneratePullSheetPdfArgs = {
@@ -95,18 +96,28 @@ export function generatePullSheetPdf({ companyName, job, items }: GeneratePullSh
       .text("No equipment assigned to this job yet.", PAGE_MARGIN, doc.y, { width: TABLE_RIGHT - PAGE_MARGIN, align: "center" });
     doc.moveDown(1);
   } else {
-    const categories = Array.from(new Set(items.map((i) => i.category))).sort((a, b) => a.localeCompare(b));
+    // จัด section ตามโซน (FOH/Mon/Power/Stage) — ของที่ไม่ระบุโซนไปกลุ่ม "General" ท้ายสุด
+    const GENERAL = "General";
+    const zoneOf  = (i: PullSheetItem) => (i.zone && i.zone.trim()) ? i.zone : GENERAL;
+    const zones = Array.from(new Set(items.map(zoneOf))).sort((a, b) => {
+      if (a === GENERAL) return 1;
+      if (b === GENERAL) return -1;
+      return a.localeCompare(b);
+    });
     let rowNum = 1;
 
-    for (const category of categories) {
-      ensureSpace(40);
-      doc.font("Helvetica-Bold").fontSize(9).fillColor("#000000")
-        .text(category, COL.num, doc.y, { width: TABLE_RIGHT - COL.num });
-      doc.moveDown(0.3);
+    for (const zone of zones) {
+      ensureSpace(46);
+      // Zone header (แถบเทา)
+      const zy = doc.y;
+      doc.rect(PAGE_MARGIN, zy - 2, TABLE_RIGHT - PAGE_MARGIN, 16).fill("#eeeeee");
+      doc.font("Helvetica-Bold").fontSize(10).fillColor("#000000")
+        .text(zone.toUpperCase(), COL.num + 2, zy + 2, { width: TABLE_RIGHT - COL.num });
+      doc.moveDown(1.1);
 
       const rows = items
-        .filter((i) => i.category === category)
-        .sort((a, b) => a.itemName.localeCompare(b.itemName));
+        .filter((i) => zoneOf(i) === zone)
+        .sort((a, b) => a.category.localeCompare(b.category) || a.itemName.localeCompare(b.itemName));
 
       for (const row of rows) {
         ensureSpace(24);
@@ -115,7 +126,8 @@ export function generatePullSheetPdf({ companyName, job, items }: GeneratePullSh
 
         doc.font("Helvetica").fontSize(9).fillColor("#000000");
         doc.text(String(rowNum), COL.num, y, { width: 25 });
-        doc.text(row.itemName, COL.item, y, { width: 225 });
+        doc.fillColor("#666666").text(row.category, COL.cat, y, { width: 125 });
+        doc.fillColor("#000000").text(row.itemName, COL.item, y, { width: 225 });
         doc.text(String(row.quantity), COL.qty, y, { width: 50, align: "right" });
         doc.rect(COL.picked + 40, y, checkboxSize, checkboxSize).strokeColor("#000000").lineWidth(0.75).stroke();
 

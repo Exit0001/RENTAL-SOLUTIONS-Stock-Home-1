@@ -13,6 +13,7 @@ import {
   uuid,
   decimal,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -124,7 +125,9 @@ export const stockItems = pgTable("stock_items", {
   invoiceUrl:     text("invoice_url"),
 
   createdAt:   timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("stock_items_company_id_idx").on(t.companyId),
+]);
 
 // ─────────────────────────────────────────────
 // 4. STOCK UNITS — หน่วยย่อยแต่ละชิ้น (เช่น "J8 Top1" serial Z330...)
@@ -143,7 +146,10 @@ export const stockUnits = pgTable("stock_units", {
   purchasedAt:       timestamp("purchased_at"),
   warrantyExpiresAt: timestamp("warranty_expires_at"),
   createdAt:         timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("stock_units_company_id_idx").on(t.companyId),
+  index("stock_units_stock_item_id_idx").on(t.stockItemId),
+]);
 
 // ─────────────────────────────────────────────
 // 5. CONTAINERS — ลัง/ราก ที่บรรจุอุปกรณ์
@@ -169,7 +175,10 @@ export const containerUnits = pgTable("container_units", {
   id:          uuid("id").primaryKey().defaultRandom(),
   containerId: uuid("container_id").references(() => containers.id, { onDelete: "cascade" }).notNull(),
   stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "cascade" }).notNull(),
-});
+}, (t) => [
+  index("container_units_container_id_idx").on(t.containerId),
+  index("container_units_stock_unit_id_idx").on(t.stockUnitId),
+]);
 
 // ─────────────────────────────────────────────
 // 6b. ITEM ACCESSORIES — อุปกรณ์เสริมที่ต้องไปพร้อมกัน
@@ -239,7 +248,11 @@ export const jobStock = pgTable("job_stock", {
   jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   stockItemId: uuid("stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
   quantity:    integer("quantity").notNull(),
-});
+  position:    text("position"),  // โซนในงาน เช่น FOH / Monitors / Power / Stage (per-job)
+}, (t) => [
+  index("job_stock_job_id_idx").on(t.jobId),
+  index("job_stock_stock_item_id_idx").on(t.stockItemId),
+]);
 
 // ─────────────────────────────────────────────
 // 9. JOB CREW — พนักงานที่ assign ให้แต่ละงาน
@@ -250,7 +263,10 @@ export const jobCrew = pgTable("job_crew", {
   jobId:  uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   role:   text("role"),  // บทบาทในงานนี้ เช่น "Lead Engineer"
-});
+}, (t) => [
+  index("job_crew_job_id_idx").on(t.jobId),
+  index("job_crew_user_id_idx").on(t.userId),
+]);
 
 // ─────────────────────────────────────────────
 // 10b. JOB UNITS — individual units ที่ assign ให้งาน (รู้ชัดว่า serial ไหนออกงานไหน)
@@ -261,7 +277,11 @@ export const jobUnits = pgTable("job_units", {
   jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   stockUnitId: uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "cascade" }).notNull(),
   phase:       jobUnitPhaseEnum("phase").default("planned").notNull(),
-});
+  position:    text("position"),  // โซนในงาน เช่น FOH / Monitors / Power / Stage (per-job)
+}, (t) => [
+  index("job_units_job_id_idx").on(t.jobId),
+  index("job_units_stock_unit_id_idx").on(t.stockUnitId),
+]);
 
 // ─────────────────────────────────────────────
 // 10c. JOB CONTAINERS — rack/case ที่ assign ให้งาน (ทั้งแร็คออกไปกับงานนี้)
@@ -271,7 +291,34 @@ export const jobContainers = pgTable("job_containers", {
   id:          uuid("id").primaryKey().defaultRandom(),
   jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   containerId: uuid("container_id").references(() => containers.id, { onDelete: "cascade" }).notNull(),
-});
+}, (t) => [
+  index("job_containers_job_id_idx").on(t.jobId),
+  index("job_containers_container_id_idx").on(t.containerId),
+]);
+
+// ─────────────────────────────────────────────
+// 10d. JOB TEMPLATES — เทมเพลตชุดอุปกรณ์มาตรฐาน (เช่น Full Band, Small PA)
+// เก็บระดับ item + จำนวน (ไม่ผูก serial เฉพาะ) — ตอนสร้างงานค่อย auto-assign unit ที่ว่าง
+// ─────────────────────────────────────────────
+
+export const jobTemplates = pgTable("job_templates", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  notes:     text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("job_templates_company_id_idx").on(t.companyId),
+]);
+
+export const jobTemplateItems = pgTable("job_template_items", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  templateId:  uuid("template_id").references(() => jobTemplates.id, { onDelete: "cascade" }).notNull(),
+  stockItemId: uuid("stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
+  quantity:    integer("quantity").notNull(),
+}, (t) => [
+  index("job_template_items_template_id_idx").on(t.templateId),
+]);
 
 // ─────────────────────────────────────────────
 // 10. PULL SHEETS — รายการเบิกอุปกรณ์ก่อนออกงาน
@@ -401,7 +448,9 @@ export const notifications = pgTable("notifications", {
   link:      text("link"),  // ชื่อหน้าสำหรับ setActivePage() เช่น "Jobs" | "Stock" | "Maintenance"
   isRead:    boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("notifications_user_id_idx").on(t.userId),
+]);
 
 // ─────────────────────────────────────────────
 // 16c. PUSH SUBSCRIPTIONS — Web Push subscription ต่อ device
@@ -455,6 +504,21 @@ export const locations = pgTable("locations", {
   isDefault: boolean("is_default").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ─────────────────────────────────────────────
+// 18b. POSITIONS — โซน/ตำแหน่งในงาน (FOH / Monitors / Power / Stage) — pick-list ต่อบริษัท
+// ใช้ติดแท็กอุปกรณ์ต่องาน (job_units.position / job_stock.position) เพื่อจัด pull sheet + แพ็กตามโซน
+// ─────────────────────────────────────────────
+
+export const positions = pgTable("positions", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("positions_company_id_idx").on(t.companyId),
+]);
 
 // ─────────────────────────────────────────────
 // 19. CONTAINER TYPES — ประเภท container ที่กำหนดเองได้ (จัดการได้จากหน้า Stock)
@@ -559,6 +623,7 @@ export const insertBrandSchema        = createInsertSchema(brands).omit({ id: tr
 export const insertCategorySchema     = createInsertSchema(categories).omit({ id: true, createdAt: true });
 export const insertSubCategorySchema  = createInsertSchema(subCategories).omit({ id: true, createdAt: true });
 export const insertLocationSchema     = createInsertSchema(locations).omit({ id: true, createdAt: true });
+export const insertPositionSchema      = createInsertSchema(positions).omit({ id: true, createdAt: true });
 export const insertContainerTypeSchema = createInsertSchema(containerTypes).omit({ id: true, createdAt: true });
 export const insertJobUnitSchema      = createInsertSchema(jobUnits).omit({ id: true });
 export const insertJobContainerSchema = createInsertSchema(jobContainers).omit({ id: true });
@@ -568,6 +633,8 @@ export const insertPullSheetSchema    = createInsertSchema(pullSheets)
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
 export const insertItemAccessorySchema    = createInsertSchema(itemAccessories).omit({ id: true, createdAt: true });
+export const insertJobTemplateSchema      = createInsertSchema(jobTemplates).omit({ id: true, createdAt: true });
+export const insertJobTemplateItemSchema  = createInsertSchema(jobTemplateItems).omit({ id: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -593,6 +660,11 @@ export type InsertJob = z.infer<typeof insertJobSchema>;
 
 export type JobUnit       = typeof jobUnits.$inferSelect;
 export type InsertJobUnit = z.infer<typeof insertJobUnitSchema>;
+
+export type JobTemplate           = typeof jobTemplates.$inferSelect;
+export type InsertJobTemplate     = z.infer<typeof insertJobTemplateSchema>;
+export type JobTemplateItem       = typeof jobTemplateItems.$inferSelect;
+export type InsertJobTemplateItem = z.infer<typeof insertJobTemplateItemSchema>;
 
 export type JobContainer       = typeof jobContainers.$inferSelect;
 export type InsertJobContainer = z.infer<typeof insertJobContainerSchema>;
@@ -639,6 +711,9 @@ export type InsertSubCategory = z.infer<typeof insertSubCategorySchema>;
 
 export type Location       = typeof locations.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
+
+export type Position       = typeof positions.$inferSelect;
+export type InsertPosition = z.infer<typeof insertPositionSchema>;
 
 export type ContainerType       = typeof containerTypes.$inferSelect;
 export type InsertContainerType = z.infer<typeof insertContainerTypeSchema>;

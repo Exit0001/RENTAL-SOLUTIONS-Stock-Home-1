@@ -24,6 +24,8 @@ import {
   Layers,
   X,
   Trash2,
+  Copy,
+  LayoutTemplate,
   UserPlus,
   Truck,
   Wallet,
@@ -33,7 +35,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { jobsApi, jobVehiclesApi, stockApi } from "@/api";
+import { useToast } from "@/hooks/use-toast";
+import { jobsApi, jobVehiclesApi, stockApi, jobTemplatesApi } from "@/api";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -496,6 +499,7 @@ export const JobsPage = (): JSX.Element => {
   const { token, userRole } = useAppStore();
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
+  const { toast } = useToast();
 
   const { data: jobs = [], isLoading: jobsLoading } = useQuery({
     queryKey: ["jobs"],
@@ -567,6 +571,29 @@ export const JobsPage = (): JSX.Element => {
     },
   });
 
+  const duplicateJob = useMutation({
+    mutationFn: (id: string) => jobsApi.duplicate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      toast({ title: t("jobDuplicated") });
+    },
+    onError: (err: any) => toast({ title: t("jobDuplicateFailed"), description: err?.message, variant: "destructive" }),
+  });
+
+  // Save an existing job's equipment set as a reusable template
+  const [saveTplJob, setSaveTplJob] = useState<any>(null);
+  const [tplName, setTplName]       = useState("");
+  const saveTemplate = useMutation({
+    mutationFn: ({ jobId, name }: { jobId: string; name: string }) => jobTemplatesApi.saveFromJob(jobId, { name }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["job-templates"] });
+      setSaveTplJob(null); setTplName("");
+      toast({ title: t("templateSaved"), description: t("templateSavedDesc", { count: res.itemCount }) });
+    },
+    onError: (err: any) => toast({ title: t("templateSaveFailed"), description: err?.message, variant: "destructive" }),
+  });
+
   const handleExportPdf = async (ps: { id: string; jobId: string | null; job: string }) => {
     if (!ps.jobId) return;
     setDownloadingPdfId(ps.id);
@@ -593,7 +620,10 @@ export const JobsPage = (): JSX.Element => {
       {addJobOpen && (
         <AddJobModal
           onClose={() => setAddJobOpen(false)}
-          onCreated={() => qc.invalidateQueries({ queryKey: ["jobs"] })}
+          onCreated={() => {
+            qc.invalidateQueries({ queryKey: ["jobs"] });
+            qc.invalidateQueries({ queryKey: ["stock"] });
+          }}
         />
       )}
       {opsJob && (
@@ -641,6 +671,54 @@ export const JobsPage = (): JSX.Element => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Save-as-template name prompt */}
+      {saveTplJob && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
+          onClick={(e) => e.target === e.currentTarget && setSaveTplJob(null)}
+        >
+          <div className="w-full max-w-sm bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06]">
+              <div className="w-8 h-8 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center">
+                <LayoutTemplate className="w-4 h-4 text-[#FFFF00]" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white text-sm">{t("saveAsTemplate")}</h2>
+                <p className="text-[10px] text-white/60 truncate max-w-[240px]">{saveTplJob.name}</p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-3">
+              <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("templateName")}</label>
+              <input
+                autoFocus
+                value={tplName}
+                onChange={(e) => setTplName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && tplName.trim() && !saveTemplate.isPending) saveTemplate.mutate({ jobId: saveTplJob.id, name: tplName.trim() }); }}
+                placeholder={t("templateNamePlaceholder")}
+                className="w-full h-9 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FFFF00]/40"
+              />
+              <p className="text-[10px] text-white/40">{t("templateSaveHint")}</p>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-white/[0.06]">
+              <button onClick={() => setSaveTplJob(null)}
+                className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+                {tc("cancel")}
+              </button>
+              <button
+                onClick={() => saveTemplate.mutate({ jobId: saveTplJob.id, name: tplName.trim() })}
+                disabled={!tplName.trim() || saveTemplate.isPending}
+                className="flex items-center gap-2 h-9 px-5 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-30"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                {saveTemplate.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
+                {tc("save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-white" data-testid="text-jobs-title">{t("pageTitle")}</h1>
@@ -774,6 +852,29 @@ export const JobsPage = (): JSX.Element => {
                         >
                           <Layers className="w-3 h-3" /> Operations
                         </button>
+                        {canManage && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setSaveTplJob(job); setTplName(`${job.name}`); }}
+                            className="p-1.5 rounded-lg text-white/60 hover:text-[#FFFF00] hover:bg-white/[0.06] transition-colors"
+                            title={t("saveAsTemplate")}
+                            data-testid={`button-save-template-${job.id}`}
+                          >
+                            <LayoutTemplate className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canManage && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); duplicateJob.mutate(job.id); }}
+                            disabled={duplicateJob.isPending}
+                            className="p-1.5 rounded-lg text-white/60 hover:text-[#FFFF00] hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+                            title={t("duplicateJob")}
+                            data-testid={`button-duplicate-job-${job.id}`}
+                          >
+                            {duplicateJob.isPending && duplicateJob.variables === job.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
                         {canManage && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setDeleteJobTarget(job); }}

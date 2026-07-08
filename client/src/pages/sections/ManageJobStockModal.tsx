@@ -3,8 +3,9 @@ import { X, Package, Search, Loader2, Check, Save, ChevronDown, ChevronRight, Bo
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { stockApi, jobsApi } from "@/api";
+import { stockApi, jobsApi, catalogApi } from "@/api";
 import type { AssignedUnit, StockItemWithUnits, JobBulkEntry } from "@/api";
+import type { Position } from "@shared/schema";
 import type { StockUnit, ItemAccessory } from "@shared/schema";
 
 interface Props {
@@ -29,6 +30,7 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
   const [search,             setSearch]             = useState("");
   const [selectedIds,        setSelectedIds]        = useState<Set<string>>(new Set());
   const [bulkQuantities,     setBulkQuantities]     = useState<Record<string, number>>({});
+  const [itemPositions,      setItemPositions]      = useState<Record<string, string>>({});
   const [expanded,           setExpanded]           = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [saving,             setSaving]             = useState(false);
@@ -62,6 +64,13 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     enabled:  !!token,
   });
 
+  // โหลดโซน (FOH/Mon/Power/Stage) ของบริษัท
+  const { data: zones = [] } = useQuery<Position[]>({
+    queryKey: ["catalog", "positions"],
+    queryFn:  catalogApi.getPositions,
+    enabled:  !!token,
+  });
+
   // map: parentStockItemId → list of accessory links
   const accessoryMap = useMemo(() => {
     const map = new Map<string, ItemAccessory[]>();
@@ -81,6 +90,19 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     }
     setBulkQuantities(map);
   }, [jobBulkEntries, bulkLoading]);
+
+  // prefill โซนต่อ item จากข้อมูลที่บันทึกไว้ (unit + bulk)
+  useEffect(() => {
+    if (assignedLoading || bulkLoading) return;
+    const map: Record<string, string> = {};
+    for (const u of assignedUnits) {
+      if (u.position && !map[u.stockItemId]) map[u.stockItemId] = u.position;
+    }
+    for (const b of jobBulkEntries) {
+      if (b.position && !map[b.stockItemId]) map[b.stockItemId] = b.position;
+    }
+    setItemPositions(map);
+  }, [assignedUnits, jobBulkEntries, assignedLoading, bulkLoading]);
 
   // pre-select ตาม assigned units + expand groups ที่มี selection
   useEffect(() => {
@@ -191,6 +213,32 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
 
   const isLoading = stockLoading || assignedLoading || bulkLoading;
 
+  // map: unit id → stock item id (สำหรับสร้าง payload โซนตอน save)
+  const unitToItem = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const g of stockGroups) for (const u of g.units) m[u.id] = g.id;
+    return m;
+  }, [stockGroups]);
+
+  // dropdown เลือกโซน (FOH/Mon/Power/Stage) ต่อ item — ใช้ทั้งฝั่ง unit และ bulk
+  const zoneSelect = (itemId: string) => {
+    if (zones.length === 0) return null;
+    return (
+      <select
+        value={itemPositions[itemId] ?? ""}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => { e.stopPropagation(); setItemPositions((p) => ({ ...p, [itemId]: e.target.value })); }}
+        title={t("manageJobStock.zoneLabel")}
+        className="h-6 max-w-[110px] rounded-md bg-[#0d0d0d] border border-white/10 text-[10px] px-1.5 outline-none cursor-pointer flex-shrink-0
+          hover:border-white/30 transition-colors"
+        style={itemPositions[itemId] ? { color: "#FFFF00", borderColor: "rgba(255,255,0,0.35)" } : { color: "rgba(255,255,255,0.5)" }}
+      >
+        <option value="">{t("manageJobStock.zoneNone")}</option>
+        {zones.map((z) => <option key={z.id} value={z.name}>{z.name}</option>)}
+      </select>
+    );
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -204,6 +252,19 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
         .map(([stockItemId, quantity]) => ({ stockItemId, quantity }));
       if (bulkItems.length > 0) {
         await jobsApi.setJobStock(jobId, bulkItems);
+      }
+
+      // Save โซน (position) ต่อ item — ต้องทำหลัง setUnits/setJobStock (เพราะ replace-all)
+      const unitPos = Array.from(selectedIds).map((uid) => ({
+        stockUnitId: uid,
+        position:    itemPositions[unitToItem[uid]] || null,
+      }));
+      const bulkPos = bulkItems.map(({ stockItemId }) => ({
+        stockItemId,
+        position: itemPositions[stockItemId] || null,
+      }));
+      if (unitPos.length > 0 || bulkPos.length > 0) {
+        await jobsApi.setPositions(jobId, { units: unitPos, bulk: bulkPos });
       }
 
       qc.invalidateQueries({ queryKey: ["job-units", jobId] });
@@ -328,6 +389,8 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
                                   {t("manageJobStock.bulkAvailable", { available: group.availableCount ?? group.quantity ?? 0, total: group.quantity ?? 0 })}
                                 </p>
                               </div>
+                              {/* Zone picker (แสดงเมื่อมีจำนวน > 0) */}
+                              {bulkQty > 0 && zoneSelect(group.id)}
                               {/* Stepper */}
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <button
@@ -385,6 +448,8 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
                       {selectedInGroup}/{groupUnits.length}
                     </span>
                   )}
+
+                  {selectedInGroup > 0 && zoneSelect(group.id)}
 
                   {isExpanded
                     ? <ChevronDown className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />

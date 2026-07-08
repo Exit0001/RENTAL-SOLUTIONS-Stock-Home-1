@@ -46,6 +46,51 @@ const phaseLabel = (phase: string) => {
   return "planned";
 };
 
+// Shared scan-log feed — same look across Pack / Dispatch / Return tabs
+const LogFeed = ({ entries, emptyHint }: { entries: LogEntry[]; emptyHint: string }): JSX.Element => (
+  <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1.5">
+    {entries.length === 0 ? (
+      <div className="flex flex-col items-center justify-center h-full text-white/20 gap-2">
+        <Hash className="w-8 h-8" />
+        <p className="text-xs text-center whitespace-pre-line">{emptyHint}</p>
+      </div>
+    ) : (
+      entries.map((entry, idx) => (
+        <div key={entry.id}
+          className={`flex items-start gap-3 px-3 py-2 rounded-lg transition-opacity
+            ${idx === 0 ? "opacity-100" : idx < 3 ? "opacity-70" : "opacity-40"}
+            ${entry.type === "rack_switch" ? "bg-[#FFFF00]/[0.06] border border-[#FFFF00]/15"
+              : entry.type === "item_ok"    ? "bg-white/[0.03]"
+              : entry.type === "item_already" ? "bg-amber-500/[0.06]"
+              : "bg-red-500/[0.06]"}`}>
+          <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5
+            ${entry.type === "rack_switch" ? "bg-[#FFFF00]/15 text-[#FFFF00]"
+              : entry.type === "item_ok"    ? "bg-green-500/15 text-green-400"
+              : entry.type === "item_already" ? "bg-amber-500/15 text-amber-400"
+              : "bg-red-500/15 text-red-400"}`}>
+            {entry.type === "rack_switch"   ? <ArrowRightLeft className="w-2.5 h-2.5" />
+              : entry.type === "item_ok"    ? <CheckCircle2 className="w-2.5 h-2.5" />
+              : entry.type === "item_already" ? <CheckCircle2 className="w-2.5 h-2.5" />
+              : <AlertCircle className="w-2.5 h-2.5" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs font-semibold truncate
+              ${entry.type === "rack_switch" ? "text-[#FFFF00]"
+                : entry.type === "item_ok"   ? "text-white"
+                : entry.type === "item_already" ? "text-amber-300"
+                : "text-red-400"}`}>
+              {entry.type === "rack_switch" ? `↕ ${entry.text}` : entry.text}
+            </p>
+            {entry.sub && <p className="text-[10px] text-white/35 truncate">{entry.sub}</p>}
+            {entry.rack && <p className="text-[10px] text-[#FFFF00]/40 truncate">→ {entry.rack}</p>}
+          </div>
+          {idx === 0 && <div className="w-1.5 h-1.5 rounded-full bg-[#FFFF00] flex-shrink-0 mt-1.5 animate-pulse" />}
+        </div>
+      ))
+    )}
+  </div>
+);
+
 export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element | null => {
   const { token } = useAppStore();
   const qc        = useQueryClient();
@@ -68,10 +113,20 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
   const [returnScanning, setReturnScanning]     = useState(false);
   const [returnFeedback, setReturnFeedback]     = useState<ScanFeedback | null>(null);
   const [returnScannedIds, setReturnScannedIds] = useState<Set<string>>(new Set());
+  const [dispatchLog, setDispatchLog]           = useState<LogEntry[]>([]);
+  const [returnLog, setReturnLog]               = useState<LogEntry[]>([]);
 
   const pushLog = (entry: Omit<LogEntry, "id">) => {
     logIdRef.current += 1;
     setScanLog((prev) => [{ ...entry, id: logIdRef.current }, ...prev].slice(0, 12));
+  };
+  const pushDispatchLog = (entry: Omit<LogEntry, "id">) => {
+    logIdRef.current += 1;
+    setDispatchLog((prev) => [{ ...entry, id: logIdRef.current }, ...prev].slice(0, 12));
+  };
+  const pushReturnLog = (entry: Omit<LogEntry, "id">) => {
+    logIdRef.current += 1;
+    setReturnLog((prev) => [{ ...entry, id: logIdRef.current }, ...prev].slice(0, 12));
   };
 
   const { data: jobUnits = [], isLoading: unitsLoading } = useQuery<AssignedUnit[]>({
@@ -97,6 +152,8 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
       setScanValue("");
       setFeedback(null);
       setScanLog([]);
+      setDispatchLog([]);
+      setReturnLog([]);
     }
   }, [open]);
 
@@ -218,12 +275,12 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
           qc.invalidateQueries({ queryKey: ["job-units", job.id] });
           qc.invalidateQueries({ queryKey: ["containers"] });
           qc.invalidateQueries({ queryKey: ["stock"] });
-          setFeedback({ type: "success", message: `โหลด ${matchedRack.name} แล้ว`, detail: `${result.loaded} รายการ dispatched` });
+          pushDispatchLog({ type: "item_ok", text: `โหลด ${matchedRack.name}`, sub: `${result.loaded} ชิ้นขึ้นรถ` });
           return;
         }
         const unit    = await stockApi.scanBarcode(barcode);
         const jobUnit = jobUnits.find((u) => u.id === unit.id);
-        if (!jobUnit) { setFeedback({ type: "notfound", message: "ไม่พบของชิ้นนี้ใน job manifest" }); return; }
+        if (!jobUnit) { pushDispatchLog({ type: "error", text: "ไม่พบของชิ้นนี้ใน job", sub: barcode }); return; }
         await Promise.all([
           jobsApi.updatePhase(job.id, [unit.id], "dispatched"),
           stockApi.updateUnit(unit.id, { status: "out" }),
@@ -231,7 +288,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
         qc.invalidateQueries({ queryKey: ["job-units", job.id] });
         qc.invalidateQueries({ queryKey: ["stock"] });
         qc.invalidateQueries({ queryKey: ["stock", unit.stockItemId] });
-        setFeedback({ type: "success", message: `${unit.itemName} — dispatched`, detail: unit.serialNumber || barcode });
+        pushDispatchLog({ type: "item_ok", text: unit.itemName, sub: `${unit.serialNumber || barcode} — dispatched` });
 
       } else {
         // Pack mode — check rack barcode first
@@ -281,7 +338,9 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
         setExpandedGroups((prev) => new Set(Array.from(prev).concat(unit.itemName)));
       }
     } catch {
-      pushLog({ type: "error", text: "ไม่พบ barcode นี้ในระบบ", sub: barcode });
+      const errEntry = { type: "error" as const, text: "ไม่พบ barcode นี้ในระบบ", sub: barcode };
+      if (tab === "dispatch") pushDispatchLog(errEntry);
+      else pushLog(errEntry);
     } finally {
       setScanning(false);
       scanRef.current?.focus();
@@ -297,8 +356,8 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
     try {
       const unit    = await stockApi.scanBarcode(barcode);
       const jobUnit = jobUnits.find((u) => u.id === unit.id);
-      if (!jobUnit) { setReturnFeedback({ type: "notfound", message: "ไม่พบของชิ้นนี้ใน job" }); return; }
-      if (jobUnit.phase === "returned") { setReturnFeedback({ type: "already", message: `${unit.itemName} — คืนแล้ว` }); return; }
+      if (!jobUnit) { pushReturnLog({ type: "error", text: "ไม่พบของชิ้นนี้ใน job", sub: barcode }); return; }
+      if (jobUnit.phase === "returned") { pushReturnLog({ type: "item_already", text: unit.itemName, sub: `${unit.serialNumber || barcode} — คืนแล้ว` }); return; }
       await Promise.all([
         stockApi.updateUnit(unit.id, { status: "available" }),
         jobsApi.updatePhase(job.id, [unit.id], "returned"),
@@ -307,9 +366,9 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
       qc.invalidateQueries({ queryKey: ["stock"] });
       qc.invalidateQueries({ queryKey: ["stock", unit.stockItemId] });
       setReturnScannedIds((prev) => { const next = new Set(prev); next.add(unit.id); return next; });
-      setReturnFeedback({ type: "success", message: `${unit.itemName} — คืนแล้ว`, detail: unit.serialNumber || barcode });
+      pushReturnLog({ type: "item_ok", text: unit.itemName, sub: `${unit.serialNumber || barcode} — คืนแล้ว` });
     } catch {
-      setReturnFeedback({ type: "error", message: "ไม่พบ barcode นี้ในระบบ" });
+      pushReturnLog({ type: "error", text: "ไม่พบ barcode นี้ในระบบ", sub: barcode });
     } finally {
       setReturnScanning(false);
       returnScanRef.current?.focus();
@@ -618,6 +677,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     const primaryRackId = Object.entries(rackIdFreq).sort((a, b) => b[1] - a[1])[0]?.[0];
                     const primaryRack   = jobRacks.find((r) => r.id === primaryRackId);
                     const rackBadge     = primaryRack ? (rackIds.length < units.length ? `${primaryRack.name}…` : primaryRack.name) : null;
+                    const zone          = units.find((u) => u.position)?.position ?? null;
 
                     return (
                       <div key={itemName} className="bg-white/[0.025] border border-white/[0.05] rounded-xl overflow-hidden">
@@ -625,6 +685,9 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                           {expanded ? <ChevronDown className="w-3.5 h-3.5 text-white/25 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-white/25 flex-shrink-0" />}
                           {allReady ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
                           <span className="font-medium text-sm flex-1 min-w-0 truncate">{itemName}</span>
+                          {zone && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FFFF00]/10 text-[#FFFF00]/70 flex-shrink-0 font-semibold">{zone}</span>
+                          )}
                           <span className="text-[10px] text-white/40 tabular-nums flex-shrink-0">{prepared}/{units.length}</span>
                           {rackBadge && (
                             <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 flex-shrink-0 ml-1">
@@ -703,44 +766,86 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
           </div>
         )}
 
-        {/* ════════ DISPATCH TAB ════════ */}
+        {/* ════════════════════════════════════════
+            DISPATCH TAB — same scanner-first layout as Pack (blue accent)
+            Left: scanner station  Right: rack list
+        ════════════════════════════════════════ */}
         {!isLoading && tab === "dispatch" && (
-          <div className="flex flex-col flex-1 min-h-0">
-            <div className="px-6 py-4 border-b border-white/[0.06] flex-shrink-0 bg-white/[0.015] space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 bg-white/10 rounded-full h-2 overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500"
-                    style={{ width: rackStats.length > 0 ? `${Math.round((racksLoaded / rackStats.length) * 100)}%` : "0%", backgroundColor: "#FFFF00" }} />
+          <div className="flex flex-1 min-h-0">
+
+            {/* ── Left: Scanner Station ──────────────────────── */}
+            <div
+              className="w-[400px] flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-[#0a0a0a]"
+              onClick={() => scanRef.current?.focus()}
+            >
+              {/* Mode context header */}
+              <div className="px-5 pt-5 pb-4 border-b border-blue-500/15 bg-blue-500/[0.04] flex-shrink-0">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Truck className="w-4 h-4 text-blue-400/60 flex-shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-400/50 uppercase tracking-widest">กำลังโหลดขึ้นรถ</p>
+                    <p className="text-xl font-bold text-blue-400 leading-tight">Dispatch</p>
+                  </div>
                 </div>
-                <span className="text-sm text-white/70 flex-shrink-0 w-32">{racksLoaded} / {rackStats.length} แร็คบนรถ</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-black/30 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300"
+                      style={{ width: totalUnits > 0 ? `${Math.round(dispatchedAndReturnedCount / totalUnits * 100)}%` : "0%", backgroundColor: allDispatched ? "#4ade80" : "#3b82f6" }} />
+                  </div>
+                  <span className={`text-[11px] font-bold tabular-nums flex-shrink-0 ${allDispatched ? "text-green-400" : "text-blue-400/70"}`}>
+                    {dispatchedAndReturnedCount}/{totalUnits}{allDispatched && " ✓"}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <p className="text-[11px] text-white/40 font-bold uppercase tracking-wider flex-shrink-0">สแกน barcode แร็ค:</p>
-                <div className="relative flex-1 max-w-sm">
-                  <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <input ref={scanRef} type="text" value={scanValue}
+
+              {/* Scan input */}
+              <div className="px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
+                <div className="relative">
+                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                  {scanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 animate-spin" />}
+                  <input
+                    ref={scanRef}
+                    type="text"
+                    value={scanValue}
                     onChange={(e) => setScanValue(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleScan(scanValue); }}
-                    placeholder="สแกน barcode แร็ค หรือชิ้นส่วนที่ไม่อยู่ในแร็ค..."
-                    className="w-full bg-white/[0.06] border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-[#FFFF00]/50"
+                    placeholder="สแกน barcode แร็ค หรือชิ้นส่วน..."
+                    autoFocus
+                    className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-blue-500/50 focus:bg-white/[0.08] transition-all"
                   />
                 </div>
-                {scanning && <Loader2 className="w-4 h-4 text-white/40 animate-spin" />}
-                {feedback && (
-                  <div className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg flex-1
-                    ${feedback.type === "success" ? "bg-green-500/10 text-green-400" : feedback.type === "notfound" ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"}`}>
-                    {feedback.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-                    <span>{feedback.message}</span>
-                    {feedback.detail && <span className="text-xs opacity-60 ml-1">{feedback.detail}</span>}
-                  </div>
-                )}
+                <p className="text-[10px] text-white/20 mt-2 text-center">สแกนแร็ค = โหลดทั้งแร็คขึ้นรถ · สแกนของ = dispatch ทีละชิ้น</p>
               </div>
+
+              {/* Scan log feed */}
+              <LogFeed entries={dispatchLog} emptyHint={"รายการสแกนจะแสดงที่นี่\nล่าสุดอยู่ด้านบน"} />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {rackStats.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-32 gap-2 text-white/30">
-                  <Truck className="w-8 h-8" /><p className="text-sm">ยังไม่มีแร็คใน job นี้</p>
+            {/* ── Right: Rack list ───────────────────────────── */}
+            <div className="flex-1 flex flex-col min-w-0 min-h-0">
+              {/* Top bar: progress + dispatch button */}
+              <div className="px-5 py-3 border-b border-white/[0.06] flex-shrink-0 bg-white/[0.015]">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: rackStats.length > 0 ? `${Math.round((racksLoaded / rackStats.length) * 100)}%` : "0%", backgroundColor: "#3b82f6" }} />
+                  </div>
+                  <span className="text-xs text-white/60 flex-shrink-0 tabular-nums">{racksLoaded}/{rackStats.length} แร็คบนรถ</span>
+                  {allDispatched && (
+                    <button onClick={dispatchJob} disabled={dispatching || job.status === "active"}
+                      className="flex items-center gap-1 h-7 px-3 rounded-lg text-[10px] font-bold text-black hover:opacity-90 disabled:opacity-40 transition-opacity flex-shrink-0"
+                      style={{ backgroundColor: "#FFFF00" }}>
+                      {dispatching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Truck className="w-3 h-3" />}
+                      {job.status === "active" ? "Active แล้ว" : "Dispatch Job →"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {rackStats.length === 0 && looseJobUnits.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
+                  <Truck className="w-10 h-10" /><p className="text-sm">ยังไม่มีแร็คใน job นี้</p>
                 </div>
               )}
               {rackStats.map(({ rack, total, dispatched, isLoaded, isPartial }) => {
@@ -804,40 +909,84 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                   </div>
                 </div>
               )}
-
-              {allDispatched && (
-                <div className="mt-6 flex justify-center">
-                  <button onClick={dispatchJob} disabled={dispatching || job.status === "active"}
-                    className="flex items-center gap-2 h-11 px-8 rounded-xl text-sm font-bold text-black hover:opacity-90 disabled:opacity-40 transition-opacity"
-                    style={{ backgroundColor: "#FFFF00" }}>
-                    {dispatching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
-                    {job.status === "active" ? "Job Active แล้ว" : "Dispatch Job →"}
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* ════════ RETURN TAB ════════ */}
+        {/* ════════════════════════════════════════
+            RETURN TAB — same scanner-first layout as Pack (emerald accent)
+            Left: scanner station  Right: manifest list
+        ════════════════════════════════════════ */}
         {!isLoading && tab === "return" && (
           <div className="flex flex-1 min-h-0">
-            <div className="w-72 border-r border-white/[0.06] flex flex-col flex-shrink-0">
-              <div className="px-4 py-3 border-b border-white/[0.06] flex-shrink-0 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Manifest</span>
-                  <span className="text-[10px] text-white/40">{returnedCount} / {returnTotal} คืนแล้ว</span>
+
+            {/* ── Left: Scanner Station ──────────────────────── */}
+            <div
+              className="w-[400px] flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-[#0a0a0a]"
+              onClick={() => returnScanRef.current?.focus()}
+            >
+              {/* Mode context header */}
+              <div className="px-5 pt-5 pb-4 border-b border-emerald-500/15 bg-emerald-500/[0.04] flex-shrink-0">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <RotateCcw className="w-4 h-4 text-emerald-400/60 flex-shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-bold text-emerald-400/50 uppercase tracking-widest">กำลังคืนอุปกรณ์</p>
+                    <p className="text-xl font-bold text-emerald-400 leading-tight">Return</p>
+                  </div>
                 </div>
-                <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500 bg-emerald-400"
-                    style={{ width: returnTotal > 0 ? `${Math.round(returnedCount / returnTotal * 100)}%` : "0%" }} />
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-black/30 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-300"
+                      style={{ width: returnTotal > 0 ? `${Math.round(returnedCount / returnTotal * 100)}%` : "0%", backgroundColor: returnDone ? "#4ade80" : "#34d399" }} />
+                  </div>
+                  <span className={`text-[11px] font-bold tabular-nums flex-shrink-0 ${returnDone ? "text-green-400" : "text-emerald-400/70"}`}>
+                    {returnedCount}/{returnTotal}{returnDone && " ✓"}
+                  </span>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-3">
+
+              {/* Scan input */}
+              <div className="px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
+                <div className="relative">
+                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                  {returnScanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 animate-spin" />}
+                  <input
+                    ref={returnScanRef}
+                    type="text"
+                    value={returnScanValue}
+                    onChange={(e) => setReturnScanValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleReturnScan(returnScanValue); }}
+                    placeholder="สแกน barcode เพื่อคืน..."
+                    autoFocus
+                    className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-emerald-500/50 focus:bg-white/[0.08] transition-all"
+                  />
+                </div>
+                <p className="text-[10px] text-white/20 mt-2 text-center">สแกน barcode อุปกรณ์ที่คืนเข้าคลัง</p>
+              </div>
+
+              {/* Scan log feed */}
+              <LogFeed entries={returnLog} emptyHint={"รายการสแกนจะแสดงที่นี่\nล่าสุดอยู่ด้านบน"} />
+            </div>
+
+            {/* ── Right: Manifest list ───────────────────────── */}
+            <div className="flex-1 flex flex-col min-w-0 min-h-0">
+              {/* Top bar: progress */}
+              <div className="px-5 py-3 border-b border-white/[0.06] flex-shrink-0 bg-white/[0.015]">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500 bg-emerald-400"
+                      style={{ width: returnTotal > 0 ? `${Math.round(returnedCount / returnTotal * 100)}%` : "0%" }} />
+                  </div>
+                  <span className="text-xs text-white/60 flex-shrink-0 tabular-nums">{returnedCount}/{returnTotal} คืนแล้ว</span>
+                </div>
+              </div>
+
+              {/* Manifest grouped list */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
                 {manifestReturnUnits.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 text-white/20 text-xs text-center gap-3 mt-4">
-                    <RotateCcw className="w-8 h-8" />
-                    <p>ยังไม่มีอุปกรณ์<br />ที่ออกงาน</p>
+                  <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
+                    <RotateCcw className="w-10 h-10" /><p className="text-sm">ยังไม่มีอุปกรณ์ที่ออกงาน</p>
                   </div>
                 ) : (
                   Object.entries(
@@ -846,74 +995,41 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       acc[u.itemName].push(u);
                       return acc;
                     }, {} as Record<string, AssignedUnit[]>)
-                  ).sort(([a], [b]) => a.localeCompare(b)).map(([itemName, units]) => (
-                    <div key={itemName} className="mb-3">
-                      <p className="text-[9px] font-bold text-white/30 uppercase tracking-wider mb-1.5 px-1">{itemName}</p>
-                      {units.map((u) => {
-                        const isReturned = u.phase === "returned";
-                        const isTicked   = isReturned || returnScannedIds.has(u.id);
-                        return (
-                          <div key={u.id} className={`flex items-center gap-2 py-1.5 px-1 rounded ${isReturned ? "opacity-50" : ""}`}>
-                            {isTicked
-                              ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                              : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[11px] text-white/70 truncate">{u.name}</p>
-                              {u.serialNumber && <p className="text-[9px] text-white/30 font-mono truncate">{u.serialNumber}</p>}
-                            </div>
-                            {isReturned && <span className="text-[8px] text-emerald-400/60 flex-shrink-0 font-medium">คืนแล้ว</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))
+                  ).sort(([a], [b]) => a.localeCompare(b)).map(([itemName, units]) => {
+                    const returned = units.filter((u) => u.phase === "returned" || returnScannedIds.has(u.id)).length;
+                    const allBack  = returned === units.length;
+                    return (
+                      <div key={itemName} className="bg-white/[0.025] border border-white/[0.05] rounded-xl overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2.5">
+                          {allBack ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
+                          <span className="font-medium text-sm flex-1 min-w-0 truncate">{itemName}</span>
+                          <span className="text-[10px] text-white/40 tabular-nums flex-shrink-0">{returned}/{units.length}</span>
+                        </div>
+                        <div className="border-t border-white/[0.04]">
+                          {units.map((u) => {
+                            const isReturned = u.phase === "returned";
+                            const isTicked   = isReturned || returnScannedIds.has(u.id);
+                            return (
+                              <div key={u.id} className={`flex items-center gap-2 px-4 py-2 border-b border-white/[0.025] last:border-0 ${isReturned && !returnScannedIds.has(u.id) ? "opacity-60" : ""}`}>
+                                {isTicked
+                                  ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                                  : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-xs text-white/80">{u.name || "—"}</span>
+                                  {u.serialNumber && <span className="text-[10px] text-white/35 ml-1.5 font-mono">SN:{u.serialNumber}</span>}
+                                  {u.barcode && <span className="text-[10px] text-white/25 ml-1.5 font-mono">BC:{u.barcode}</span>}
+                                </div>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${isTicked ? "bg-emerald-500/15 text-emerald-400" : "bg-blue-500/15 text-blue-400"}`}>
+                                  {isTicked ? "คืนแล้ว" : "dispatched"}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
-              </div>
-            </div>
-
-            <div className="flex-1 flex flex-col p-8 gap-6">
-              <div>
-                <h3 className="text-sm font-bold text-white mb-1">คืนอุปกรณ์</h3>
-                <p className="text-xs text-white/40 mb-4">สแกน barcode เพื่อบันทึกการคืนอุปกรณ์แต่ละชิ้น</p>
-                <div className="relative max-w-sm">
-                  <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <input ref={returnScanRef} type="text" value={returnScanValue}
-                    onChange={(e) => setReturnScanValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleReturnScan(returnScanValue); }}
-                    placeholder="สแกน barcode..."
-                    className="w-full bg-white/[0.06] border border-white/10 rounded-lg pl-10 pr-10 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-[#FFFF00]/50"
-                  />
-                  {returnScanning && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 animate-spin" />}
-                </div>
-              </div>
-
-              {returnFeedback && (
-                <div className={`flex items-start gap-3 p-4 rounded-xl border max-w-sm
-                  ${returnFeedback.type === "success" ? "bg-emerald-500/10 border-emerald-500/20" : returnFeedback.type === "already" ? "bg-[#FFFF00]/10 border-[#FFFF00]/20" : "bg-red-500/10 border-red-500/20"}`}>
-                  {returnFeedback.type === "success"
-                    ? <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                    : returnFeedback.type === "already"
-                    ? <CheckCircle2 className="w-5 h-5 text-[#FFFF00] flex-shrink-0 mt-0.5" />
-                    : <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />}
-                  <div>
-                    <p className={`text-sm font-medium ${returnFeedback.type === "success" ? "text-emerald-400" : returnFeedback.type === "already" ? "text-[#FFFF00]" : "text-red-400"}`}>
-                      {returnFeedback.message}
-                    </p>
-                    {returnFeedback.detail && <p className="text-xs text-white/40 mt-0.5">{returnFeedback.detail}</p>}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-auto pt-4 border-t border-white/[0.06]">
-                <div className="flex items-center gap-6 text-xs text-white/30">
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400/60" />
-                    {returnedCount} / {returnTotal} คืนแล้ว
-                  </span>
-                  {returnScannedIds.size > 0 && (
-                    <span className="text-white/20">{returnScannedIds.size} สแกนใน session นี้</span>
-                  )}
-                </div>
               </div>
             </div>
           </div>

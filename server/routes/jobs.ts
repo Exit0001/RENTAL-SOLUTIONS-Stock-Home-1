@@ -31,12 +31,15 @@ async function getJobEquipment(jobId: string) {
   ]);
 
   const counts: Record<string, number> = {};
+  const zoneByItem: Record<string, string | null> = {};  // โซน per item (per-job)
   for (const s of rawStock) {
     counts[s.stockItemId] = (counts[s.stockItemId] ?? 0) + s.quantity;
+    if (s.position && !zoneByItem[s.stockItemId]) zoneByItem[s.stockItemId] = s.position;
   }
 
   if (assignedUnits.length > 0) {
-    const unitIds = assignedUnits.map((a) => a.stockUnitId);
+    const unitIds   = assignedUnits.map((a) => a.stockUnitId);
+    const unitZone  = Object.fromEntries(assignedUnits.map((a) => [a.stockUnitId, a.position]));
     const units = await db
       .select({ id: stockUnits.id, stockItemId: stockUnits.stockItemId })
       .from(stockUnits)
@@ -44,6 +47,8 @@ async function getJobEquipment(jobId: string) {
 
     for (const u of units) {
       counts[u.stockItemId] = (counts[u.stockItemId] ?? 0) + 1;
+      const p = unitZone[u.id];
+      if (p && !zoneByItem[u.stockItemId]) zoneByItem[u.stockItemId] = p;
     }
   }
 
@@ -59,6 +64,7 @@ async function getJobEquipment(jobId: string) {
     category:    itemMap[id]?.category ?? "Uncategorized",
     itemName:    itemMap[id]?.name     ?? "Unknown",
     quantity:    counts[id],
+    zone:        zoneByItem[id] ?? null,
   }));
 }
 
@@ -349,6 +355,51 @@ jobsRouter.post("/", async (req, res) => {
   }
 });
 
+// POST /api/jobs/:id/duplicate — ทำซ้ำงาน (คัดลอกอุปกรณ์ + ทีม + รถ)
+// ไม่คัดลอก: incidents / expenses / pull sheets / quotes / invoices / containers
+// งานใหม่เป็น draft เสมอ (ไม่ยิง LINE / ไม่สร้าง pull sheet อัตโนมัติ)
+jobsRouter.post("/:id/duplicate", async (req, res) => {
+  try {
+    const [orig] = await db.select().from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+    if (!orig) return res.status(404).json({ message: "ไม่พบงานต้นฉบับ" });
+
+    const { name, startDate, endDate } = req.body ?? {};
+    const [job] = await db.insert(jobs).values({
+      companyId:     req.companyId,
+      name:          (typeof name === "string" && name.trim()) ? name.trim() : `${orig.name} (copy)`,
+      client:        orig.client,
+      location:      orig.location,
+      rehearsalDate: orig.rehearsalDate,
+      startDate:     startDate ? new Date(startDate) : orig.startDate,
+      endDate:       endDate ? new Date(endDate) : orig.endDate,
+      status:        "draft",
+    }).returning();
+
+    // ดึงข้อมูลที่จะคัดลอกทั้งหมดพร้อมกัน
+    const [srcUnits, srcStock, srcCrew, srcVehicles] = await Promise.all([
+      db.select().from(jobUnits).where(eq(jobUnits.jobId, orig.id)),
+      db.select().from(jobStock).where(eq(jobStock.jobId, orig.id)),
+      db.select().from(jobCrew).where(eq(jobCrew.jobId, orig.id)),
+      db.select().from(jobVehicles).where(eq(jobVehicles.jobId, orig.id)),
+    ]);
+
+    // units → reset phase เป็น planned (ตาม Sync Contract: assign แผนไม่แตะ status)
+    if (srcUnits.length)
+      await db.insert(jobUnits).values(srcUnits.map((u) => ({ jobId: job.id, stockUnitId: u.stockUnitId, phase: "planned" as const })));
+    if (srcStock.length)
+      await db.insert(jobStock).values(srcStock.map((s) => ({ jobId: job.id, stockItemId: s.stockItemId, quantity: s.quantity })));
+    if (srcCrew.length)
+      await db.insert(jobCrew).values(srcCrew.map((c) => ({ jobId: job.id, userId: c.userId, role: c.role })));
+    if (srcVehicles.length)
+      await db.insert(jobVehicles).values(srcVehicles.map((v) => ({ companyId: req.companyId, jobId: job.id, vehicleType: v.vehicleType, note: v.note })));
+
+    res.status(201).json(job);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // GET /api/jobs/:id/units — individual units ที่ assign ให้ job
 jobsRouter.get("/:id/units", async (req, res) => {
   try {
@@ -360,7 +411,7 @@ jobsRouter.get("/:id/units", async (req, res) => {
     if (assigned.length === 0) return res.json([]);
 
     const unitIds  = assigned.map((a) => a.stockUnitId);
-    const phaseMap = Object.fromEntries(assigned.map((a) => [a.stockUnitId, { phase: a.phase, jobUnitId: a.id }]));
+    const phaseMap = Object.fromEntries(assigned.map((a) => [a.stockUnitId, { phase: a.phase, jobUnitId: a.id, position: a.position }]));
     const units    = await db
       .select()
       .from(stockUnits)
@@ -378,6 +429,7 @@ jobsRouter.get("/:id/units", async (req, res) => {
       itemName:  itemMap[u.stockItemId] ?? "Unknown",
       phase:     phaseMap[u.id]?.phase ?? "planned",
       jobUnitId: phaseMap[u.id]?.jobUnitId,
+      position:  phaseMap[u.id]?.position ?? null,
     })));
   } catch {
     res.status(500).json({ message: "Failed to fetch job units" });
@@ -390,24 +442,55 @@ jobsRouter.post("/:id/units", async (req, res) => {
     const { unitIds }: { unitIds: string[] } = req.body;
     const newIds = unitIds ?? [];
 
-    // ดึง unit IDs ที่อยู่ใน job ปัจจุบันก่อน replace
+    // ดึง unit + position ที่อยู่ใน job ปัจจุบันก่อน replace (เพื่อคงโซนไว้ตอน re-save)
     const existing = await db
-      .select({ stockUnitId: jobUnits.stockUnitId })
+      .select({ stockUnitId: jobUnits.stockUnitId, position: jobUnits.position })
       .from(jobUnits)
       .where(eq(jobUnits.jobId, req.params.id));
-    const oldIds = existing.map((r) => r.stockUnitId);
+    const posMap = Object.fromEntries(existing.map((r) => [r.stockUnitId, r.position]));
 
     await db.delete(jobUnits).where(eq(jobUnits.jobId, req.params.id));
 
     if (newIds.length > 0) {
       await db.insert(jobUnits).values(
-        newIds.map((uid) => ({ jobId: req.params.id, stockUnitId: uid }))
+        newIds.map((uid) => ({ jobId: req.params.id, stockUnitId: uid, position: posMap[uid] ?? null }))
       );
     }
 
     // Status is ONLY changed by physical scan (ScanModal). Planning does not touch status.
 
     res.json({ message: "Units updated" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PUT /api/jobs/:id/positions — ตั้งโซน (FOH/Mon/Power/Stage) ให้ unit + bulk ในงาน
+// units จัดกลุ่มตามโซนแล้ว update ทีเดียวต่อโซน (โซนมีไม่กี่ค่า, unit เยอะ)
+jobsRouter.put("/:id/positions", async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const units: { stockUnitId: string; position: string | null }[] = Array.isArray(req.body?.units) ? req.body.units : [];
+    const bulk:  { stockItemId: string; position: string | null }[] = Array.isArray(req.body?.bulk) ? req.body.bulk : [];
+
+    const byPos = new Map<string | null, string[]>();
+    for (const u of units) {
+      const p = u.position || null;
+      if (!byPos.has(p)) byPos.set(p, []);
+      byPos.get(p)!.push(u.stockUnitId);
+    }
+    for (const [p, ids] of Array.from(byPos)) {
+      if (ids.length === 0) continue;
+      await db.update(jobUnits).set({ position: p })
+        .where(and(eq(jobUnits.jobId, jobId), inArray(jobUnits.stockUnitId, ids)));
+    }
+
+    for (const b of bulk) {
+      await db.update(jobStock).set({ position: b.position || null })
+        .where(and(eq(jobStock.jobId, jobId), eq(jobStock.stockItemId, b.stockItemId)));
+    }
+
+    res.json({ message: "Positions updated", units: units.length, bulk: bulk.length });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -688,6 +771,12 @@ jobsRouter.post("/:id/stock", async (req, res) => {
   try {
     const { items }: { items: { stockItemId: string; quantity: number }[] } = req.body;
 
+    // คงโซน (position) ไว้ตอน re-save
+    const existing = await db
+      .select({ stockItemId: jobStock.stockItemId, position: jobStock.position })
+      .from(jobStock).where(eq(jobStock.jobId, req.params.id));
+    const posMap = Object.fromEntries(existing.map((r) => [r.stockItemId, r.position]));
+
     await db.delete(jobStock).where(eq(jobStock.jobId, req.params.id));
 
     if (items && items.length > 0) {
@@ -696,6 +785,7 @@ jobsRouter.post("/:id/stock", async (req, res) => {
           jobId:       req.params.id,
           stockItemId: item.stockItemId,
           quantity:    item.quantity,
+          position:    posMap[item.stockItemId] ?? null,
         }))
       );
     }
@@ -764,7 +854,7 @@ jobsRouter.get("/:id/pullsheet/pdf", async (req, res) => {
       .where(eq(companies.id, req.companyId));
 
     const equipment = await getJobEquipment(job.id);
-    const items = equipment.map(({ category, itemName, quantity }) => ({ category, itemName, quantity }));
+    const items = equipment.map(({ category, itemName, quantity, zone }) => ({ category, itemName, quantity, zone }));
 
     const doc = generatePullSheetPdf({ companyName: company?.name ?? "Company", job, items });
 

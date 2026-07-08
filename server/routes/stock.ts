@@ -303,13 +303,14 @@ stockRouter.post("/", async (req, res) => {
     const [item] = await db.insert(stockItems).values(data as typeof stockItems.$inferInsert).returning();
 
     const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId));
-    await notifyCompany({
+    // fire-and-forget — don't block the response on the notification write
+    void notifyCompany({
       companyId: req.companyId,
       actorId: req.userId,
       type: "stock_added",
       meta: { itemName: item.name, actorName: actor?.name ?? "" },
       link: "Stock",
-    });
+    }).catch(() => {});
 
     res.status(201).json(item);
   } catch (err: any) {
@@ -419,15 +420,61 @@ stockRouter.post("/:id/units", async (req, res) => {
 
     const [item] = await db.select({ name: stockItems.name }).from(stockItems).where(eq(stockItems.id, req.params.id));
     const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId));
-    await notifyCompany({
+    // fire-and-forget — don't block the response on the notification write
+    void notifyCompany({
       companyId: req.companyId,
       actorId: req.userId,
       type: "stock_added",
       meta: { itemName: item?.name ?? "", actorName: actor?.name ?? "" },
       link: "Stock",
-    });
+    }).catch(() => {});
 
     res.status(201).json(unit);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// POST /api/stock/:id/units/batch — เพิ่มหลาย unit พร้อมกัน (insert เดียว + notify เดียว)
+// แทนการยิงทีละ unit จาก client — ลด round-trip + notify write เป็น N เท่า
+stockRouter.post("/:id/units/batch", async (req, res) => {
+  try {
+    const list = Array.isArray(req.body?.units) ? req.body.units : [];
+    if (list.length === 0) return res.status(400).json({ message: "ไม่มีหน่วยอุปกรณ์ที่จะเพิ่ม" });
+
+    const rows = list.map((u: any) => insertStockUnitSchema.parse({
+      ...u,
+      stockItemId: req.params.id,
+      companyId: req.companyId,
+    }));
+
+    // ตรวจ serial/barcode ซ้ำกันเองภายใน batch (checkUnitUnique เช็คกับ DB เท่านั้น)
+    const lowerSerials  = rows.map((r: any) => r.serialNumber?.trim().toLowerCase()).filter(Boolean) as string[];
+    const lowerBarcodes = rows.map((r: any) => r.barcode?.trim().toLowerCase()).filter(Boolean) as string[];
+    const firstDup = (arr: string[]) => arr.find((v, i) => arr.indexOf(v) !== i);
+    const dupS = firstDup(lowerSerials);
+    if (dupS)  throw new Error(`Serial number "${dupS}" ซ้ำกันในรายการที่เพิ่ม`);
+    const dupB = firstDup(lowerBarcodes);
+    if (dupB)  throw new Error(`Barcode "${dupB}" ซ้ำกันในรายการที่เพิ่ม`);
+
+    // ตรวจซ้ำกับ DB (ใช้ index lower(serial)/lower(barcode) จาก migration 0016)
+    for (const r of rows) {
+      await checkUnitUnique(req.companyId, { serialNumber: r.serialNumber, barcode: r.barcode });
+    }
+
+    const inserted = await db.insert(stockUnits).values(rows).returning();
+
+    const [item]  = await db.select({ name: stockItems.name }).from(stockItems).where(eq(stockItems.id, req.params.id));
+    const [actor] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId));
+    void notifyCompany({
+      companyId: req.companyId,
+      actorId: req.userId,
+      type: "stock_added",
+      meta: { itemName: item?.name ?? "", actorName: actor?.name ?? "", count: inserted.length },
+      link: "Stock",
+    }).catch(() => {});
+
+    res.status(201).json(inserted);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

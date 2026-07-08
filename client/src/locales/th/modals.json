@@ -197,7 +197,9 @@
 
   "manageJobStock": {
     "title": "เลือกอุปกรณ์",
-    "bulkAvailable": "{{available}} / {{total}} ชิ้นที่ว่าง"
+    "bulkAvailable": "{{available}} / {{total}} ชิ้นที่ว่าง",
+    "zoneLabel": "โซน (FOH/Mon/Power/Stage)",
+    "zoneNone": "— โซน —"
   },
 
   "createPullSheet": {
@@ -219,6 +221,12 @@
     "startDate": "วันที่เริ่ม",
     "endDate": "วันที่สิ้นสุด",
     "createJob": "สร้างงาน",
+    "saveAndAdd": "บันทึก & เพิ่มต่อ",
+    "savedAddNext": "บันทึกแล้ว — กรอกงานถัดไปได้เลย",
+    "fromTemplate": "เริ่มจากเทมเพลต (ไม่บังคับ)",
+    "noTemplate": "ไม่ใช้เทมเพลต — เริ่มงานเปล่า",
+    "templateWillAdd": "เทมเพลตนี้จะเพิ่มอุปกรณ์ {{count}} รายการ (assign ชิ้นที่ว่างให้อัตโนมัติ)",
+    "shortfallWarn": "อุปกรณ์ {{count}} รายการมีไม่พอ — assign ให้เท่าที่ว่างในคลัง",
     "errorCreateFailed": "สร้างงานไม่สำเร็จ"
   },
 

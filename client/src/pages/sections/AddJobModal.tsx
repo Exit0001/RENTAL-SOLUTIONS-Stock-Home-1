@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { X, Briefcase, Loader2 } from "lucide-react";
+import { X, Briefcase, Loader2, Plus, LayoutTemplate } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { jobsApi } from "@/api";
+import { useQuery } from "@tanstack/react-query";
+import { jobsApi, jobTemplatesApi } from "@/api";
+import { useAppStore } from "@/store/appStore";
 import type { InsertJob } from "@shared/schema";
 
 interface Props {
@@ -38,11 +40,24 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
   const [endDate,       setEndDate]       = useState("");
   const [status,        setStatus]        = useState<"draft" | "scheduled">("draft");
 
+  const [savedHint, setSavedHint] = useState(false);
+  const [templateId, setTemplateId] = useState("");
+  const [shortfallWarn, setShortfallWarn] = useState<number | null>(null);
+
+  const { token } = useAppStore();
+  const { data: templates = [] } = useQuery({
+    queryKey: ["job-templates"],
+    queryFn:  jobTemplatesApi.getAll,
+    enabled:  !!token,
+  });
+
   const valid = name.trim() && client.trim() && startDate && endDate;
 
-  const handleCreate = async () => {
+  const handleCreate = async (keepOpen = false) => {
     if (!valid) return;
     setError(null);
+    setSavedHint(false);
+    setShortfallWarn(null);
     setSaving(true);
     try {
       const data: Omit<InsertJob, "companyId"> = {
@@ -54,9 +69,21 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
         endDate:       new Date(endDate),
         status,
       };
-      await jobsApi.create(data);
+      if (templateId) {
+        const res = await jobTemplatesApi.createJob(templateId, data);
+        if (res.shortfall?.length) setShortfallWarn(res.shortfall.length);
+      } else {
+        await jobsApi.create(data);
+      }
       onCreated();
-      onClose();
+      if (keepOpen) {
+        // เก็บ ลูกค้า/สถานที่/วันที่/สถานะ ไว้ — ล้างแค่ชื่องาน แล้ว focus ช่องชื่อ
+        setName("");
+        setSavedHint(true);
+        setTimeout(() => document.getElementById("add-job-name-input")?.focus(), 30);
+      } else {
+        onClose();
+      }
     } catch (err: any) {
       setError(err.message ?? t("addJob.errorCreateFailed"));
     } finally {
@@ -90,8 +117,32 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
-          <InputField label={t("addJob.jobName")} required placeholder={t("addJob.jobNamePlaceholder")}
-            value={name} onChange={(e) => setName(e.target.value)} />
+          {templates.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium flex items-center gap-1.5">
+                <LayoutTemplate className="w-3 h-3 text-[#FFFF00]/60" /> {t("addJob.fromTemplate")}
+              </label>
+              <select
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+                className="h-9 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white
+                  focus:outline-none focus:border-[#FFFF00]/40 focus:bg-white/[0.06] transition-all"
+              >
+                <option value="">{t("addJob.noTemplate")}</option>
+                {templates.map((tp) => (
+                  <option key={tp.id} value={tp.id}>{tp.name} ({tp.totalQty})</option>
+                ))}
+              </select>
+              {templateId && (
+                <p className="text-[10px] text-[#FFFF00]/70">
+                  {t("addJob.templateWillAdd", { count: templates.find((tp) => tp.id === templateId)?.totalQty ?? 0 })}
+                </p>
+              )}
+            </div>
+          )}
+          <InputField id="add-job-name-input" label={t("addJob.jobName")} required placeholder={t("addJob.jobNamePlaceholder")}
+            value={name} onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && valid && !saving) handleCreate(true); }} />
           <InputField label={t("addJob.clientLabel")} required placeholder={t("addJob.clientPlaceholder")}
             value={client} onChange={(e) => setClient(e.target.value)} />
           <InputField label={tc("location")} placeholder={t("addJob.locationPlaceholder")}
@@ -125,24 +176,40 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
             </div>
           </div>
 
+          {savedHint && !error && (
+            <p className="text-xs text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-2">{t("addJob.savedAddNext")}</p>
+          )}
+          {shortfallWarn !== null && shortfallWarn > 0 && !error && (
+            <p className="text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">{t("addJob.shortfallWarn", { count: shortfallWarn })}</p>
+          )}
           {error && <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] gap-3">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] gap-2">
           <button onClick={onClose}
-            className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+            className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors flex-shrink-0">
             {tc("cancel")}
           </button>
-          <button
-            onClick={handleCreate}
-            disabled={!valid || saving}
-            className="flex items-center gap-2 h-9 px-6 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
-            style={{ backgroundColor: "#FFFF00" }}
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Briefcase className="w-3.5 h-3.5" />}
-            {saving ? tc("creating") : t("addJob.createJob")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleCreate(true)}
+              disabled={!valid || saving}
+              className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-semibold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              {t("addJob.saveAndAdd")}
+            </button>
+            <button
+              onClick={() => handleCreate(false)}
+              disabled={!valid || saving}
+              className="flex items-center gap-2 h-9 px-6 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#FFFF00" }}
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Briefcase className="w-3.5 h-3.5" />}
+              {saving ? tc("creating") : t("addJob.createJob")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
