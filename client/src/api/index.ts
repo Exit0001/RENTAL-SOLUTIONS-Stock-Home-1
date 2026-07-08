@@ -73,8 +73,9 @@ export type StockUnitWithContainer = StockUnit & {
   containerType: string | null;
 };
 export type PlannedJob         = { id: string; name: string; startDate: string | null; status: string };
-export type StockUnitWithPlan  = StockUnitWithContainer & { plannedJob: PlannedJob | null };
-export type StockItemWithUnits = StockItem & { units: StockUnitWithPlan[]; availableCount?: number; plannedCount?: number };
+export type UnitBooking        = { jobId: string; jobName: string; startDate: string | null; endDate: string | null; status: string };
+export type StockUnitWithPlan  = StockUnitWithContainer & { plannedJob: PlannedJob | null; bookings: UnitBooking[] };
+export type StockItemWithUnits = StockItem & { units: StockUnitWithPlan[]; availableCount?: number; plannedCount?: number; lastPosition?: string | null };
 export type AssignedUnit        = StockUnit & { itemName: string; phase: "planned" | "prepared" | "dispatched" | "returned"; jobUnitId: string; position: string | null };
 export type ItemAccessoryWithInfo = ItemAccessory & { accessoryName: string; availableCount: number };
 
@@ -118,6 +119,8 @@ export type ContainerWithItems = Container & {
 export const containersApi = {
   getAll:              () => api.get<ContainerWithItems[]>("/containers"),
   create:              (data: Omit<InsertContainer, "companyId">) => api.post<Container>("/containers", data),
+  update:              (id: string, data: Partial<Pick<InsertContainer, "name" | "type" | "location" | "barcode">>) =>
+                         api.put<Container>(`/containers/${id}`, data),
   toggleCheckout:      (id: string) => api.put<Container>(`/containers/${id}/checkout`, {}),
   delete:              (id: string) => api.delete<{ message: string }>(`/containers/${id}`),
   setUnits:            (id: string, unitIds: string[]) => api.post<void>(`/containers/${id}/units`, { unitIds }),
@@ -199,7 +202,7 @@ export const jobsApi = {
   addStock:      (jobId: string, items: { stockItemId: string; quantity: number }[]) =>
                    api.post<void>(`/jobs/${jobId}/stock`, { items }),
   getJobStock:   (jobId: string) => api.get<JobBulkEntry[]>(`/jobs/${jobId}/stock`),
-  setJobStock:   (jobId: string, items: { stockItemId: string; quantity: number }[]) =>
+  setJobStock:   (jobId: string, items: { stockItemId: string; quantity: number; position?: string | null }[]) =>
                    api.post<void>(`/jobs/${jobId}/stock`, { items }),
   getUnits:      (jobId: string) => api.get<AssignedUnit[]>(`/jobs/${jobId}/units`),
   setUnits:      (jobId: string, unitIds: string[]) =>
@@ -248,6 +251,15 @@ export const jobVehiclesApi = {
   create:    (jobId: string, data: Omit<InsertJobVehicle, "companyId" | "jobId">) =>
                api.post<JobVehicle>(`/jobs/${jobId}/vehicles`, data),
   delete:    (vehicleId: string) => api.delete<{ message: string }>(`/jobs/vehicles/${vehicleId}`),
+};
+
+// ─── Job Sub-Rentals (อุปกรณ์ที่เช่าจากภายนอกสำหรับงานนี้) ──
+
+export const jobSubRentalsApi = {
+  getForJob: (jobId: string) => api.get<SubRental[]>(`/jobs/${jobId}/subrentals`),
+  create:    (jobId: string, data: Omit<InsertSubRental, "companyId" | "jobId">) =>
+               api.post<SubRental>(`/jobs/${jobId}/subrentals`, data),
+  delete:    (subRentalId: string) => api.delete<{ message: string }>(`/jobs/subrentals/${subRentalId}`),
 };
 
 // ─── Finance ──────────────────────────────────────────────
@@ -300,6 +312,8 @@ export const financeApi = {
 
 // ─── Maintenance ──────────────────────────────────────────
 
+export type SubRentalWithJob = SubRental & { jobName: string };
+
 export const maintenanceApi = {
   getAll:        () => api.get<MaintenanceLog[]>("/maintenance"),
   createBatch:   (data: InsertMaintenanceLogBatch) => api.post<MaintenanceLog[]>("/maintenance/batch", data),
@@ -308,8 +322,7 @@ export const maintenanceApi = {
                    api.put<MaintenanceLog[]>("/maintenance/batch-status", { ids, status }),
   delete:        (id: string) => api.delete<{ message: string }>(`/maintenance/${id}`),
   deleteBatch:   (ids: string[]) => api.delete<{ message: string; count: number }>("/maintenance/batch", { ids }),
-  getSubRentals: () => api.get<SubRental[]>("/maintenance/subrentals"),
-  createSubRental:(data: Omit<InsertSubRental, "companyId">) => api.post<SubRental>("/maintenance/subrentals", data),
+  getSubRentals: () => api.get<SubRentalWithJob[]>("/maintenance/subrentals"),
   updateSubRental:(id: string, data: Partial<InsertSubRental>) => api.put<SubRental>(`/maintenance/subrentals/${id}`, data),
 };
 

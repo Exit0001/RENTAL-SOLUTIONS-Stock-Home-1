@@ -94,6 +94,36 @@ containersRouter.post("/", async (req, res) => {
   }
 });
 
+// PUT /api/containers/:id — แก้ไขชื่อ/ประเภท/ตำแหน่ง/บาร์โค้ดของ container
+containersRouter.put("/:id", async (req, res) => {
+  try {
+    const [current] = await db
+      .select()
+      .from(containers)
+      .where(and(eq(containers.id, req.params.id), eq(containers.companyId, req.companyId)));
+    if (!current) return res.status(404).json({ message: "Container not found" });
+
+    const { name, type, location, barcode } = req.body as {
+      name?: string; type?: string; location?: string | null; barcode?: string | null;
+    };
+
+    const [updated] = await db
+      .update(containers)
+      .set({
+        ...(name !== undefined ? { name } : {}),
+        ...(type !== undefined ? { type } : {}),
+        ...(location !== undefined ? { location } : {}),
+        ...(barcode !== undefined ? { barcode } : {}),
+      })
+      .where(eq(containers.id, req.params.id))
+      .returning();
+
+    res.json(updated);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // GET /api/containers/packing-sheet/pdf — All-Racks Summary PDF สำหรับบริษัท
 containersRouter.get("/packing-sheet/pdf", async (req, res) => {
   try {

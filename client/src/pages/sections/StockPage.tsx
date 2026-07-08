@@ -33,12 +33,12 @@ import {
 import { BrandCategoryModal } from "./BrandCategoryModal";
 import { AddNewItemModal } from "./AddNewItemModal";
 import { AddContainerModal } from "./AddContainerModal";
+import { EditContainerModal } from "./EditContainerModal";
 import { RackBuildModal } from "./RackBuildModal";
 import { ManageContainerUnitsModal } from "./ManageContainerUnitsModal";
 import { AddIndividualUnitModal } from "./AddIndividualUnitModal";
 import { AddLocationModal } from "./AddLocationModal";
 import { AddMaintenanceLogModal } from "./AddMaintenanceLogModal";
-import { AddSubRentalModal } from "./AddSubRentalModal";
 import { ItemDetailPanel } from "./ItemDetailPanel";
 import { StockFilterControlsSection } from "./StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./StockFilterSidebarSection";
@@ -48,7 +48,7 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { containersApi, jobsApi, maintenanceApi, stockApi } from "@/api";
 import { useToast } from "@/hooks/use-toast";
-import type { ContainerWithItems, CrewMember, StockItemWithUnits } from "@/api";
+import type { ContainerWithItems, CrewMember, StockItemWithUnits, SubRentalWithJob } from "@/api";
 
 type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
 
@@ -93,7 +93,6 @@ export const StockPage = (): JSX.Element => {
   const [addIndividualUnitOpen, setAddIndividualUnitOpen] = useState(false);
   const [addLocationOpen, setAddLocationOpen] = useState(false);
   const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
-  const [addSubRentalOpen, setAddSubRentalOpen] = useState(false);
   const [editItemOpen, setEditItemOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [assignContainer, setAssignContainer] = useState<ContainerWithItems | null>(null);
@@ -106,6 +105,7 @@ export const StockPage = (): JSX.Element => {
   const [logForm, setLogForm] = useState({ status: "", cost: "" });
   const [deleteLogTarget, setDeleteLogTarget] = useState<any>(null);
   const [deleteContainerTarget, setDeleteContainerTarget] = useState<ContainerWithItems | null>(null);
+  const [editContainerTarget,   setEditContainerTarget]   = useState<ContainerWithItems | null>(null);
   const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
   const [bulkDeleteLogsOpen, setBulkDeleteLogsOpen] = useState(false);
   const [expandedMaintenanceCategories, setExpandedMaintenanceCategories] = useState<Set<string>>(new Set());
@@ -122,11 +122,21 @@ export const StockPage = (): JSX.Element => {
     enabled: !!token,
   });
 
-  // Mutation สำหรับสร้าง container ใหม่
+  // Mutation สำหรับสร้าง container ใหม่ (รับได้ทีละหลายอัน)
   const createContainer = useMutation({
-    mutationFn: (data: Parameters<typeof containersApi.create>[0]) =>
-      containersApi.create(data),
+    mutationFn: (items: Parameters<typeof containersApi.create>[0][]) =>
+      Promise.all(items.map((data) => containersApi.create(data))),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["containers"] }),
+  });
+
+  // Mutation สำหรับแก้ไข container (ชื่อ/ประเภท/ตำแหน่ง/บาร์โค้ด)
+  const updateContainer = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof containersApi.update>[1] }) =>
+      containersApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["containers"] });
+      setEditContainerTarget(null);
+    },
   });
 
   // Mutation สำหรับ check in/out container
@@ -152,9 +162,9 @@ export const StockPage = (): JSX.Element => {
     enabled: !!token,
   });
 
-  const { data: subRentals = [], isLoading: subRentalsLoading } = useQuery<any[]>({
+  const { data: subRentals = [], isLoading: subRentalsLoading } = useQuery<SubRentalWithJob[]>({
     queryKey: ["subrentals"],
-    queryFn: maintenanceApi.getSubRentals as () => Promise<any[]>,
+    queryFn: maintenanceApi.getSubRentals,
     enabled: !!token,
   });
 
@@ -285,11 +295,6 @@ export const StockPage = (): JSX.Element => {
     return map;
   }, [crew]);
 
-  const createSubRental = useMutation({
-    mutationFn: (data: Parameters<typeof maintenanceApi.createSubRental>[0]) => maintenanceApi.createSubRental(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["subrentals"] }),
-  });
-
   const returnSubRental = useMutation({
     mutationFn: (id: string) => maintenanceApi.updateSubRental(id, { status: "returned" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["subrentals"] }),
@@ -348,13 +353,15 @@ export const StockPage = (): JSX.Element => {
     setSelectedSubCategories([]);
   };
 
-  const handleAddContainer = (data: { name: string; type: string; location: string; barcode: string }) => {
-    createContainer.mutate({
-      name: data.name,
-      type: data.type as any,
-      location: data.location,
-      barcode: data.barcode,
-    });
+  const handleAddContainer = (items: { name: string; type: string; location: string; barcode: string }[]) => {
+    createContainer.mutate(
+      items.map((data) => ({
+        name: data.name,
+        type: data.type as any,
+        location: data.location,
+        barcode: data.barcode,
+      }))
+    );
   };
 
   return (
@@ -378,6 +385,13 @@ export const StockPage = (): JSX.Element => {
       {addContainerOpen && (
         <AddContainerModal onClose={() => setAddContainerOpen(false)} onAdd={handleAddContainer} />
       )}
+      {editContainerTarget && (
+        <EditContainerModal
+          container={editContainerTarget}
+          onClose={() => setEditContainerTarget(null)}
+          onSave={(id, data) => updateContainer.mutate({ id, data })}
+        />
+      )}
       <RackBuildModal open={rackBuildOpen} onClose={() => setRackBuildOpen(false)} />
       {addIndividualUnitOpen && (
         <AddIndividualUnitModal
@@ -392,12 +406,6 @@ export const StockPage = (): JSX.Element => {
         <AddMaintenanceLogModal
           onClose={() => setAddMaintenanceLogOpen(false)}
           onSubmit={(data) => createMaintenanceLog.mutate(data)}
-        />
-      )}
-      {addSubRentalOpen && (
-        <AddSubRentalModal
-          onClose={() => setAddSubRentalOpen(false)}
-          onSubmit={(data) => createSubRental.mutate(data)}
         />
       )}
       {assignContainer && (
@@ -458,7 +466,6 @@ export const StockPage = (): JSX.Element => {
                 <ItemDetailPanel
                   item={selectedItem as any}
                   onClose={() => setSelectedItem(null)}
-                  onEdit={() => setEditItemOpen(true)}
                 />
               )}
             </div>
@@ -543,6 +550,15 @@ export const StockPage = (): JSX.Element => {
                     >
                       {isOut ? <><LogIn className="w-3 h-3" /> {t("checkIn")}</> : <><LogOut className="w-3 h-3" /> {t("checkOut")}</>}
                     </button>
+                    {canManage && (
+                      <button
+                        onClick={() => setEditContainerTarget(c)}
+                        className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
+                        title={t("editContainer")}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {canManage && (
                       <button
                         onClick={() => setDeleteContainerTarget(c)}
@@ -878,15 +894,7 @@ export const StockPage = (): JSX.Element => {
               <Shield className="w-3 h-3" />
               {t("colorCodedNote")}
             </span>
-            <div className="ml-auto">
-              <button
-                onClick={() => setAddSubRentalOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "#FFFF00" }}
-              >
-                <Plus className="w-4 h-4" /> {t("addSubRental")}
-              </button>
-            </div>
+            <span className="ml-auto text-[11px] text-white/40 italic">{t("subRentalsManageHint")}</span>
           </div>
 
           <div className="flex-1 overflow-auto p-6">
@@ -914,7 +922,7 @@ export const StockPage = (): JSX.Element => {
                     </div>
                   </div>
                 ))
-              ) : (subRentals as any[]).map((sr) => (
+              ) : subRentals.map((sr) => (
                 <div key={sr.id} className="flex items-center gap-4 px-4 py-3 hover:bg-purple-500/[0.03] transition-colors" data-testid={`subrental-${sr.id}`}>
                   <div className="w-1 h-8 rounded-full bg-purple-400/60" />
                   <div className="flex-1 min-w-0">
@@ -924,12 +932,12 @@ export const StockPage = (): JSX.Element => {
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
                       <span>{t("fromPartner", { partner: sr.partner })}</span>
-                      <span>{t("jobIdLabel", { id: sr.jobId ?? "—" })}</span>
+                      <span className="text-blue-400/60">→ {sr.jobName}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-white/50 font-medium inline-flex items-center gap-1.5 justify-end">
-                      {sr.dailyRate ? `£${sr.dailyRate}/day` : "—"}
+                      {sr.dailyRate ? `฿${Number(sr.dailyRate).toLocaleString()}/day` : "—"}
                       {sr.receiptUrl && (
                         <a href={sr.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
                           className="text-white/60 hover:text-purple-300 transition-colors">

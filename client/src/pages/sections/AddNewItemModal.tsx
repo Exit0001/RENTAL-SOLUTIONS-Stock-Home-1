@@ -66,7 +66,7 @@ type TabKey = "general" | "pricing" | "specs" | "documents";
 
 interface SpecField { key: string; label: string; placeholder: string; }
 
-const getSpecTemplates = (t: TFunction): Record<string, { label: string; icon: React.ElementType; fields: SpecField[] }> => ({
+export const getSpecTemplates = (t: TFunction): Record<string, { label: string; icon: React.ElementType; fields: SpecField[] }> => ({
   sound: {
     label: t("addNewItem.specTemplateSound"),
     icon: Cpu,
@@ -104,7 +104,7 @@ const getSpecTemplates = (t: TFunction): Record<string, { label: string; icon: R
   },
 });
 
-const PROTOCOL_OPTIONS = ["Dante", "AES/EBU", "Milan", "Art-Net", "sACN", "AVB", "AES67", "MADI"];
+export const PROTOCOL_OPTIONS = ["Dante", "AES/EBU", "Milan", "Art-Net", "sACN", "AVB", "AES67", "MADI"];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 

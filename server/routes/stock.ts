@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, inArray, sql, ne } from "drizzle-orm";
+import { eq, and, inArray, sql, ne, isNotNull, desc } from "drizzle-orm";
 import { db } from "../db";
 import { stockItems, stockUnits, containers, containerUnits, users, itemAccessories, jobUnits, jobStock, jobs, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
 import { notifyCompany } from "../lib/notify";
@@ -177,12 +177,44 @@ stockRouter.get("/all-with-units", async (req, res) => {
       }
     }
 
+    // lastPosition — most recently used zone (FOH/Mon/...) per stock item, for smart-default
+    // prefill in the equipment picker cart. Unit-tracked items look at job_units (via their
+    // units' stockItemId); bulk items look at job_stock directly. Both company-scoped.
+    const lastPositionMap = new Map<string, string>();
+
+    const unitLastPos = await db
+      .selectDistinctOn([stockUnits.stockItemId], {
+        stockItemId: stockUnits.stockItemId,
+        position:    jobUnits.position,
+      })
+      .from(jobUnits)
+      .innerJoin(stockUnits, eq(stockUnits.id, jobUnits.stockUnitId))
+      .innerJoin(jobs, eq(jobs.id, jobUnits.jobId))
+      .where(and(eq(jobs.companyId, req.companyId), isNotNull(jobUnits.position)))
+      .orderBy(stockUnits.stockItemId, desc(jobs.startDate), desc(jobs.createdAt));
+    for (const r of unitLastPos) {
+      if (r.position) lastPositionMap.set(r.stockItemId, r.position);
+    }
+
+    const bulkLastPos = await db
+      .selectDistinctOn([jobStock.stockItemId], {
+        stockItemId: jobStock.stockItemId,
+        position:    jobStock.position,
+      })
+      .from(jobStock)
+      .innerJoin(jobs, eq(jobs.id, jobStock.jobId))
+      .where(and(eq(jobs.companyId, req.companyId), isNotNull(jobStock.position)))
+      .orderBy(jobStock.stockItemId, desc(jobs.startDate), desc(jobs.createdAt));
+    for (const r of bulkLastPos) {
+      if (r.position && !lastPositionMap.has(r.stockItemId)) lastPositionMap.set(r.stockItemId, r.position);
+    }
+
     res.json(items.map((item) => {
       const itemUnits = unitsByItem[item.id] ?? [];
       const availableCount = item.trackingMode === "bulk"
         ? (item.quantity ?? 0) - (bulkAvailMap.get(item.id) ?? 0)
         : itemUnits.filter((u) => u.status === "available").length;
-      return { ...item, units: itemUnits, availableCount };
+      return { ...item, units: itemUnits, availableCount, lastPosition: lastPositionMap.get(item.id) ?? null };
     }));
   } catch {
     res.status(500).json({ message: "Failed to fetch stock with units" });
@@ -247,8 +279,10 @@ stockRouter.get("/:id", async (req, res) => {
     const containerMap = Object.fromEntries(containerRows.map((c) => [c.id, c]));
     const unitContainerMap = Object.fromEntries(links.map((l) => [l.stockUnitId, l.containerId]));
 
-    // Find which job (if any) each unit is assigned to
+    // Find which job(s) each unit is assigned to — plannedJob = nearest one (back-compat),
+    // bookings = full schedule (past + upcoming) for the "ตารางการออกงาน" table
     const plannedJobMap = new Map<string, { id: string; name: string; startDate: Date | null; status: string }>();
+    const bookingsMap    = new Map<string, { jobId: string; jobName: string; startDate: Date | null; endDate: Date | null; status: string }[]>();
     if (unitIds.length > 0) {
       const assignments = await db
         .select({
@@ -256,6 +290,7 @@ stockRouter.get("/:id", async (req, res) => {
           jobId:       jobs.id,
           jobName:     jobs.name,
           startDate:   jobs.startDate,
+          endDate:     jobs.endDate,
           jobStatus:   jobs.status,
         })
         .from(jobUnits)
@@ -263,12 +298,15 @@ stockRouter.get("/:id", async (req, res) => {
         .where(and(
           inArray(jobUnits.stockUnitId, unitIds),
           sql`${jobs.status} != 'cancelled'`,
-        ));
+        ))
+        .orderBy(jobs.startDate);
       for (const a of assignments) {
         // keep the first (earliest) job if somehow in multiple
         if (!plannedJobMap.has(a.stockUnitId)) {
           plannedJobMap.set(a.stockUnitId, { id: a.jobId, name: a.jobName, startDate: a.startDate, status: a.jobStatus });
         }
+        if (!bookingsMap.has(a.stockUnitId)) bookingsMap.set(a.stockUnitId, []);
+        bookingsMap.get(a.stockUnitId)!.push({ jobId: a.jobId, jobName: a.jobName, startDate: a.startDate, endDate: a.endDate, status: a.jobStatus });
       }
     }
 
@@ -281,6 +319,7 @@ stockRouter.get("/:id", async (req, res) => {
         containerName: c?.name ?? null,
         containerType: c?.type ?? null,
         plannedJob:    plannedJobMap.get(u.id) ?? null,
+        bookings:      bookingsMap.get(u.id) ?? [],
       };
     });
 

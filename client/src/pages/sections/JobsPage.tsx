@@ -31,12 +31,13 @@ import {
   Wallet,
   ChevronRight,
   CalendarRange,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { useToast } from "@/hooks/use-toast";
-import { jobsApi, jobVehiclesApi, stockApi, jobTemplatesApi } from "@/api";
+import { jobsApi, jobVehiclesApi, jobSubRentalsApi, stockApi, jobTemplatesApi } from "@/api";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -57,6 +58,7 @@ import { AssignCrewModal } from "./AssignCrewModal";
 import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { AddVehicleModal } from "./AddVehicleModal";
 import { JobExpensesModal } from "./JobExpensesModal";
+import { JobSubRentalsModal } from "./JobSubRentalsModal";
 import { RackBuildModal } from "./RackBuildModal";
 import { JobOperationsModal } from "./JobOperationsModal";
 
@@ -117,6 +119,7 @@ const JobDetailRow = ({ job }: { job: any }) => {
   const [assignCrewOpen, setAssignCrewOpen] = useState(false);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
   const [expensesOpen, setExpensesOpen] = useState(false);
+  const [subRentalsOpen, setSubRentalsOpen] = useState(false);
 
   const { data: assignedUnits = [], isLoading } = useQuery({
     queryKey: ["job-units", job.id],
@@ -139,6 +142,12 @@ const JobDetailRow = ({ job }: { job: any }) => {
   const { data: jobVehicles = [], isLoading: vehiclesLoading } = useQuery({
     queryKey: ["job-vehicles", job.id],
     queryFn:  () => jobVehiclesApi.getForJob(job.id),
+    enabled: !!token,
+  });
+
+  const { data: jobSubRentals = [] } = useQuery({
+    queryKey: ["job-subrentals", job.id],
+    queryFn:  () => jobSubRentalsApi.getForJob(job.id),
     enabled: !!token,
   });
 
@@ -316,6 +325,24 @@ const JobDetailRow = ({ job }: { job: any }) => {
           )}
         </div>
 
+        {/* Sub-Rentals */}
+        <div className="px-6 py-3 border-b border-white/[0.04]">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
+              <ArrowRightLeft className="w-3 h-3" /> {t("subRentalsLabel")}
+            </p>
+            <button
+              onClick={() => setSubRentalsOpen(true)}
+              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+            >
+              <Plus className="w-3 h-3" /> {t("manageSubRentals")}
+            </button>
+          </div>
+          <p className="text-xs text-white/60 italic">
+            {jobSubRentals.length === 0 ? t("noSubRentalsAssigned") : t("subRentalsCount", { count: jobSubRentals.length })}
+          </p>
+        </div>
+
         {/* Vehicles */}
         <div className="px-6 py-3 border-b border-white/[0.04]">
           <div className="flex items-center justify-between mb-2">
@@ -477,6 +504,9 @@ const JobDetailRow = ({ job }: { job: any }) => {
         )}
         {expensesOpen && (
           <JobExpensesModal jobId={job.id} jobName={job.name} onClose={() => setExpensesOpen(false)} />
+        )}
+        {subRentalsOpen && (
+          <JobSubRentalsModal jobId={job.id} jobName={job.name} onClose={() => setSubRentalsOpen(false)} />
         )}
       </td>
     </tr>

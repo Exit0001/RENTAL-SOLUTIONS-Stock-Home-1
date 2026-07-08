@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
-import type { StockUnitWithPlan } from "@/api";
+import type { StockUnitWithPlan, StockItemWithUnits } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
 
 type StockItemWithCount = StockItem & { unitCount: number; availableCount: number; plannedCount?: number };
@@ -380,6 +380,25 @@ export const StockItemsTableSection = ({
     enabled: !!token,
   });
 
+  // ใช้เฉพาะหา stockItemId ที่มี unit ตรงกับ serial/barcode ที่ค้นหา (ไม่ใช้ render หลัก — badge/count ยังมาจาก ["stock"] เดิม)
+  const { data: stockGroupsForSearch = [] } = useQuery<StockItemWithUnits[]>({
+    queryKey: ["stock-with-units"],
+    queryFn: stockApi.getAllWithUnits,
+    enabled: !!token && searchQuery.trim().length > 0,
+  });
+
+  const serialBarcodeMatchIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return new Set<string>();
+    const ids = new Set<string>();
+    for (const g of stockGroupsForSearch) {
+      if (g.units.some((u) => (u.serialNumber ?? "").toLowerCase().includes(q) || (u.barcode ?? "").toLowerCase().includes(q))) {
+        ids.add(g.id);
+      }
+    }
+    return ids;
+  }, [stockGroupsForSearch, searchQuery]);
+
   const toggleRow = (id: string) => {
     setExpandedRows((prev) => {
       const next = new Set(prev);
@@ -410,11 +429,12 @@ export const StockItemsTableSection = ({
           item.name.toLowerCase().includes(q) ||
           item.brand.toLowerCase().includes(q) ||
           item.category.toLowerCase().includes(q) ||
-          item.subCategory.toLowerCase().includes(q);
+          item.subCategory.toLowerCase().includes(q) ||
+          serialBarcodeMatchIds.has(item.id);
         return brandMatch && categoryMatch && subCategoryMatch && searchMatch;
       })
       .sort((a, b) => a.name.localeCompare(b.name)),
-    [stockItems, selectedBrands, selectedCategories, selectedSubCategories, searchQuery]
+    [stockItems, selectedBrands, selectedCategories, selectedSubCategories, searchQuery, serialBarcodeMatchIds]
   );
 
   // Group by category, sorted A→Z

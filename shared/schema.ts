@@ -209,7 +209,9 @@ export const jobs = pgTable("jobs", {
   endDate:       timestamp("end_date").notNull(),
   status:        jobStatusEnum("status").default("draft").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("jobs_company_id_idx").on(t.companyId),
+]);
 
 // ─────────────────────────────────────────────
 // 7b. JOB EXPENSES — ค่าใช้จ่ายเพิ่มเติมของงาน (ค่าเด็กโหลด, ค่าเดินทาง/ส่งของ) พร้อมสลิป
@@ -359,7 +361,7 @@ export const maintenanceLogs = pgTable("maintenance_logs", {
 export const subRentals = pgTable("sub_rentals", {
   id:        uuid("id").primaryKey().defaultRandom(),
   companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
-  jobId:     uuid("job_id").references(() => jobs.id, { onDelete: "set null" }),
+  jobId:     uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
   itemName:  text("item_name").notNull(),
   partner:   text("partner").notNull(),   // บริษัทที่ยืมมา
   dueBack:   timestamp("due_back").notNull(),

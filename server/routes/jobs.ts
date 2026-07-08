@@ -5,6 +5,7 @@ import {
   jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, incidents, insertJobSchema,
   insertPullSheetSchema, insertJobCrewSchema, users, activityLog, stockUnits, stockItems, containers, containerUnits, companies,
   jobExpenses, insertJobExpenseSchema, jobVehicles, insertJobVehicleSchema,
+  subRentals, insertSubRentalSchema,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
@@ -485,6 +486,8 @@ jobsRouter.put("/:id/positions", async (req, res) => {
         .where(and(eq(jobUnits.jobId, jobId), inArray(jobUnits.stockUnitId, ids)));
     }
 
+    // Bulk position now normally flows through POST /:id/stock (one row per position split);
+    // this branch is kept for compatibility but the picker no longer sends a `bulk` payload.
     for (const b of bulk) {
       await db.update(jobStock).set({ position: b.position || null })
         .where(and(eq(jobStock.jobId, jobId), eq(jobStock.stockItemId, b.stockItemId)));
@@ -767,15 +770,10 @@ jobsRouter.get("/:id/stock", async (req, res) => {
 });
 
 // POST /api/jobs/:id/stock — batch set stock items สำหรับ job (replace all)
+// รับ position ต่อบรรทัดตรงๆ จาก client (รองรับหลายแถวของ stockItemId เดียวกัน คนละโซน)
 jobsRouter.post("/:id/stock", async (req, res) => {
   try {
-    const { items }: { items: { stockItemId: string; quantity: number }[] } = req.body;
-
-    // คงโซน (position) ไว้ตอน re-save
-    const existing = await db
-      .select({ stockItemId: jobStock.stockItemId, position: jobStock.position })
-      .from(jobStock).where(eq(jobStock.jobId, req.params.id));
-    const posMap = Object.fromEntries(existing.map((r) => [r.stockItemId, r.position]));
+    const { items }: { items: { stockItemId: string; quantity: number; position?: string | null }[] } = req.body;
 
     await db.delete(jobStock).where(eq(jobStock.jobId, req.params.id));
 
@@ -785,7 +783,7 @@ jobsRouter.post("/:id/stock", async (req, res) => {
           jobId:       req.params.id,
           stockItemId: item.stockItemId,
           quantity:    item.quantity,
-          position:    posMap[item.stockItemId] ?? null,
+          position:    item.position ?? null,
         }))
       );
     }
@@ -1188,6 +1186,60 @@ jobsRouter.delete("/vehicles/:vehicleId", async (req, res) => {
     if (!deleted) return res.status(404).json({ message: "Vehicle not found" });
     res.json({ message: "Vehicle deleted" });
   } catch {
-    res.status(500).json({ message: "Failed to delete vehicle" });
+    res.status(500).json({ message: "Failed to remove vehicle" });
+  }
+});
+
+// GET /api/jobs/:id/subrentals — ของที่เช่าจากภายนอกสำหรับงานนี้
+jobsRouter.get("/:id/subrentals", async (req, res) => {
+  try {
+    const result = await db
+      .select()
+      .from(subRentals)
+      .where(and(eq(subRentals.jobId, req.params.id), eq(subRentals.companyId, req.companyId)))
+      .orderBy(desc(subRentals.dueBack));
+    res.json(result);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job sub-rentals" });
+  }
+});
+
+// POST /api/jobs/:id/subrentals — เพิ่มรายการเช่าจากภายนอก (Admin/Manager เท่านั้น)
+jobsRouter.post("/:id/subrentals", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+
+  try {
+    const data = insertSubRentalSchema.parse({
+      ...req.body,
+      dueBack:   new Date(req.body.dueBack),
+      jobId:     req.params.id,
+      companyId: req.companyId,
+    });
+
+    const [rental] = await db.insert(subRentals).values(data).returning();
+    res.status(201).json(rental);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// DELETE /api/jobs/subrentals/:subRentalId — ลบรายการเช่าจากภายนอก (Admin/Manager เท่านั้น)
+jobsRouter.delete("/subrentals/:subRentalId", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+
+  try {
+    const [deleted] = await db
+      .delete(subRentals)
+      .where(and(eq(subRentals.id, req.params.subRentalId), eq(subRentals.companyId, req.companyId)))
+      .returning();
+
+    if (!deleted) return res.status(404).json({ message: "Sub-rental not found" });
+    res.json({ message: "Sub-rental deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete sub-rental" });
   }
 });

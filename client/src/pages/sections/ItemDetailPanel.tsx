@@ -1,15 +1,25 @@
 import React, { useState } from "react";
 import {
-  X, Package, Pencil, MapPin, Hash, Barcode, Archive,
+  X, Package, MapPin, Hash, Barcode,
   Boxes, Info, DollarSign, Wrench, FileText, Loader2,
-  ExternalLink, ShieldCheck, Calendar, Link2, Plus, Trash2, Search,
+  ExternalLink, Calendar, Link2, Plus, Trash2, Search,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
-import type { ItemAccessoryWithInfo } from "@/api";
-import type { StockItem, StockUnit } from "@shared/schema";
+import type { ItemAccessoryWithInfo, StockItemWithUnits, StockUnitWithPlan } from "@/api";
+import type { StockItem } from "@shared/schema";
+import { getSpecTemplates } from "./AddNewItemModal";
+import { UnitDetailModal } from "./UnitDetailModal";
+import { UnitScheduleGantt } from "./UnitScheduleGantt";
+
+const fmtDate = (d: string | Date | null | undefined) => {
+  if (!d) return null;
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return null;
+  return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
 
 // ────────────────────────────────────────────────
 // helpers
@@ -50,7 +60,6 @@ const unitStatusColor: Record<string, { bg: string; text: string; dot: string }>
   retired:     { bg: "bg-white/5",        text: "text-white/60",    dot: "bg-white/20" },
 };
 
-
 // ────────────────────────────────────────────────
 // main component
 // ────────────────────────────────────────────────
@@ -58,17 +67,18 @@ const unitStatusColor: Record<string, { bg: string; text: string; dot: string }>
 interface Props {
   item:    StockItem & { unitCount?: number };
   onClose: () => void;
-  onEdit:  () => void;
 }
 
-export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element => {
+export const ItemDetailPanel = ({ item, onClose }: Props): JSX.Element => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
+  const { t: tm } = useTranslation("modals");
   const { token, userRole } = useAppStore();
   const qc = useQueryClient();
   const canManage = userRole === "admin" || userRole === "manager";
-  const [activeTab, setActiveTab] = useState<"units" | "accessories" | "details">("units");
+  const [activeTab, setActiveTab] = useState<"units" | "schedule" | "accessories" | "details">("units");
   const [accSearch, setAccSearch] = useState("");
+  const [selectedUnit, setSelectedUnit] = useState<StockUnitWithPlan | null>(null);
 
   // Fetch full item with units
   const { data, isLoading } = useQuery({
@@ -77,7 +87,9 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
     enabled: !!token,
   });
 
-  const units: StockUnit[] = (data as any)?.units ?? [];
+  const units: StockUnitWithPlan[] = (data as StockItemWithUnits | undefined)?.units ?? [];
+
+  const specTemplates = React.useMemo(() => getSpecTemplates(tm), [tm]);
 
 
   const { data: accessories = [], isLoading: accLoading } = useQuery<ItemAccessoryWithInfo[]>({
@@ -125,7 +137,12 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
   };
 
   return (
-    <div className="flex flex-col h-full w-80 flex-shrink-0 bg-[#0d0d0d] border-l border-white/[0.06] overflow-hidden animate-slide-in-right">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+    <div className="w-full max-w-3xl max-h-[90vh] flex flex-col bg-[#0d0d0d] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-modal-up">
 
       {/* Header */}
       <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-white/[0.06] flex-shrink-0">
@@ -172,6 +189,7 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
       <div className="flex border-b border-white/[0.06] flex-shrink-0">
         {[
           { key: "units",       label: t("tabUnits"),       icon: Boxes },
+          { key: "schedule",    label: t("tabSchedule"),    icon: Calendar },
           { key: "accessories", label: t("tabAccessories"), icon: Link2 },
           { key: "details",     label: t("tabDetails"),     icon: Info },
         ].map((tab) => (
@@ -202,11 +220,13 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
                 <p className="text-[10px] text-center px-6">{t("useAddIndividualUnitHint")}</p>
               </div>
             ) : (
-              units.map((u, i) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
+              {units.map((u, i) => {
                 const sc = unitStatusColor[u.status] ?? unitStatusColor.available;
                 return (
                   <div key={u.id}
-                    className="flex flex-col gap-1.5 px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                    onClick={() => setSelectedUnit(u)}
+                    className="flex flex-col gap-1.5 px-4 py-3 rounded-xl border border-white/[0.06] hover:bg-white/[0.04] hover:border-[#FFFF00]/20 cursor-pointer transition-colors"
                     style={{ animationDelay: `${i * 30}ms` }}>
 
                     {/* Name + status */}
@@ -254,14 +274,38 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
                         </span>
                       )}
                     </div>
+
+                    {/* Planned job (ถ้ามี) */}
+                    {u.plannedJob && (
+                      <div className="flex items-center gap-1 text-[10px] text-blue-400/70 flex-wrap">
+                        <span>→ {t("plannedForJob")}:</span>
+                        <span className="font-medium text-blue-300/80">{u.plannedJob.name}</span>
+                        {u.plannedJob.startDate && (
+                          <span className="text-blue-400/50">({fmtDate(u.plannedJob.startDate)})</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
-              })
+              })}
+              </div>
             )}
             {!isLoading && units.length > 0 && (
               <p className="text-[9px] text-white/40 text-center py-2">{t("clickStatusBadgeHint")}</p>
             )}
           </div>
+        )}
+
+        {/* ── Schedule tab (ตารางการออกงาน) — Gantt แสดงต่อยูนิต ── */}
+        {activeTab === "schedule" && (
+          isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-white/60">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs">{t("loadingUnits")}</span>
+            </div>
+          ) : (
+            <UnitScheduleGantt units={units} />
+          )
         )}
 
         {/* ── Accessories tab ── */}
@@ -360,12 +404,22 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
             <Section title={t("sectionSpecs")} icon={Wrench}>
               <Row label={t("weightKg")}  value={item.weight ? `${item.weight} kg` : null} />
               <Row label={t("dimensions")} value={item.dimensions} />
-              {item.specs?.fields && Object.entries(item.specs.fields).map(([k, v]) => (
-                <Row key={k} label={k} value={v} />
+              {(specTemplates[item.specs?.template ?? ""]?.fields ?? []).map((f) => (
+                <Row key={f.key} label={f.label} value={item.specs?.fields?.[f.key]} />
               ))}
               {item.specs?.customFields?.map((f) => (
                 <Row key={f.key} label={f.label} value={f.value} />
               ))}
+              {(item.specs?.protocolTags?.length ?? 0) > 0 && (
+                <div className="flex items-start justify-between gap-3 py-1.5">
+                  <span className="text-[10px] text-white/60 flex-shrink-0 min-w-[90px] pt-0.5">{tm("addNewItem.protocolTags")}</span>
+                  <div className="flex flex-wrap gap-1 justify-end">
+                    {item.specs!.protocolTags!.map((tag) => (
+                      <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#FFFF00]/10 text-[#FFFF00]/70">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Section>
 
             <div className="border-t border-white/[0.04]" />
@@ -396,19 +450,11 @@ export const ItemDetailPanel = ({ item, onClose, onEdit }: Props): JSX.Element =
           </div>
         )}
       </div>
+    </div>
 
-      {/* Footer */}
-      <div className="flex gap-2 px-4 py-3 border-t border-white/[0.06] flex-shrink-0">
-        <button onClick={onEdit}
-          className="flex-1 h-8 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 text-black transition-opacity hover:opacity-80"
-          style={{ backgroundColor: "#FFFF00" }}>
-          <Pencil className="w-3.5 h-3.5" /> {t("editItem")}
-        </button>
-        <button
-          className="h-8 px-3 rounded-lg text-xs font-medium text-white/60 border border-white/10 hover:text-white hover:border-white/20 flex items-center gap-1.5 transition-colors">
-          <Archive className="w-3.5 h-3.5" /> {t("archive")}
-        </button>
-      </div>
+    {selectedUnit && (
+      <UnitDetailModal unit={selectedUnit} itemName={item.name} onClose={() => setSelectedUnit(null)} />
+    )}
     </div>
   );
 };

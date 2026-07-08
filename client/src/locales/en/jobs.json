@@ -50,6 +50,12 @@
   "noVehiclesAssigned": "No vehicles added to this job yet",
   "removeVehicle": "Remove vehicle",
 
+  "subRentalsLabel": "Sub-Rentals",
+  "manageSubRentals": "Manage sub-rentals",
+  "noSubRentalsAssigned": "No sub-rentals for this job yet",
+  "subRentalsCount_one": "{{count}} item",
+  "subRentalsCount_other": "{{count}} items",
+
   "pullSheetsHint": "Pull sheets can be shared via LINE or exported as PDF for paperless operations",
   "colPullSheet": "Pull Sheet",
   "colCreated": "Created",

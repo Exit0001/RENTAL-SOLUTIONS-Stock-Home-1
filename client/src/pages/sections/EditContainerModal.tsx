@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from "react";
-import { X, Plus, Minus, Settings } from "lucide-react";
+import React, { useState } from "react";
+import { X, Pencil, Settings } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
 import { ManageContainerTypesModal } from "./ManageContainerTypesModal";
 
-interface AddContainerModalProps {
+interface EditContainerModalProps {
+  container: { id: string; name: string; type: string; location: string | null; barcode: string | null };
   onClose: () => void;
-  onAdd: (containers: { name: string; type: string; location: string; barcode: string }[]) => void;
+  onSave: (id: string, data: { name: string; type: string; location: string; barcode: string }) => void;
 }
 
-export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): JSX.Element => {
+export const EditContainerModal = ({ container, onClose, onSave }: EditContainerModalProps): JSX.Element => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
-  const [name, setName] = useState("");
-  const [type, setType] = useState("");
-  const [location, setLocation] = useState("");
-  const [barcode, setBarcode] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [name, setName] = useState(container.name);
+  const [type, setType] = useState(container.type);
+  const [location, setLocation] = useState(container.location ?? "");
+  const [barcode, setBarcode] = useState(container.barcode ?? "");
   const [manageTypesOpen, setManageTypesOpen] = useState(false);
 
   const { data: locations = [] } = useQuery({
@@ -29,32 +29,9 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
     queryKey: ["catalog", "container-types"], queryFn: catalogApi.getContainerTypes, enabled: !!token,
   });
 
-  // ตั้งค่า default location เป็นตัวแรกจาก DB ตอนโหลดมาเสร็จ
-  useEffect(() => {
-    if (!location && locations.length > 0) setLocation(locations[0].name);
-  }, [locations, location]);
-
-  // ตั้งค่า default container type เป็นตัวแรกจาก DB ตอนโหลดมาเสร็จ
-  useEffect(() => {
-    if (!type && containerTypes.length > 0) setType(containerTypes[0].name);
-  }, [containerTypes, type]);
-
   const handleSave = () => {
     if (!name.trim()) return;
-    const trimmedName    = name.trim();
-    const trimmedBarcode = barcode.trim();
-    const n = Math.max(1, quantity);
-
-    const containers = Array.from({ length: n }, (_, i) => {
-      const suffix = n > 1 ? ` #${i + 1}` : "";
-      const autoBarcode = `${type.toUpperCase()}-${Date.now().toString().slice(-4)}${n > 1 ? `-${i + 1}` : ""}`;
-      const itemBarcode = trimmedBarcode
-        ? (n > 1 ? `${trimmedBarcode}-${i + 1}` : trimmedBarcode)
-        : autoBarcode;
-      return { name: `${trimmedName}${suffix}`, type, location, barcode: itemBarcode };
-    });
-
-    onAdd(containers);
+    onSave(container.id, { name: name.trim(), type, location, barcode: barcode.trim() });
     onClose();
   };
 
@@ -69,9 +46,9 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFFF00" }}>
-              <Plus className="w-3.5 h-3.5 text-black" />
+              <Pencil className="w-3.5 h-3.5 text-black" />
             </div>
-            <h2 className="text-sm font-bold text-white">{t("addContainer.title")}</h2>
+            <h2 className="text-sm font-bold text-white">{t("editContainer.title")}</h2>
           </div>
           <button onClick={onClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
@@ -89,7 +66,7 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
                 onChange={(e) => setType(e.target.value)}
                 className="flex-1 h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
               >
-                {containerTypes.length === 0 && <option value="" className="bg-[#111]">{t("addContainer.noTypesYet")}</option>}
+                {containerTypes.length === 0 && <option value={type} className="bg-[#111]">{type}</option>}
                 {containerTypes.map((ct) => <option key={ct.id} value={ct.name} className="bg-[#111]">{ct.name}</option>)}
               </select>
               <button
@@ -115,36 +92,6 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
             />
           </div>
 
-          {/* Quantity */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">
-              {t("addContainer.quantityLabel")} <span className="text-white/60 normal-case">{t("addContainer.quantityHint")}</span>
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors flex-shrink-0"
-              >
-                <Minus className="w-3.5 h-3.5" />
-              </button>
-              <input
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className="w-16 h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white text-center focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => q + 1)}
-                className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors flex-shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
           {/* Location */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("addContainer.storageLocation")}</label>
@@ -153,7 +100,7 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
               onChange={(e) => setLocation(e.target.value)}
               className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
             >
-              {locations.length === 0 && <option value="" className="bg-[#111]">{t("addContainer.noLocationsYet")}</option>}
+              {locations.length === 0 && <option value={location} className="bg-[#111]">{location}</option>}
               {locations.map((l) => <option key={l.id} value={l.name} className="bg-[#111]">{l.name}</option>)}
             </select>
           </div>
@@ -161,7 +108,7 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
           {/* Barcode */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">
-              {t("addContainer.barcodeLabel")} <span className="text-white/60 normal-case">{t("addContainer.autoGeneratedHint")}</span>
+              {t("addContainer.barcodeLabel")}
             </label>
             <input
               type="text"
@@ -182,7 +129,7 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
           <button onClick={handleSave} disabled={!name.trim() || !type}
             className="flex-1 h-9 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ backgroundColor: "#FFFF00" }}>
-            {quantity > 1 ? t("addContainer.createContainerCount", { count: quantity }) : t("addContainer.createContainer")}
+            {tc("save")}
           </button>
         </div>
       </div>

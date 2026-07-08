@@ -50,6 +50,12 @@
   "noVehiclesAssigned": "ยังไม่มีรถที่เพิ่มให้งานนี้",
   "removeVehicle": "ลบรถ",
 
+  "subRentalsLabel": "ของเช่าจากภายนอก",
+  "manageSubRentals": "จัดการของเช่าจากภายนอก",
+  "noSubRentalsAssigned": "ยังไม่มีของเช่าจากภายนอกสำหรับงานนี้",
+  "subRentalsCount_one": "{{count}} รายการ",
+  "subRentalsCount_other": "{{count}} รายการ",
+
   "pullSheetsHint": "ใบเบิกอุปกรณ์สามารถแชร์ผ่าน LINE หรือส่งออกเป็น PDF เพื่อลดการใช้กระดาษ",
   "colPullSheet": "ใบเบิกอุปกรณ์",
   "colCreated": "สร้างเมื่อ",

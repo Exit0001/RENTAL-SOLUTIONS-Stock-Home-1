@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { maintenanceLogs, subRentals, insertMaintenanceLogBatchSchema } from "@shared/schema";
+import { maintenanceLogs, subRentals, jobs, insertMaintenanceLogBatchSchema } from "@shared/schema";
 import { notify } from "../lib/notify";
 import { markUnitsInMaintenance, revertUnitIfNoOpenMaintenance } from "../lib/stockUnitStatus";
 import { recalculateUnitHealth } from "../lib/health";
@@ -215,30 +215,30 @@ maintenanceRouter.delete("/:id", async (req, res) => {
 
 // ─── Sub Rentals ──────────────────────────────────────────
 
-// GET /api/maintenance/subrentals
+// GET /api/maintenance/subrentals — ภาพรวมทั้งบริษัท (ดูอย่างเดียว, เพิ่ม/ลบทำผ่านหน้า Job)
 maintenanceRouter.get("/subrentals", async (req, res) => {
   try {
     const result = await db
-      .select()
+      .select({
+        id:         subRentals.id,
+        companyId:  subRentals.companyId,
+        jobId:      subRentals.jobId,
+        jobName:    jobs.name,
+        itemName:   subRentals.itemName,
+        partner:    subRentals.partner,
+        dueBack:    subRentals.dueBack,
+        dailyRate:  subRentals.dailyRate,
+        receiptUrl: subRentals.receiptUrl,
+        status:     subRentals.status,
+        createdAt:  subRentals.createdAt,
+      })
       .from(subRentals)
+      .innerJoin(jobs, eq(jobs.id, subRentals.jobId))
       .where(eq(subRentals.companyId, req.companyId))
       .orderBy(desc(subRentals.dueBack));
     res.json(result);
   } catch {
     res.status(500).json({ message: "Failed to fetch sub-rentals" });
-  }
-});
-
-// POST /api/maintenance/subrentals
-maintenanceRouter.post("/subrentals", async (req, res) => {
-  try {
-    const [rental] = await db
-      .insert(subRentals)
-      .values({ ...req.body, dueBack: new Date(req.body.dueBack), companyId: req.companyId })
-      .returning();
-    res.status(201).json(rental);
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
   }
 });
 

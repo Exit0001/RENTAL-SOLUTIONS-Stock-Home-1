@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { X, Package, Search, Loader2, Check, Save, ChevronDown, ChevronRight, Boxes, Layers, Minus, Plus } from "lucide-react";
+import { X, Package, Loader2, Save } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
@@ -7,6 +7,11 @@ import { stockApi, jobsApi, catalogApi } from "@/api";
 import type { AssignedUnit, StockItemWithUnits, JobBulkEntry } from "@/api";
 import type { Position } from "@shared/schema";
 import type { StockUnit, ItemAccessory } from "@shared/schema";
+import { ManageJobStockCatalogPane } from "./ManageJobStockCatalogPane";
+import { ManageJobStockCartPane } from "./ManageJobStockCartPane";
+
+export type CartUnitLine = { unitId: string; stockItemId: string; position: string | null };
+export type CartBulkLine = { lineId: string; stockItemId: string; quantity: number; position: string | null };
 
 interface Props {
   jobId:       string;
@@ -14,29 +19,25 @@ interface Props {
   onClose:     () => void;
 }
 
-const statusDot: Record<string, string> = {
-  available:   "bg-emerald-400",
-  out:         "bg-blue-400",
-  maintenance: "bg-amber-400",
-  retired:     "bg-white/20",
-};
-
 export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Element => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
   const qc = useQueryClient();
 
-  const [search,             setSearch]             = useState("");
-  const [selectedIds,        setSelectedIds]        = useState<Set<string>>(new Set());
-  const [bulkQuantities,     setBulkQuantities]     = useState<Record<string, number>>({});
-  const [itemPositions,      setItemPositions]      = useState<Record<string, string>>({});
-  const [expanded,           setExpanded]           = useState<Set<string>>(new Set());
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
-  const [saving,             setSaving]             = useState(false);
-  const [error,              setError]              = useState<string | null>(null);
+  const [search,         setSearch]         = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [expanded,       setExpanded]       = useState<Set<string>>(new Set());
+  const [cartUnits,      setCartUnits]      = useState<Map<string, CartUnitLine>>(new Map());
+  const [cartBulkLines,  setCartBulkLines]  = useState<Map<string, CartBulkLine>>(new Map());
+  const [saving,         setSaving]         = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
 
-  // โหลด stock items พร้อม units
+  // โซนที่กำลัง "เพิ่มของเข้า" ตอนนี้ — "auto" = ใช้ lastPosition ต่อ item (smart default เดิม),
+  // string = บังคับโซนนี้กับของที่เพิ่มใหม่ทุกชิ้น, null = บังคับไม่ระบุโซน
+  const [activeZone, setActiveZone] = useState<string | null>("auto");
+
+  // โหลด stock items พร้อม units (+ lastPosition ต่อ item สำหรับ smart default)
   const { data: stockGroups = [], isLoading: stockLoading } = useQuery<StockItemWithUnits[]>({
     queryKey: ["stock-with-units"],
     queryFn: stockApi.getAllWithUnits,
@@ -81,190 +82,226 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     return map;
   }, [accessoryLinks]);
 
-  // pre-populate bulk quantities
+  // map: stockItemId → most-recently-used zone (smart default for newly added lines)
+  const lastPositionByItem = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const g of stockGroups) m.set(g.id, g.lastPosition ?? null);
+    return m;
+  }, [stockGroups]);
+
+  // map: stockItemId → remaining available qty for bulk items (excluding this job's own assignment)
+  const bulkMaxByItem = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of stockGroups) if (g.trackingMode === "bulk") m.set(g.id, g.availableCount ?? g.quantity ?? 0);
+    return m;
+  }, [stockGroups]);
+
+  // สร้างโซนใหม่จากใน modal ได้ทันที (แต่ละงานจะมีกี่จุดก็ได้ โดยใช้ list กลางร่วมกันทุกงาน)
+  const createZoneMutation = useMutation({
+    mutationFn: (name: string) => catalogApi.createPosition({ name }),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ["catalog", "positions"] });
+      setActiveZone(created.name);
+    },
+  });
+
+  const onCreateZone = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existing = zones.find((z) => z.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) { setActiveZone(existing.name); return; }
+    createZoneMutation.mutate(trimmed);
+  };
+
+  // โซนที่จะใช้ตอนเพิ่มของชิ้นใหม่ — "auto" ใช้ smart default ต่อ item, ไม่งั้นบังคับตามที่เลือกไว้
+  const resolvePosition = (stockItemId: string): string | null =>
+    activeZone === "auto" ? (lastPositionByItem.get(stockItemId) ?? null) : activeZone;
+
+  // pre-populate cart from saved job data — always trusts the row's own saved position, never overrides it
+  useEffect(() => {
+    if (assignedLoading) return;
+    const map = new Map<string, CartUnitLine>();
+    for (const u of assignedUnits) {
+      map.set(u.id, { unitId: u.id, stockItemId: u.stockItemId, position: u.position ?? null });
+    }
+    setCartUnits(map);
+  }, [assignedUnits, assignedLoading]);
+
   useEffect(() => {
     if (bulkLoading) return;
-    const map: Record<string, number> = {};
+    const map = new Map<string, CartBulkLine>();
     for (const entry of jobBulkEntries) {
-      map[entry.stockItemId] = entry.quantity;
+      map.set(entry.id, { lineId: entry.id, stockItemId: entry.stockItemId, quantity: entry.quantity, position: entry.position ?? null });
     }
-    setBulkQuantities(map);
+    setCartBulkLines(map);
   }, [jobBulkEntries, bulkLoading]);
 
-  // prefill โซนต่อ item จากข้อมูลที่บันทึกไว้ (unit + bulk)
+  // pre-expand model groups that already have a selected unit
   useEffect(() => {
-    if (assignedLoading || bulkLoading) return;
-    const map: Record<string, string> = {};
-    for (const u of assignedUnits) {
-      if (u.position && !map[u.stockItemId]) map[u.stockItemId] = u.position;
-    }
-    for (const b of jobBulkEntries) {
-      if (b.position && !map[b.stockItemId]) map[b.stockItemId] = b.position;
-    }
-    setItemPositions(map);
-  }, [assignedUnits, jobBulkEntries, assignedLoading, bulkLoading]);
-
-  // pre-select ตาม assigned units + expand groups ที่มี selection
-  useEffect(() => {
-    if (assignedLoading || stockLoading) return;
+    if (assignedLoading || stockLoading || assignedUnits.length === 0) return;
     const ids = new Set(assignedUnits.map((u) => u.id));
-    setSelectedIds(ids);
-
-    // expand stock items + categories ที่มี unit ถูก select อยู่
-    if (ids.size > 0) {
-      const toExpand = new Set<string>();
-      const toExpandCat = new Set<string>();
-      for (const g of stockGroups) {
-        if (g.units.some((u) => ids.has(u.id))) {
-          toExpand.add(g.id);
-          toExpandCat.add(g.category || "Uncategorized");
-        }
-      }
-      setExpanded(toExpand);
-      setExpandedCategories(toExpandCat);
+    const toExpand = new Set<string>();
+    for (const g of stockGroups) {
+      if (g.units.some((u) => ids.has(u.id))) toExpand.add(g.id);
     }
+    setExpanded(toExpand);
   }, [assignedUnits, stockGroups, assignedLoading, stockLoading]);
 
-  const toggleUnit = (unitId: string) =>
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
+  const toggleUnit = (unitId: string) => {
+    setCartUnits((prev) => {
+      const next = new Map(prev);
       if (next.has(unitId)) {
         next.delete(unitId);
         return next;
       }
-      next.add(unitId);
 
-      // หา stockItemId ของ unit นี้
       let parentStockItemId: string | undefined;
       for (const g of stockGroups) {
-        if (g.units.some((u) => u.id === unitId)) {
-          parentStockItemId = g.id;
-          break;
-        }
+        if (g.units.some((u) => u.id === unitId)) { parentStockItemId = g.id; break; }
       }
+      if (!parentStockItemId) return next;
+
+      next.set(unitId, { unitId, stockItemId: parentStockItemId, position: resolvePosition(parentStockItemId) });
 
       // auto-select required accessories
-      if (parentStockItemId) {
-        const links = accessoryMap.get(parentStockItemId) ?? [];
-        for (const link of links) {
-          if (!link.required) continue;
-          const accGroup = stockGroups.find((g) => g.id === link.accessoryStockItemId);
-          if (!accGroup) continue;
-          const availableUnits = accGroup.units.filter((u) => u.status === "available" && !next.has(u.id));
-          const toAdd = availableUnits.slice(0, link.quantityPerUnit);
-          toAdd.forEach((u) => next.add(u.id));
+      const links = accessoryMap.get(parentStockItemId) ?? [];
+      for (const link of links) {
+        if (!link.required) continue;
+        const accGroup = stockGroups.find((g) => g.id === link.accessoryStockItemId);
+        if (!accGroup) continue;
+        const availableUnits = accGroup.units.filter((u) => u.status === "available" && !next.has(u.id));
+        const toAdd = availableUnits.slice(0, link.quantityPerUnit);
+        for (const u of toAdd) {
+          next.set(u.id, { unitId: u.id, stockItemId: accGroup.id, position: resolvePosition(accGroup.id) });
         }
       }
 
       return next;
     });
+  };
 
-  const toggleGroup = (groupId: string) =>
+  const toggleGroupExpand = (groupId: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
       next.has(groupId) ? next.delete(groupId) : next.add(groupId);
       return next;
     });
 
-  const toggleCategory = (category: string) =>
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      next.has(category) ? next.delete(category) : next.add(category);
-      return next;
-    });
-
-  const toggleSelectAll = (units: StockUnit[]) => {
-    const allSelected = units.every((u) => selectedIds.has(u.id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allSelected) units.forEach((u) => next.delete(u.id));
-      else             units.forEach((u) => next.add(u.id));
+  const toggleSelectAll = (units: StockUnit[], stockItemId: string) => {
+    const allSelected = units.every((u) => cartUnits.has(u.id));
+    setCartUnits((prev) => {
+      const next = new Map(prev);
+      if (allSelected) {
+        units.forEach((u) => next.delete(u.id));
+      } else {
+        units.forEach((u) => {
+          if (!next.has(u.id)) next.set(u.id, { unitId: u.id, stockItemId, position: resolvePosition(stockItemId) });
+        });
+      }
       return next;
     });
   };
 
-  const filteredGroups = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return stockGroups;
-    return stockGroups
-      .map((g) => ({
-        ...g,
-        units: g.units.filter(
-          (u) => u.name.toLowerCase().includes(q) ||
-                 (u.serialNumber ?? "").toLowerCase().includes(q) ||
-                 (u.barcode ?? "").toLowerCase().includes(q)
-        ),
-      }))
-      .filter((g) => g.units.length > 0 || g.name.toLowerCase().includes(q));
-  }, [stockGroups, search]);
+  // catalog stepper — operates on the single line for this item; if already split into
+  // multiple positioned lines, the catalog defers to the cart pane instead (see splitNotice)
+  const adjustBulkQty = (stockItemId: string, delta: number) => {
+    const bulkMax = bulkMaxByItem.get(stockItemId) ?? 0;
+    setCartBulkLines((prev) => {
+      const matches = Array.from(prev.entries()).filter(([, l]) => l.stockItemId === stockItemId);
+      if (matches.length > 1) return prev;
+      const next = new Map(prev);
+      if (matches.length === 1) {
+        const [lineId, line] = matches[0];
+        const max = bulkMax + line.quantity;
+        const newQty = Math.max(0, Math.min(max, line.quantity + delta));
+        if (newQty === 0) next.delete(lineId);
+        else next.set(lineId, { ...line, quantity: newQty });
+      } else if (delta > 0) {
+        const lineId = crypto.randomUUID();
+        next.set(lineId, { lineId, stockItemId, quantity: 1, position: resolvePosition(stockItemId) });
+      }
+      return next;
+    });
+  };
 
-  const isFiltering = !!search;
+  const onBulkLineQtyChange = (lineId: string, delta: number) => {
+    setCartBulkLines((prev) => {
+      const line = prev.get(lineId);
+      if (!line) return prev;
+      const bulkMax = bulkMaxByItem.get(line.stockItemId) ?? 0;
+      const max = bulkMax + line.quantity;
+      const newQty = Math.max(0, Math.min(max, line.quantity + delta));
+      const next = new Map(prev);
+      if (newQty === 0) next.delete(lineId);
+      else next.set(lineId, { ...line, quantity: newQty });
+      return next;
+    });
+  };
 
-  // จัดกลุ่มตาม category (เรียง A→Z)
-  const groupedByCategory = useMemo(() => {
-    const map = new Map<string, StockItemWithUnits[]>();
-    for (const g of filteredGroups) {
-      const cat = g.category || "Uncategorized";
-      if (!map.has(cat)) map.set(cat, []);
-      map.get(cat)!.push(g);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [filteredGroups]);
+  const onBulkLineAdd = (stockItemId: string) => {
+    setCartBulkLines((prev) => {
+      const next = new Map(prev);
+      const lineId = crypto.randomUUID();
+      next.set(lineId, { lineId, stockItemId, quantity: 1, position: null });
+      return next;
+    });
+  };
+
+  const onBulkLineRemove = (lineId: string) =>
+    setCartBulkLines((prev) => { const next = new Map(prev); next.delete(lineId); return next; });
+
+  const onBulkLinePositionChange = (lineId: string, position: string | null) =>
+    setCartBulkLines((prev) => {
+      const line = prev.get(lineId);
+      if (!line) return prev;
+      const next = new Map(prev);
+      next.set(lineId, { ...line, position });
+      return next;
+    });
+
+  const onUnitPositionChange = (unitId: string, position: string | null) =>
+    setCartUnits((prev) => {
+      const line = prev.get(unitId);
+      if (!line) return prev;
+      const next = new Map(prev);
+      next.set(unitId, { ...line, position });
+      return next;
+    });
+
+  const onUnitRemove = (unitId: string) =>
+    setCartUnits((prev) => { const next = new Map(prev); next.delete(unitId); return next; });
+
+  const onGroupApplyPositionToUnits = (stockItemId: string, position: string | null) =>
+    setCartUnits((prev) => {
+      const next = new Map(prev);
+      for (const [id, line] of Array.from(prev)) {
+        if (line.stockItemId === stockItemId) next.set(id, { ...line, position });
+      }
+      return next;
+    });
 
   const isLoading = stockLoading || assignedLoading || bulkLoading;
 
-  // map: unit id → stock item id (สำหรับสร้าง payload โซนตอน save)
-  const unitToItem = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const g of stockGroups) for (const u of g.units) m[u.id] = g.id;
-    return m;
-  }, [stockGroups]);
-
-  // dropdown เลือกโซน (FOH/Mon/Power/Stage) ต่อ item — ใช้ทั้งฝั่ง unit และ bulk
-  const zoneSelect = (itemId: string) => {
-    if (zones.length === 0) return null;
-    return (
-      <select
-        value={itemPositions[itemId] ?? ""}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => { e.stopPropagation(); setItemPositions((p) => ({ ...p, [itemId]: e.target.value })); }}
-        title={t("manageJobStock.zoneLabel")}
-        className="h-6 max-w-[110px] rounded-md bg-[#0d0d0d] border border-white/10 text-[10px] px-1.5 outline-none cursor-pointer flex-shrink-0
-          hover:border-white/30 transition-colors"
-        style={itemPositions[itemId] ? { color: "#FFFF00", borderColor: "rgba(255,255,0,0.35)" } : { color: "rgba(255,255,255,0.5)" }}
-      >
-        <option value="">{t("manageJobStock.zoneNone")}</option>
-        {zones.map((z) => <option key={z.id} value={z.name}>{z.name}</option>)}
-      </select>
-    );
-  };
+  const cartCount = cartUnits.size + Array.from(cartBulkLines.values()).reduce((s, l) => s + l.quantity, 0);
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
       // Save individual unit assignments
-      await jobsApi.setUnits(jobId, Array.from(selectedIds));
+      await jobsApi.setUnits(jobId, Array.from(cartUnits.keys()));
 
-      // Save bulk quantity assignments
-      const bulkItems = Object.entries(bulkQuantities)
-        .filter(([, qty]) => qty > 0)
-        .map(([stockItemId, quantity]) => ({ stockItemId, quantity }));
-      if (bulkItems.length > 0) {
-        await jobsApi.setJobStock(jobId, bulkItems);
-      }
+      // Save bulk quantity assignments (always called — including when the cart has zero
+      // bulk lines, so a fully-cleared bulk assignment actually clears job_stock server-side)
+      const bulkItems = Array.from(cartBulkLines.values())
+        .filter((l) => l.quantity > 0)
+        .map((l) => ({ stockItemId: l.stockItemId, quantity: l.quantity, position: l.position }));
+      await jobsApi.setJobStock(jobId, bulkItems);
 
-      // Save โซน (position) ต่อ item — ต้องทำหลัง setUnits/setJobStock (เพราะ replace-all)
-      const unitPos = Array.from(selectedIds).map((uid) => ({
-        stockUnitId: uid,
-        position:    itemPositions[unitToItem[uid]] || null,
-      }));
-      const bulkPos = bulkItems.map(({ stockItemId }) => ({
-        stockItemId,
-        position: itemPositions[stockItemId] || null,
-      }));
-      if (unitPos.length > 0 || bulkPos.length > 0) {
-        await jobsApi.setPositions(jobId, { units: unitPos, bulk: bulkPos });
+      // Save per-unit zone (position) — must run after setUnits (replace-all)
+      const unitPos = Array.from(cartUnits.values()).map((l) => ({ stockUnitId: l.unitId, position: l.position }));
+      if (unitPos.length > 0) {
+        await jobsApi.setPositions(jobId, { units: unitPos });
       }
 
       qc.invalidateQueries({ queryKey: ["job-units", jobId] });
@@ -284,7 +321,7 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
       style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-3xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-6xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[90vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
@@ -303,217 +340,41 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
           </button>
         </div>
 
-        {/* Search + count */}
-        <div className="px-5 pt-4 pb-2 flex-shrink-0 space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60" />
-            <input
-              autoFocus
-              placeholder={t("manageContainerUnits.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white
-                placeholder-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-all"
-            />
-          </div>
-          <div className="flex items-center justify-between px-0.5">
-            <span className="text-[10px] text-white/60">
-              {t("manageContainerUnits.selectedCount", { count: selectedIds.size })}
-            </span>
-            {selectedIds.size > 0 && (
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="text-[10px] text-white/60 hover:text-red-400 transition-colors"
-              >
-                {tc("clearAll")}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* List */}
-        <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2">
-          {isLoading && (
-            <div className="flex items-center justify-center gap-2 py-12 text-white/60">
-              <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">{tc("loading")}</span>
-            </div>
-          )}
-
-          {!isLoading && groupedByCategory.map(([category, groups]) => {
-            const catOpen     = isFiltering ? true : expandedCategories.has(category);
-            const catUnits    = groups.reduce((s, g) => s + g.units.length, 0);
-            const catSelected = groups.reduce((s, g) => s + g.units.filter((u) => selectedIds.has(u.id)).length, 0);
-
-            return (
-              <div key={category}>
-                {/* Category header */}
-                <div
-                  className="flex items-center gap-2 px-1 py-2 cursor-pointer select-none"
-                  onClick={() => toggleCategory(category)}
-                >
-                  {isFiltering
-                    ? <Boxes className="w-3.5 h-3.5 text-[#FFFF00]/40 flex-shrink-0" />
-                    : catOpen
-                      ? <ChevronDown className="w-3.5 h-3.5 text-[#FFFF00]/60 flex-shrink-0" />
-                      : <ChevronRight className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
-                  }
-                  <span className="text-xs font-bold text-[#FFFF00] uppercase tracking-wider">{category}</span>
-                  <span className="text-[10px] text-white/60">{t("manageContainerUnits.modelsUnitsCount", { models: groups.length, units: catUnits })}</span>
-                  {catSelected > 0 && (
-                    <span className="ml-auto text-[10px] font-bold text-[#FFFF00]/60 px-1.5 py-0.5 rounded bg-[#FFFF00]/10">
-                      {t("manageContainerUnits.selectedBadge", { count: catSelected })}
-                    </span>
-                  )}
-                </div>
-
-                {/* Models in this category */}
-                {catOpen && (
-                  <div className="space-y-2">
-                    {groups.map((group) => {
-                      const isBulk       = group.trackingMode === "bulk";
-                      const isExpanded   = !isBulk && expanded.has(group.id);
-                      const groupUnits   = group.units;
-                      const selectedInGroup = groupUnits.filter((u) => selectedIds.has(u.id)).length;
-                      const allSelected  = !isBulk && groupUnits.length > 0 && groupUnits.every((u) => selectedIds.has(u.id));
-                      const bulkQty      = bulkQuantities[group.id] ?? 0;
-                      const bulkMax      = group.availableCount ?? (group.quantity ?? 0);
-
-                      if (isBulk) {
-                        return (
-                          <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden bg-white/[0.02]">
-                            <div className="flex items-center gap-3 px-3 py-2.5">
-                              <Layers className="w-4 h-4 text-amber-400/70 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
-                                <p className="text-[10px] text-white/60">
-                                  {t("manageJobStock.bulkAvailable", { available: group.availableCount ?? group.quantity ?? 0, total: group.quantity ?? 0 })}
-                                </p>
-                              </div>
-                              {/* Zone picker (แสดงเมื่อมีจำนวน > 0) */}
-                              {bulkQty > 0 && zoneSelect(group.id)}
-                              {/* Stepper */}
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => setBulkQuantities((p) => ({ ...p, [group.id]: Math.max(0, (p[group.id] ?? 0) - 1) }))}
-                                  className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <span className={`w-8 text-center text-sm font-bold ${bulkQty > 0 ? "text-[#FFFF00]" : "text-white/60"}`}>
-                                  {bulkQty}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setBulkQuantities((p) => ({ ...p, [group.id]: Math.min(bulkMax + bulkQty, (p[group.id] ?? 0) + 1) }))}
-                                  className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-              <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden">
-                {/* Group header */}
-                <div
-                  className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors
-                    ${isExpanded ? "bg-white/[0.04]" : "bg-white/[0.02] hover:bg-white/[0.04]"}`}
-                  onClick={() => toggleGroup(group.id)}
-                >
-                  {/* Select-all checkbox */}
-                  <div
-                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
-                      ${allSelected ? "border-[#FFFF00] bg-[#FFFF00]" :
-                        selectedInGroup > 0 ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" :
-                        "border-white/20"}`}
-                    onClick={(e) => { e.stopPropagation(); if (groupUnits.length) toggleSelectAll(groupUnits); }}
-                  >
-                    {allSelected && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
-                    {!allSelected && selectedInGroup > 0 && (
-                      <div className="w-2 h-0.5 bg-[#FFFF00] rounded-full" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
-                    <p className="text-[10px] text-white/60">{t("manageContainerUnits.unitsCount", { count: groupUnits.length })}</p>
-                  </div>
-
-                  {selectedInGroup > 0 && (
-                    <span className="text-[10px] font-bold text-[#FFFF00]/60 px-1.5 py-0.5 rounded bg-[#FFFF00]/10">
-                      {selectedInGroup}/{groupUnits.length}
-                    </span>
-                  )}
-
-                  {selectedInGroup > 0 && zoneSelect(group.id)}
-
-                  {isExpanded
-                    ? <ChevronDown className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
-                    : <ChevronRight className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
-                  }
-                </div>
-
-                {/* Units */}
-                {isExpanded && groupUnits.length === 0 && (
-                  <div className="px-10 py-3 text-xs text-white/60 italic border-t border-white/[0.04]">
-                    {t("manageContainerUnits.noUnitsHint")}
-                  </div>
-                )}
-
-                {isExpanded && groupUnits.map((unit) => {
-                  const isSelected = selectedIds.has(unit.id);
-                  return (
-                    <div
-                      key={unit.id}
-                      onClick={() => toggleUnit(unit.id)}
-                      className={`flex items-center gap-3 pl-10 pr-3 py-1.5 cursor-pointer border-t border-white/[0.04] transition-colors
-                        ${isSelected ? "bg-[#FFFF00]/[0.04]" : "hover:bg-white/[0.02]"}`}
-                    >
-                      {/* Unit checkbox */}
-                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                        ${isSelected ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20"}`}>
-                        {isSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs truncate ${isSelected ? "text-white/90" : "text-white/50"}`}>
-                          {unit.name}
-                        </p>
-                        <p className="text-[10px] text-white/60 font-mono">
-                          {unit.serialNumber ? `SN: ${unit.serialNumber}` : ""}
-                          {unit.serialNumber && unit.barcode ? "  ·  " : ""}
-                          {unit.barcode ? `BC: ${unit.barcode}` : ""}
-                          {!unit.serialNumber && !unit.barcode ? t("manageContainerUnits.noSerialBarcode") : ""}
-                        </p>
-                      </div>
-
-                      {/* Status dot */}
-                      <span className="flex items-center gap-1.5 text-[10px] text-white/60 flex-shrink-0">
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusDot[unit.status] ?? "bg-white/20"}`} />
-                        {tc(`statusEnum.${unit.status}`, { defaultValue: unit.status })}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {!isLoading && filteredGroups.length === 0 && (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <Package className="w-8 h-8 text-white/40" />
-              <p className="text-xs text-white/60">{t("manageContainerUnits.noItemsFound")}</p>
-            </div>
-          )}
+        {/* Two-pane body: catalog (left) + persistent cart (right) */}
+        <div className="flex-1 min-h-0 flex flex-row">
+          <ManageJobStockCatalogPane
+            stockGroups={stockGroups}
+            isLoading={isLoading}
+            search={search}
+            onSearchChange={setSearch}
+            categoryFilter={categoryFilter}
+            onCategoryFilterChange={setCategoryFilter}
+            expanded={expanded}
+            onToggleGroupExpand={toggleGroupExpand}
+            cartUnits={cartUnits}
+            cartBulkLines={cartBulkLines}
+            onToggleUnit={toggleUnit}
+            onToggleSelectAll={toggleSelectAll}
+            onAdjustBulkQty={adjustBulkQty}
+            zones={zones}
+            activeZone={activeZone}
+            onActiveZoneChange={setActiveZone}
+            onCreateZone={onCreateZone}
+            creatingZone={createZoneMutation.isPending}
+          />
+          <ManageJobStockCartPane
+            stockGroups={stockGroups}
+            zones={zones}
+            cartUnits={cartUnits}
+            cartBulkLines={cartBulkLines}
+            onUnitPositionChange={onUnitPositionChange}
+            onUnitRemove={onUnitRemove}
+            onGroupApplyPositionToUnits={onGroupApplyPositionToUnits}
+            onBulkLineQtyChange={onBulkLineQtyChange}
+            onBulkLinePositionChange={onBulkLinePositionChange}
+            onBulkLineRemove={onBulkLineRemove}
+            onBulkLineAdd={onBulkLineAdd}
+          />
         </div>
 
         {error && (
@@ -535,7 +396,7 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
             style={{ backgroundColor: "#FFFF00" }}
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {saving ? tc("saving") : selectedIds.size > 0 ? t("manageContainerUnits.saveWithCount", { count: selectedIds.size }) : tc("save")}
+            {saving ? tc("saving") : cartCount > 0 ? t("manageContainerUnits.saveWithCount", { count: cartCount }) : tc("save")}
           </button>
         </div>
       </div>
