@@ -162,6 +162,7 @@ export const containers = pgTable("containers", {
   type:      text("type").notNull(),
   location:  text("location"),
   barcode:   text("barcode"),
+  imageUrl:  text("image_url"),  // รูปคอนเทนเนอร์
   isOut:     boolean("is_out").default(false).notNull(),  // check out ไปแล้วหรือยัง
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

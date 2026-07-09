@@ -4,22 +4,24 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
+import { FileUploadField } from "@/components/FileUploadField";
 import { ManageContainerTypesModal } from "./ManageContainerTypesModal";
 
 interface EditContainerModalProps {
-  container: { id: string; name: string; type: string; location: string | null; barcode: string | null };
+  container: { id: string; name: string; type: string; location: string | null; barcode: string | null; imageUrl?: string | null };
   onClose: () => void;
-  onSave: (id: string, data: { name: string; type: string; location: string; barcode: string }) => void;
+  onSave: (id: string, data: { name: string; type: string; location: string; barcode: string; imageUrl: string | null }) => void;
 }
 
 export const EditContainerModal = ({ container, onClose, onSave }: EditContainerModalProps): JSX.Element => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
-  const { token } = useAppStore();
+  const { token, companyId } = useAppStore();
   const [name, setName] = useState(container.name);
   const [type, setType] = useState(container.type);
   const [location, setLocation] = useState(container.location ?? "");
   const [barcode, setBarcode] = useState(container.barcode ?? "");
+  const [imageUrl, setImageUrl] = useState<string | null>(container.imageUrl ?? null);
   const [manageTypesOpen, setManageTypesOpen] = useState(false);
 
   const { data: locations = [] } = useQuery({
@@ -31,7 +33,7 @@ export const EditContainerModal = ({ container, onClose, onSave }: EditContainer
 
   const handleSave = () => {
     if (!name.trim()) return;
-    onSave(container.id, { name: name.trim(), type, location, barcode: barcode.trim() });
+    onSave(container.id, { name: name.trim(), type, location, barcode: barcode.trim(), imageUrl });
     onClose();
   };
 
@@ -118,6 +120,10 @@ export const EditContainerModal = ({ container, onClose, onSave }: EditContainer
               className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 font-mono placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
             />
           </div>
+
+          {/* Image */}
+          <FileUploadField label={t("addContainer.imageLabel")} folder="containers" companyId={companyId ?? ""}
+            value={imageUrl} onChange={setImageUrl} />
         </div>
 
         {/* Footer */}

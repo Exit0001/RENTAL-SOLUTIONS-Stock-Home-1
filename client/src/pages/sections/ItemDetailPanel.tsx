@@ -148,9 +148,13 @@ export const ItemDetailPanel = ({ item, onClose }: Props): JSX.Element => {
       <div className="flex items-start justify-between px-4 pt-4 pb-3 border-b border-white/[0.06] flex-shrink-0">
         <div className="flex-1 min-w-0 pr-2">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFFF00" }}>
-              <Package className="w-3.5 h-3.5 text-black" />
-            </div>
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0 border border-white/10" />
+            ) : (
+              <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFFF00" }}>
+                <Package className="w-4 h-4 text-black" />
+              </div>
+            )}
             <h3 className="font-bold text-white text-sm truncate">{item.name}</h3>
           </div>
           <div className="flex flex-wrap gap-1 mt-1.5">

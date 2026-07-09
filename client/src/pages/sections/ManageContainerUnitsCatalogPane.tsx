@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Search, Loader2, Check, ChevronDown, ChevronRight, Layers, Minus, Plus, Package, X as XIcon } from "lucide-react";
+import { Search, Loader2, Check, ChevronDown, ChevronRight, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { StockItemWithUnits } from "@/api";
-import type { StockUnit, Position } from "@shared/schema";
-import type { CartUnitLine, CartBulkLine } from "./ManageJobStockModal";
+import type { StockUnit } from "@shared/schema";
 import { FilterChipRow } from "./FilterChipRow";
 import { FilterDropdown } from "./FilterDropdown";
 
@@ -23,30 +22,20 @@ interface Props {
   onCategoryFilterChange: (v: string | null) => void;
   expanded:        Set<string>;
   onToggleGroupExpand: (groupId: string) => void;
-  cartUnits:       Map<string, CartUnitLine>;
-  cartBulkLines:   Map<string, CartBulkLine>;
-  onToggleUnit:       (unitId: string) => void;
-  onToggleSelectAll:  (units: StockUnit[], stockItemId: string) => void;
-  onAdjustBulkQty:    (stockItemId: string, delta: number) => void;
-  zones:           Position[];
-  activeZone:      string | null;
-  onActiveZoneChange: (v: string | null) => void;
-  onCreateZone:       (name: string) => void;
-  creatingZone:       boolean;
+  selectedIds:     Set<string>;
+  onToggleUnit:      (unitId: string) => void;
+  onToggleSelectAll: (units: StockUnit[]) => void;
 }
 
-export const ManageJobStockCatalogPane = ({
+export const ManageContainerUnitsCatalogPane = ({
   stockGroups, isLoading, search, onSearchChange, categoryFilter, onCategoryFilterChange,
-  expanded, onToggleGroupExpand, cartUnits, cartBulkLines, onToggleUnit, onToggleSelectAll, onAdjustBulkQty,
-  zones, activeZone, onActiveZoneChange, onCreateZone, creatingZone,
+  expanded, onToggleGroupExpand, selectedIds, onToggleUnit, onToggleSelectAll,
 }: Props): JSX.Element => {
   const { t }  = useTranslation("modals");
   const { t: tc } = useTranslation("common");
 
   const [brandFilter,       setBrandFilter]       = useState<string | null>(null);
   const [subCategoryFilter, setSubCategoryFilter] = useState<string | null>(null);
-  const [addingZone,        setAddingZone]        = useState(false);
-  const [newZoneName,       setNewZoneName]       = useState("");
 
   const isFiltering = !!search;
 
@@ -87,9 +76,7 @@ export const ManageJobStockCatalogPane = ({
   const filteredGroups = useMemo(() => {
     const q = search.toLowerCase();
     let groups = stockGroups;
-    if (categoryFilter) {
-      groups = groups.filter((g) => (g.category || "Uncategorized") === categoryFilter);
-    }
+    if (categoryFilter) groups = groups.filter((g) => (g.category || "Uncategorized") === categoryFilter);
     if (brandFilter)       groups = groups.filter((g) => g.brand === brandFilter);
     if (subCategoryFilter) groups = groups.filter((g) => g.subCategory === subCategoryFilter);
     if (!q) return groups;
@@ -114,17 +101,6 @@ export const ManageJobStockCatalogPane = ({
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredGroups]);
-
-  const bulkTotalQty = (stockItemId: string) => {
-    let total = 0;
-    for (const l of Array.from(cartBulkLines.values())) if (l.stockItemId === stockItemId) total += l.quantity;
-    return total;
-  };
-  const bulkLineCount = (stockItemId: string) => {
-    let n = 0;
-    for (const l of Array.from(cartBulkLines.values())) if (l.stockItemId === stockItemId) n++;
-    return n;
-  };
 
   return (
     <div className="flex-1 min-w-0 flex flex-col border-r border-white/[0.06]">
@@ -181,66 +157,6 @@ export const ManageJobStockCatalogPane = ({
             )}
           </div>
         )}
-
-        {/* Active zone — โซนที่ของชิ้นใหม่จะถูกเพิ่มเข้าไปตอนติ๊กเลือก */}
-        <div className="flex flex-wrap gap-1.5 items-center pt-1 border-t border-white/[0.04]">
-          <span className="text-[9px] uppercase tracking-wider text-white/30 mr-0.5">{t("manageJobStock.addingToZone")}</span>
-          <button
-            onClick={() => onActiveZoneChange("auto")}
-            className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-              ${activeZone === "auto" ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
-          >
-            {t("manageJobStock.zoneAuto")}
-          </button>
-          {zones.map((z) => (
-            <button
-              key={z.id}
-              onClick={() => onActiveZoneChange(z.name)}
-              className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-                ${activeZone === z.name ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
-            >
-              {z.name}
-            </button>
-          ))}
-          <button
-            onClick={() => onActiveZoneChange(null)}
-            className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-              ${activeZone === null ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
-          >
-            {t("manageJobStock.zoneNone")}
-          </button>
-
-          {!addingZone ? (
-            <button
-              onClick={() => setAddingZone(true)}
-              className="h-6 w-6 rounded-full border border-white/10 text-white/40 hover:text-[#FFFF00] hover:border-[#FFFF00]/40 flex items-center justify-center transition-colors"
-              title={t("manageJobStock.addZone")}
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          ) : (
-            <div className="flex items-center gap-1">
-              <input
-                autoFocus
-                value={newZoneName}
-                onChange={(e) => setNewZoneName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { onCreateZone(newZoneName); setNewZoneName(""); setAddingZone(false); }
-                  if (e.key === "Escape") { setNewZoneName(""); setAddingZone(false); }
-                }}
-                placeholder={t("manageJobStock.newZonePlaceholder")}
-                disabled={creatingZone}
-                className="h-6 w-24 px-2 rounded-full bg-white/[0.06] border border-white/10 text-[10px] text-white outline-none focus:border-[#FFFF00]/40"
-              />
-              <button
-                onClick={() => { setNewZoneName(""); setAddingZone(false); }}
-                className="text-white/40 hover:text-white transition-colors"
-              >
-                <XIcon className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* List */}
@@ -259,55 +175,10 @@ export const ManageJobStockCatalogPane = ({
 
             <div className="space-y-2">
               {groups.map((group) => {
-                const isBulk     = group.trackingMode === "bulk";
-                const isExpanded = !isBulk && (isFiltering || expanded.has(group.id));
+                const isExpanded = isFiltering || expanded.has(group.id);
                 const groupUnits = group.units;
-                const selectedInGroup = groupUnits.filter((u) => cartUnits.has(u.id)).length;
-                const allSelected = !isBulk && groupUnits.length > 0 && groupUnits.every((u) => cartUnits.has(u.id));
-
-                if (isBulk) {
-                  const qty       = bulkTotalQty(group.id);
-                  const lineCount = bulkLineCount(group.id);
-                  const isSplit   = lineCount > 1;
-                  return (
-                    <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden bg-white/[0.02]">
-                      <div className="flex items-center gap-3 px-3 py-2.5">
-                        <Layers className="w-4 h-4 text-amber-400/70 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
-                          <p className="text-[10px] text-white/60">
-                            {t("manageJobStock.bulkAvailable", { available: group.availableCount ?? group.quantity ?? 0, total: group.quantity ?? 0 })}
-                          </p>
-                        </div>
-                        {isSplit ? (
-                          <span className="text-[10px] text-white/40 italic max-w-[120px] text-right">
-                            {t("manageJobStock.splitNotice")}
-                          </span>
-                        ) : (
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => onAdjustBulkQty(group.id, -1)}
-                              className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className={`w-8 text-center text-sm font-bold ${qty > 0 ? "text-[#FFFF00]" : "text-white/60"}`}>
-                              {qty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => onAdjustBulkQty(group.id, 1)}
-                              className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
+                const selectedInGroup = groupUnits.filter((u) => selectedIds.has(u.id)).length;
+                const allSelected = groupUnits.length > 0 && groupUnits.every((u) => selectedIds.has(u.id));
 
                 return (
                   <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden">
@@ -321,7 +192,7 @@ export const ManageJobStockCatalogPane = ({
                           ${allSelected ? "border-[#FFFF00] bg-[#FFFF00]" :
                             selectedInGroup > 0 ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" :
                             "border-white/20"}`}
-                        onClick={(e) => { e.stopPropagation(); if (groupUnits.length) onToggleSelectAll(groupUnits, group.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (groupUnits.length) onToggleSelectAll(groupUnits); }}
                       >
                         {allSelected && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
                         {!allSelected && selectedInGroup > 0 && (
@@ -353,7 +224,7 @@ export const ManageJobStockCatalogPane = ({
                     )}
 
                     {isExpanded && groupUnits.map((unit) => {
-                      const isSelected = cartUnits.has(unit.id);
+                      const isSelected = selectedIds.has(unit.id);
                       return (
                         <div
                           key={unit.id}

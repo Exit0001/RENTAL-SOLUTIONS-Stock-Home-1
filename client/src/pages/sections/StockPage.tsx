@@ -375,13 +375,14 @@ export const StockPage = (): JSX.Element => {
     setSelectedSubCategories([]);
   };
 
-  const handleAddContainer = (items: { name: string; type: string; location: string; barcode: string }[]) => {
+  const handleAddContainer = (items: { name: string; type: string; location: string; barcode: string; imageUrl: string | null }[]) => {
     createContainer.mutate(
       items.map((data) => ({
         name: data.name,
         type: data.type as any,
         location: data.location,
         barcode: data.barcode,
+        imageUrl: data.imageUrl,
       }))
     );
   };
@@ -522,104 +523,115 @@ export const StockPage = (): JSX.Element => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto p-6 space-y-3">
-          {containers.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-white/40">
-              <Layers className="w-10 h-10 mb-3" />
+          <div className="flex-1 overflow-auto p-4">
+          {containers.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-center text-white/40">
+              <Layers className="w-10 h-10" />
               <p className="text-sm">{t("noContainersYet")}</p>
             </div>
-          )}
-
-          {containers.map((c) => {
-            const expanded = expandedContainers.includes(c.id);
-            const isOut = c.isOut;
-            const readyCount = c.items.filter((i) => i.status === "available").length;
-            return (
-              <div key={c.id} className={`bg-[#111] border rounded-xl overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-white/[0.06]"}`} data-testid={`container-${c.id}`}>
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <div onClick={() => toggleContainer(c.id)} className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity">
-                    <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${expanded ? "rotate-90 text-[#FFFF00]" : "text-white/60"}`} />
-                    <Layers className={`w-4 h-4 ${isOut ? "text-blue-400/60" : "text-[#FFFF00]/60"}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-white/90 text-sm">{c.name}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isOut ? "bg-blue-500/15 text-blue-400" : "bg-[#FFFF00]/10 text-[#FFFF00]/70"}`}>{c.type}</span>
-                        {isOut && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400">
-                            {c.jobName ? t("outOnJob", { jobName: c.jobName }) : t("checkedOut")}
-                          </span>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+              {containers.map((c) => {
+                const expanded = expandedContainers.includes(c.id);
+                const isOut = c.isOut;
+                const readyCount = c.items.filter((i) => i.status === "available").length;
+                return (
+                  <div key={c.id} className={`rounded-xl border bg-[#111] overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-white/[0.08] hover:border-[#FFFF00]/30"}`} data-testid={`container-${c.id}`}>
+                    <div className="flex">
+                      {c.imageUrl
+                        ? <img src={c.imageUrl} alt="" className="w-24 h-24 object-cover flex-shrink-0" />
+                        : (
+                          <div className={`w-24 h-24 flex items-center justify-center flex-shrink-0 ${isOut ? "bg-blue-500/[0.06]" : "bg-[#FFFF00]/[0.06]"}`}>
+                            <Layers className={`w-6 h-6 ${isOut ? "text-blue-400/40" : "text-[#FFFF00]/40"}`} />
+                          </div>
                         )}
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
-                        <span>{c.location}</span>
-                        <span className="font-mono">{c.barcode}</span>
-                        {c.items.length > 0 && <span>{t("readyOfTotal", { ready: readyCount, total: c.items.length })}</span>}
-                        {c.items.length === 0 && <span className="italic">{t("emptyAssignBelow")}</span>}
+                      <div className="flex-1 min-w-0 p-3 flex flex-col">
+                        <div onClick={() => toggleContainer(c.id)} className="cursor-pointer hover:opacity-80 transition-opacity">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-bold text-white truncate">{c.name}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isOut ? "bg-blue-500/15 text-blue-400" : "bg-[#FFFF00]/10 text-[#FFFF00]/70"}`}>{c.type}</span>
+                            {isOut && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400">
+                                {c.jobName ? t("outOnJob", { jobName: c.jobName }) : t("checkedOut")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-white/50 mt-0.5">
+                            <ChevronRightIcon className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-90 text-[#FFFF00]" : ""}`} />
+                            <span className="truncate">{c.location}</span>
+                            {c.barcode && <span className="font-mono truncate">{c.barcode}</span>}
+                          </div>
+                          <p className="text-[11px] text-white/40 mt-0.5">
+                            {c.items.length > 0
+                              ? t("readyOfTotal", { ready: readyCount, total: c.items.length })
+                              : <span className="italic">{t("emptyAssignBelow")}</span>}
+                          </p>
+                        </div>
+
+                        <div className="mt-auto flex items-center gap-1.5 pt-2 flex-wrap">
+                          <button
+                            onClick={() => setAssignContainer(c)}
+                            className="flex items-center gap-1 h-7 px-2 rounded-lg border border-white/10 text-[11px] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                            title={t("assignItemsTooltip")}
+                          >
+                            <PackagePlus className="w-3 h-3" /> {t("assign")}
+                          </button>
+                          <button
+                            onClick={() => toggleContainerCheckout.mutate(c.id)}
+                            disabled={toggleContainerCheckout.isPending}
+                            className={`flex items-center gap-1 h-7 px-2 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-40 ${
+                              isOut
+                                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+                                : "bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20"
+                            }`}
+                          >
+                            {isOut ? <><LogIn className="w-3 h-3" /> {t("checkIn")}</> : <><LogOut className="w-3 h-3" /> {t("checkOut")}</>}
+                          </button>
+                          {canManage && (
+                            <button
+                              onClick={() => setEditContainerTarget(c)}
+                              className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors ml-auto"
+                              title={t("editContainer")}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {canManage && (
+                            <button
+                              onClick={() => setDeleteContainerTarget(c)}
+                              className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
+                              title={t("deleteContainer")}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {/* Container actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => setAssignContainer(c)}
-                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-white/10 text-[11px] text-white/60 hover:text-white hover:border-white/20 transition-colors"
-                      title={t("assignItemsTooltip")}
-                    >
-                      <PackagePlus className="w-3 h-3" /> {t("assign")}
-                    </button>
-                    <button
-                      onClick={() => toggleContainerCheckout.mutate(c.id)}
-                      disabled={toggleContainerCheckout.isPending}
-                      className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-40 ${
-                        isOut
-                          ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
-                          : "bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20"
-                      }`}
-                    >
-                      {isOut ? <><LogIn className="w-3 h-3" /> {t("checkIn")}</> : <><LogOut className="w-3 h-3" /> {t("checkOut")}</>}
-                    </button>
-                    {canManage && (
-                      <button
-                        onClick={() => setEditContainerTarget(c)}
-                        className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
-                        title={t("editContainer")}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    {canManage && (
-                      <button
-                        onClick={() => setDeleteContainerTarget(c)}
-                        className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
-                        title={t("deleteContainer")}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {expanded && (
-                  <div className="border-t border-white/[0.04]">
-                    {c.items.length === 0 ? (
-                      <div className="flex items-center gap-2 px-12 py-4 text-xs text-white/60 italic">
-                        <PackagePlus className="w-3.5 h-3.5" />
-                        {t("noItemsAssigned")}
+                    {expanded && (
+                      <div className="border-t border-white/[0.06]">
+                        {c.items.length === 0 ? (
+                          <div className="flex items-center gap-2 px-4 py-3 text-xs text-white/60 italic">
+                            <PackagePlus className="w-3.5 h-3.5" />
+                            {t("noItemsAssigned")}
+                          </div>
+                        ) : (
+                          c.items.map((item, i) => (
+                            <div key={item.id} className="animate-slide-down flex items-center gap-2 px-4 py-2 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
+                              <span className="text-xs text-white/60 flex-1 truncate">{item.name}</span>
+                              <span className="text-[10px] text-white/50 flex-shrink-0">{item.category}</span>
+                              <span className="text-[10px] font-mono text-white/50 flex-shrink-0">{item.serialNumber ?? "—"}</span>
+                              <StatusBadge status={item.status} />
+                            </div>
+                          ))
+                        )}
                       </div>
-                    ) : (
-                      c.items.map((item, i) => (
-                        <div key={item.id} className="animate-slide-down flex items-center gap-3 px-4 py-2 pl-12 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
-                          <span className="text-sm text-white/60 flex-1">{item.name}</span>
-                          <span className="text-[10px] text-white/60">{item.category}</span>
-                          <span className="text-xs font-mono text-white/60">{item.serialNumber ?? "—"}</span>
-                          <StatusBadge status={item.status} />
-                        </div>
-                      ))
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
           </div>
 
           <AlertDialog open={!!deleteContainerTarget} onOpenChange={(open) => !open && setDeleteContainerTarget(null)}>

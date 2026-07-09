@@ -1,11 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Briefcase,
   ChevronRightIcon,
   Users,
   Package,
-  Calendar,
-  MapPin,
   FileText,
   Camera,
   MessageSquare,
@@ -18,21 +16,14 @@ import {
   ArrowRight,
   Bell,
   Plus,
-  ScanLine,
   Loader2,
   Check,
   Layers,
-  Boxes,
   X,
   Trash2,
   Copy,
   LayoutTemplate,
-  UserPlus,
-  Truck,
-  Wallet,
-  ChevronRight,
   CalendarRange,
-  ArrowRightLeft,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -63,6 +54,7 @@ import { JobExpensesModal } from "./JobExpensesModal";
 import { JobSubRentalsModal } from "./JobSubRentalsModal";
 import { RackBuildModal } from "./RackBuildModal";
 import { JobOperationsModal } from "./JobOperationsModal";
+import { JobDetailModal } from "./JobDetailModal";
 
 type JobTab = "jobs" | "pullsheets" | "crew" | "incidents" | "schedule";
 
@@ -109,427 +101,11 @@ const taskStatusColors: Record<string, string> = {
   Done:          "text-emerald-400",
 };
 
-// Expanded checklist row — shows assigned units grouped by item
-const JobDetailRow = ({ job }: { job: any }) => {
-  const { t } = useTranslation("jobs");
-  const { t: tc } = useTranslation("common");
-  const { token, userRole } = useAppStore();
-  const canManage = userRole === "admin" || userRole === "manager";
-  const qc = useQueryClient();
-  const [assignContainerOpen, setAssignContainerOpen] = useState(false);
-  const [addSetOpen, setAddSetOpen] = useState(false);
-  const [rackBuildOpen, setRackBuildOpen] = useState(false);
-  const [assignCrewOpen, setAssignCrewOpen] = useState(false);
-  const [addVehicleOpen, setAddVehicleOpen] = useState(false);
-  const [expensesOpen, setExpensesOpen] = useState(false);
-  const [subRentalsOpen, setSubRentalsOpen] = useState(false);
-
-  const { data: assignedUnits = [], isLoading } = useQuery({
-    queryKey: ["job-units", job.id],
-    queryFn:  () => jobsApi.getUnits(job.id),
-    enabled: !!token,
-  });
-
-  const { data: jobContainers = [], isLoading: containersLoading } = useQuery({
-    queryKey: ["job-containers", job.id],
-    queryFn:  () => jobsApi.getContainers(job.id),
-    enabled: !!token,
-  });
-
-  const { data: jobCrew = [], isLoading: crewLoading } = useQuery({
-    queryKey: ["job-crew", job.id],
-    queryFn:  () => jobsApi.getJobCrew(job.id),
-    enabled: !!token,
-  });
-
-  const { data: jobVehicles = [], isLoading: vehiclesLoading } = useQuery({
-    queryKey: ["job-vehicles", job.id],
-    queryFn:  () => jobVehiclesApi.getForJob(job.id),
-    enabled: !!token,
-  });
-
-  const { data: jobSubRentals = [] } = useQuery({
-    queryKey: ["job-subrentals", job.id],
-    queryFn:  () => jobSubRentalsApi.getForJob(job.id),
-    enabled: !!token,
-  });
-
-  const removeContainer = useMutation({
-    mutationFn: (containerId: string) => jobsApi.removeContainer(job.id, containerId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["job-containers", job.id] });
-      qc.invalidateQueries({ queryKey: ["containers"] });
-      qc.invalidateQueries({ queryKey: ["stock"] });
-    },
-  });
-
-  const removeCrew = useMutation({
-    mutationFn: (userId: string) => jobsApi.unassignCrew(job.id, userId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["job-crew", job.id] });
-      qc.invalidateQueries({ queryKey: ["crew"] });
-    },
-  });
-
-  const removeVehicle = useMutation({
-    mutationFn: (vehicleId: string) => jobVehiclesApi.delete(vehicleId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["job-vehicles", job.id] }),
-  });
-
-  const updatePhase = useMutation({
-    mutationFn: async ({ unitIds, phase }: { unitIds: string[]; phase: "planned" | "prepared" | "dispatched" | "returned" }) => {
-      await jobsApi.updatePhase(job.id, unitIds, phase);
-      if (phase === "dispatched") {
-        await Promise.all(unitIds.map((id) => stockApi.updateUnit(id, { status: "out" })));
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["job-units", job.id] });
-      qc.invalidateQueries({ queryKey: ["stock"] });
-    },
-  });
-
-  const start = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  const end   = new Date(job.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-
-  const grouped = useMemo(() => {
-    const map: Record<string, typeof assignedUnits> = {};
-    for (const u of assignedUnits) {
-      const key = (u as any).itemName ?? "Unknown";
-      if (!map[key]) map[key] = [];
-      map[key].push(u);
-    }
-    return Object.entries(map);
-  }, [assignedUnits]);
-
-  const checkedOutCount = (assignedUnits as any[]).filter((u) => u.status === "out").length;
-
-  return (
-    <tr className="animate-slide-down bg-[#0c0c0c] border-b border-white/[0.04]">
-      <td colSpan={6} className="p-0">
-
-        {/* Info bar */}
-        <div className="flex items-center gap-6 px-6 py-2.5 bg-[#101010] border-b border-white/[0.04] text-[11px] text-white/60">
-          <span className="flex items-center gap-1.5">
-            <Calendar className="w-3 h-3" />{start} → {end}
-          </span>
-          {job.location && (
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-3 h-3" />{job.location}
-            </span>
-          )}
-          <span className="ml-auto flex items-center gap-2">
-            <Package className="w-3 h-3 text-[#FFFF00]/35" />
-            <span className="text-[#FFFF00]/50 font-semibold">{assignedUnits.length}</span>
-            <span className="text-white/60">{t("unitsAssigned")}</span>
-            {checkedOutCount > 0 && (
-              <span className="text-blue-400/55 font-medium">{t("checkedOutCount", { count: checkedOutCount })}</span>
-            )}
-          </span>
-        </div>
-
-        {/* Racks / Containers */}
-        <div className="px-6 py-3 border-b border-white/[0.04]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="w-3 h-3" /> {t("racksLabel")}
-            </p>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setRackBuildOpen(true)}
-                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-              >
-                <ScanLine className="w-3 h-3" /> Build Racks
-              </button>
-              <button
-                onClick={() => setAssignContainerOpen(true)}
-                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-              >
-                <Plus className="w-3 h-3" /> {t("addRack")}
-              </button>
-              <button
-                onClick={() => setAddSetOpen(true)}
-                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-              >
-                <Boxes className="w-3 h-3" /> เพิ่มชุด
-              </button>
-            </div>
-          </div>
-          {containersLoading ? (
-            <div className="flex items-center gap-2 text-white/60 text-xs py-1">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
-            </div>
-          ) : jobContainers.length === 0 ? (
-            <p className="text-xs text-white/60 italic">{t("noRacksAssigned")}</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {(jobContainers as any[]).map((c) => (
-                <div key={c.id} className="flex items-center gap-2 pl-2.5 pr-1.5 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <Layers className="w-3.5 h-3.5 text-[#FFFF00]/50 flex-shrink-0" />
-                  <span className="text-xs text-white/70">{c.name}</span>
-                  <span className="text-[10px] text-white/60">{t("itemsCount", { count: c.itemCount })}</span>
-                  <button
-                    onClick={() => removeContainer.mutate(c.id)}
-                    disabled={removeContainer.isPending}
-                    title={t("checkIn")}
-                    className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Crew */}
-        <div className="px-6 py-3 border-b border-white/[0.04]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-3 h-3" /> {t("crewLabel")}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setExpensesOpen(true)}
-                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-              >
-                <Wallet className="w-3 h-3" /> {t("outsourceExpenses")}
-              </button>
-              <button
-                onClick={() => setAssignCrewOpen(true)}
-                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-              >
-                <UserPlus className="w-3 h-3" /> {t("assignCrew")}
-              </button>
-            </div>
-          </div>
-          {crewLoading ? (
-            <div className="flex items-center gap-2 text-white/60 text-xs py-1">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
-            </div>
-          ) : jobCrew.length === 0 ? (
-            <p className="text-xs text-white/60 italic">{t("noCrewAssigned")}</p>
-          ) : (
-            <div className="space-y-0.5">
-              {jobCrew.map((c) => (
-                <div key={c.userId} className="group/crew flex items-center gap-2.5 -mx-1 px-1 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors">
-                  <div className="w-6 h-6 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-[9px] font-bold text-[#FFFF00]/70 flex-shrink-0">
-                    {c.initials}
-                  </div>
-                  <span className="text-xs font-medium text-white/80 flex-1 min-w-0 truncate">{c.name}</span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold capitalize text-white/50 bg-white/[0.06] flex-shrink-0">{c.role}</span>
-                  {canManage && (
-                    <button
-                      onClick={() => removeCrew.mutate(c.userId)}
-                      disabled={removeCrew.isPending}
-                      title={t("removeFromJob")}
-                      className="opacity-0 group-hover/crew:opacity-100 p-1 rounded text-white/40 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Sub-Rentals */}
-        <div className="px-6 py-3 border-b border-white/[0.04]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
-              <ArrowRightLeft className="w-3 h-3" /> {t("subRentalsLabel")}
-            </p>
-            <button
-              onClick={() => setSubRentalsOpen(true)}
-              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-            >
-              <Plus className="w-3 h-3" /> {t("manageSubRentals")}
-            </button>
-          </div>
-          <p className="text-xs text-white/60 italic">
-            {jobSubRentals.length === 0 ? t("noSubRentalsAssigned") : t("subRentalsCount", { count: jobSubRentals.length })}
-          </p>
-        </div>
-
-        {/* Vehicles */}
-        <div className="px-6 py-3 border-b border-white/[0.04]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex items-center gap-1.5">
-              <Truck className="w-3 h-3" /> {t("vehiclesLabel")}
-            </p>
-            <button
-              onClick={() => setAddVehicleOpen(true)}
-              className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
-            >
-              <Plus className="w-3 h-3" /> {t("addVehicle")}
-            </button>
-          </div>
-          {vehiclesLoading ? (
-            <div className="flex items-center gap-2 text-white/60 text-xs py-1">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
-            </div>
-          ) : jobVehicles.length === 0 ? (
-            <p className="text-xs text-white/60 italic">{t("noVehiclesAssigned")}</p>
-          ) : (
-            <div className="space-y-0.5">
-              {jobVehicles.map((v) => (
-                <div key={v.id} className="group/veh flex items-center gap-2.5 -mx-1 px-1 py-1.5 rounded-lg hover:bg-white/[0.03] transition-colors">
-                  <Truck className="w-4 h-4 text-[#FFFF00]/40 flex-shrink-0" />
-                  <span className="text-xs font-medium text-white/80 flex-1 min-w-0 truncate">{v.vehicleType}</span>
-                  {v.note && <span className="text-[10px] text-white/40 truncate max-w-[140px]">{v.note}</span>}
-                  {canManage && (
-                    <button
-                      onClick={() => removeVehicle.mutate(v.id)}
-                      disabled={removeVehicle.isPending}
-                      title={t("removeVehicle")}
-                      className="opacity-0 group-hover/veh:opacity-100 p-1 rounded text-white/40 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Stock — Phase Checklist */}
-        <div className="px-6 py-4">
-          {isLoading ? (
-            <div className="flex items-center gap-2 text-white/60 text-xs py-4">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("loading")}
-            </div>
-          ) : grouped.length === 0 ? (
-            <p className="text-sm text-white/60 italic py-3 text-center">
-              {t("noUnitsAssignedHint", { editUnits: t("editUnits") })}
-            </p>
-          ) : (
-            <>
-              {/* Phase summary bar */}
-              {(() => {
-                const all = assignedUnits as any[];
-                const planned    = all.filter((u) => u.phase === "planned").length;
-                const prepared   = all.filter((u) => u.phase === "prepared").length;
-                const dispatched = all.filter((u) => u.phase === "dispatched").length;
-                const returned   = all.filter((u) => u.phase === "returned").length;
-                const allPrepared    = planned === 0 && all.length > 0;
-                const allDispatched  = dispatched === all.length && all.length > 0;
-                return (
-                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/[0.06]">
-                    {/* Stepper */}
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${planned > 0 ? "bg-white/10 text-white/60" : "bg-white/5 text-white/30"}`}>
-                        {t("phasePlanned")} {planned}
-                      </span>
-                      <ChevronRight className="w-3 h-3 text-white/30 flex-shrink-0" />
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${prepared > 0 ? "bg-amber-500/20 text-amber-400" : "bg-white/5 text-white/30"}`}>
-                        {t("phasePrepared")} {prepared}
-                      </span>
-                      <ChevronRight className="w-3 h-3 text-white/30 flex-shrink-0" />
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${dispatched > 0 ? "bg-blue-500/20 text-blue-400" : "bg-white/5 text-white/30"}`}>
-                        {t("phaseDispatched")} {dispatched}
-                      </span>
-                      <ChevronRight className="w-3 h-3 text-white/30 flex-shrink-0" />
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${returned > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/30"}`}>
-                        {t("phaseReturned")} {returned}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Unit list grouped by item */}
-              <div className="space-y-4">
-                {grouped.map(([itemName, units]) => (
-                  <div key={itemName}>
-                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold text-[#FFFF00]/45 uppercase tracking-wider flex-1 truncate">{itemName}</p>
-                      <span className="text-[9px] text-white/60 flex-shrink-0">{units.length}</span>
-                    </div>
-                    {(units as any[]).map((u) => {
-                      const phase = u.phase ?? "planned";
-                      const nextPhase = phase === "prepared" ? "dispatched" : null;
-                      return (
-                        <div key={u.id} className="flex items-center gap-2 py-1.5 border-b border-white/[0.03] last:border-0">
-                          {/* Phase dot */}
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            phase === "returned"   ? "bg-emerald-400" :
-                            phase === "dispatched" ? "bg-blue-400" :
-                            phase === "prepared"   ? "bg-amber-400" :
-                            "bg-white/20"
-                          }`} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-white/70 truncate">{u.name}</p>
-                            {u.serialNumber && (
-                              <p className="text-[10px] text-white/40 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>
-                            )}
-                          </div>
-                          {/* Phase badge + override button (prepared→dispatched only, admin/manager) */}
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                              phase === "returned"   ? "bg-emerald-500/15 text-emerald-400" :
-                              phase === "dispatched" ? "bg-blue-500/15 text-blue-400" :
-                              phase === "prepared"   ? "bg-amber-500/15 text-amber-400" :
-                              "bg-white/5 text-white/40"
-                            }`}>
-                              {t(`phase_${phase}`)}
-                            </span>
-                            {nextPhase && canManage && (
-                              <button
-                                onClick={() => updatePhase.mutate({ unitIds: [u.id], phase: nextPhase as any })}
-                                disabled={updatePhase.isPending}
-                                title={`Override: ${t(`advanceTo_${nextPhase}`)}`}
-                                className="p-1 rounded text-white/25 hover:text-amber-400 hover:bg-amber-400/10 transition-colors disabled:opacity-30"
-                              >
-                                <ChevronRight className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {assignContainerOpen && (
-          <AssignContainerModal jobId={job.id} onClose={() => setAssignContainerOpen(false)} />
-        )}
-        {addSetOpen && (
-          <AddSetToJobModal jobId={job.id} onClose={() => setAddSetOpen(false)} />
-        )}
-        <RackBuildModal
-          open={rackBuildOpen}
-          onClose={() => setRackBuildOpen(false)}
-          jobId={job.id}
-          jobName={job.name}
-        />
-        {assignCrewOpen && (
-          <AssignCrewModal jobId={job.id} onClose={() => setAssignCrewOpen(false)} />
-        )}
-        {addVehicleOpen && (
-          <AddVehicleModal jobId={job.id} onClose={() => setAddVehicleOpen(false)} />
-        )}
-        {expensesOpen && (
-          <JobExpensesModal jobId={job.id} jobName={job.name} onClose={() => setExpensesOpen(false)} />
-        )}
-        {subRentalsOpen && (
-          <JobSubRentalsModal jobId={job.id} jobName={job.name} onClose={() => setSubRentalsOpen(false)} />
-        )}
-      </td>
-    </tr>
-  );
-};
-
 export const JobsPage = (): JSX.Element => {
   const { t } = useTranslation("jobs");
   const { t: tc } = useTranslation("common");
   const [activeTab, setActiveTab]   = useState<JobTab>("jobs");
-  const [expandedJobs, setExpandedJobs] = useState<string[]>([]);
+  const [jobDetailTarget, setJobDetailTarget] = useState<any>(null);
   const [addIncidentOpen, setAddIncidentOpen] = useState(false);
   const [addJobOpen, setAddJobOpen] = useState(false);
   const [manageJob, setManageJob]   = useState<any>(null);
@@ -654,9 +230,6 @@ export const JobsPage = (): JSX.Element => {
     }
   };
 
-  const toggleJob = (id: string) =>
-    setExpandedJobs((p) => p.includes(id) ? p.filter((r) => r !== id) : [...p, id]);
-
   return (
     <div className="flex-1 overflow-auto p-6 space-y-4" data-testid="page-jobs">
       {addJobOpen && (
@@ -674,6 +247,9 @@ export const JobsPage = (): JSX.Element => {
           onClose={() => setOpsJob(null)}
           job={opsJob}
         />
+      )}
+      {jobDetailTarget && (
+        <JobDetailModal job={jobDetailTarget} onClose={() => setJobDetailTarget(null)} />
       )}
       {manageJob && (
         <ManageJobStockModal
@@ -837,21 +413,20 @@ export const JobsPage = (): JSX.Element => {
                     </td>
                   </tr>
                 ))
-              ) : (jobs as any[]).flatMap((job) => {
+              ) : (jobs as any[]).map((job) => {
                 const start = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                 const end   = new Date(job.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                 const dateStr = start === end ? start : `${start} – ${end}`;
-                const exp = expandedJobs.includes(job.id);
-                const rows = [
+                return (
                   <tr
                     key={`j-${job.id}`}
-                    onClick={() => toggleJob(job.id)}
+                    onClick={() => setJobDetailTarget(job)}
                     className="bg-[#1a1a1a] hover:bg-[#202020] cursor-pointer border-b border-white/[0.04] transition-colors"
                     data-testid={`row-job-${job.id}`}
                   >
                     <td className="py-2.5 pl-4">
                       <div className="flex items-center gap-2">
-                        <ChevronRightIcon className={`w-3.5 h-3.5 transition-transform duration-200 flex-shrink-0 ${exp ? "rotate-90 text-[#FFFF00]" : "text-white/60"}`} />
+                        <ChevronRightIcon className="w-3.5 h-3.5 flex-shrink-0 text-white/60" />
                         <span className="font-medium text-white/90">{job.name}</span>
                       </div>
                     </td>
@@ -929,12 +504,8 @@ export const JobsPage = (): JSX.Element => {
                         )}
                       </div>
                     </td>
-                  </tr>,
-                ];
-                if (exp) {
-                  rows.push(<JobDetailRow key={`jd-${job.id}`} job={job} />);
-                }
-                return rows;
+                  </tr>
+                );
               })}
             </tbody>
           </table>

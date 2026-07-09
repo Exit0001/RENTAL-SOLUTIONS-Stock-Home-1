@@ -246,10 +246,27 @@ for why `jobId` is now required). Until run, the schema/DB are out of sync and `
 will complain on next run; the app itself still works either way since the client now always
 sends a `jobId`.
 
+**Pending (2026-07-09)** — `containers.image_url` column (reference photo per rack/container).
+Already in `shared/schema.ts` and `migrations/0022_container_image.sql`. Run in Supabase SQL Editor:
+```sql
+ALTER TABLE "containers" ADD COLUMN IF NOT EXISTS "image_url" text;
+```
+Until run, editing a container's photo will fail (column doesn't exist) — creating/listing containers
+still works since `imageUrl` is optional and simply omitted from the row.
+
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
 
 ### Containers tab (`client/src/pages/sections/StockPage.tsx`)
+- **Card grid layout** (like the Equipment Sets tab) instead of list rows — each card shows a
+  photo thumbnail (or a `Layers` icon placeholder), name/type/checked-out badges, location/barcode/
+  ready-count, and the assign/checkout/edit/delete actions. Clicking the card body still
+  expands/collapses the assigned-units list inline (same interaction as before, just inside a
+  card instead of a full-width row). Grid uses `items-start` so an expanded card doesn't stretch
+  its row neighbors.
+- **Container photo** — `containers.imageUrl`, uploaded via `FileUploadField` (`folder="containers"`)
+  in both `AddContainerModal.tsx` and `EditContainerModal.tsx`; batch-add applies the same photo
+  to every container created in that batch. `PUT /api/containers/:id` accepts `imageUrl`.
 - **Delete container** — Trash2 icon button (Admin/Manager only), AlertDialog confirmation before delete
 - Backend `DELETE /api/containers/:id` — role-gated, calls `setUnitsAvailable()` on container units if container was checked out before deleting
 - FK cascade on `container_units` and `job_containers` cleans up join rows automatically
@@ -505,6 +522,9 @@ re-scrolling past collapsed headers each time:
 - Changed from a docked right-side sliding panel (`w-80`) to a centered modal (`max-w-3xl`,
   matching every other modal's `fixed inset-0` + backdrop pattern) — more room, and the Units
   tab now renders as a 2-column card grid instead of a single stacked list.
+- **Header thumbnail**: `item.imageUrl` (already fetched, previously unused here) now renders as an
+  8×8 rounded thumbnail next to the item name when set, falling back to the yellow `Package` icon
+  square otherwise.
 - **Specs tab fix**: previously rendered `Object.entries(item.specs.fields)` with the raw field
   key as the label (e.g. literally "impedance") and rendered nothing at all if no specs were
   filled in. Now looks up the item's `specs.template` (sound/lighting/video) via

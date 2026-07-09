@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { Search, Loader2, ChevronDown, ChevronRight, Layers, Minus, Plus, Package, Pin, X, Boxes } from "lucide-react";
+import { Search, Loader2, Check, ChevronDown, ChevronRight, Layers, Minus, Plus, Package, Pin, X, Boxes } from "lucide-react";
 import type { StockItemWithUnits } from "@/api";
+import type { StockUnit } from "@shared/schema";
+import { FilterChipRow } from "./FilterChipRow";
+import { FilterDropdown } from "./FilterDropdown";
 
 // ─────────────────────────────────────────────────────────────
 // Reusable two-pane equipment picker — โมเดล "จำนวนต่อรุ่น (auto-pick) + ปักหมุด unit เฉพาะ"
@@ -31,11 +34,12 @@ interface CatalogProps {
   pinned:      PickerPinMap;
   onAdjustAuto: (stockItemId: string, delta: number, max: number) => void;
   onTogglePin:  (unitId: string, stockItemId: string) => void;
+  onToggleSelectAll: (units: StockUnit[], stockItemId: string) => void;
 }
 
 // ── ซ้าย: แคตตาล็อก + ค้นหา + filter หมวดหมู่/แบรนด์/หมวดย่อย ──────────
 export const EquipmentCatalogPane = ({
-  stockGroups, isLoading, autoQty, pinned, onAdjustAuto, onTogglePin,
+  stockGroups, isLoading, autoQty, pinned, onAdjustAuto, onTogglePin, onToggleSelectAll,
 }: CatalogProps): JSX.Element => {
   const [search, setSearch]                     = useState("");
   const [categoryFilter, setCategoryFilter]     = useState<string | null>(null);
@@ -137,46 +141,35 @@ export const EquipmentCatalogPane = ({
           >
             ทั้งหมด
           </button>
-          {categories.map(([cat, count]) => (
-            <button
-              key={cat}
-              onClick={() => handleCategoryClick(cat)}
-              className={`h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border
-                ${categoryFilter === cat ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}
-            >
-              {cat} <span className="opacity-60">{count}</span>
-            </button>
-          ))}
+          <FilterChipRow
+            options={categories.map(([cat, count]) => ({ key: cat, label: cat, count }))}
+            activeKey={categoryFilter}
+            onSelect={handleCategoryClick}
+            variant="primary"
+            maxVisible={7}
+            moreLabel={(n) => `+${n} เพิ่มเติม`}
+            lessLabel="ย่อ"
+          />
         </div>
 
-        {categoryFilter && brandsInCategory.length > 1 && (
-          <div className="flex flex-wrap gap-1 items-center">
-            <span className="text-[9px] uppercase tracking-wider text-white/30 mr-0.5">แบรนด์</span>
-            {brandsInCategory.map(([brand, count]) => (
-              <button
-                key={brand}
-                onClick={() => setBrandFilter(brandFilter === brand ? null : brand)}
-                className={`h-6 px-2 rounded-full text-[10px] font-medium transition-colors border
-                  ${brandFilter === brand ? "bg-white text-black border-white" : "text-white/50 border-white/10 hover:border-white/30"}`}
-              >
-                {brand} <span className="opacity-60">{count}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        {categoryFilter && subCategoriesInCategory.length > 1 && (
-          <div className="flex flex-wrap gap-1 items-center">
-            <span className="text-[9px] uppercase tracking-wider text-white/30 mr-0.5">หมวดย่อย</span>
-            {subCategoriesInCategory.map(([sub, count]) => (
-              <button
-                key={sub}
-                onClick={() => setSubCategoryFilter(subCategoryFilter === sub ? null : sub)}
-                className={`h-6 px-2 rounded-full text-[10px] font-medium transition-colors border
-                  ${subCategoryFilter === sub ? "bg-white text-black border-white" : "text-white/50 border-white/10 hover:border-white/30"}`}
-              >
-                {sub} <span className="opacity-60">{count}</span>
-              </button>
-            ))}
+        {categoryFilter && (brandsInCategory.length > 1 || subCategoriesInCategory.length > 1) && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {brandsInCategory.length > 1 && (
+              <FilterDropdown
+                label="แบรนด์"
+                options={brandsInCategory.map(([brand, count]) => ({ key: brand, label: brand, count }))}
+                activeKey={brandFilter}
+                onSelect={setBrandFilter}
+              />
+            )}
+            {subCategoriesInCategory.length > 1 && (
+              <FilterDropdown
+                label="หมวดย่อย"
+                options={subCategoriesInCategory.map(([sub, count]) => ({ key: sub, label: sub, count }))}
+                activeKey={subCategoryFilter}
+                onSelect={setSubCategoryFilter}
+              />
+            )}
           </div>
         )}
       </div>
@@ -197,22 +190,33 @@ export const EquipmentCatalogPane = ({
 
             <div className="space-y-2">
               {groups.map((group) => {
-                const isBulk     = group.trackingMode === "bulk";
-                const isExpanded = !isBulk && (isFiltering || expanded.has(group.id));
-                const maxAvail   = maxAvailFor(group);
-                const qty        = autoQty.get(group.id) ?? 0;
-                const pinnedN    = pinnedForItem(group.id);
-                const selected   = qty + pinnedN;
+                const isBulk        = group.trackingMode === "bulk";
+                const isExpanded    = !isBulk && (isFiltering || expanded.has(group.id));
+                const maxAvail      = maxAvailFor(group);
+                const qty           = autoQty.get(group.id) ?? 0;
+                const pinnedN       = pinnedForItem(group.id);
+                const selected      = isBulk ? qty : pinnedN;
+                const availableUnits = group.units.filter((u) => u.status === "available");
+                const allSelected   = !isBulk && maxAvail > 0 && pinnedN === maxAvail;
 
                 return (
                   <div key={group.id} className={`rounded-xl border overflow-hidden ${selected > 0 ? "border-[#FFFF00]/25 bg-[#FFFF00]/[0.03]" : "border-white/[0.06] bg-white/[0.02]"}`}>
-                    <div className="flex items-center gap-3 px-3 py-2.5">
-                      {/* expand units (unit-tracked เท่านั้น) */}
-                      {!isBulk ? (
-                        <button onClick={() => toggleModel(group.id)} className="p-0.5 -ml-1 text-white/50 hover:text-white">
-                          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                        </button>
-                      ) : <Layers className="w-4 h-4 text-amber-400/70 flex-shrink-0" />}
+                    <div
+                      className={`flex items-center gap-3 px-3 py-2.5 ${isBulk ? "" : "cursor-pointer hover:bg-white/[0.02] transition-colors"}`}
+                      onClick={() => !isBulk && toggleModel(group.id)}
+                    >
+                      {isBulk ? (
+                        <Layers className="w-4 h-4 text-amber-400/70 flex-shrink-0" />
+                      ) : (
+                        <div
+                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
+                            ${allSelected ? "border-[#FFFF00] bg-[#FFFF00]" : pinnedN > 0 ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" : "border-white/20"}`}
+                          onClick={(e) => { e.stopPropagation(); if (availableUnits.length) onToggleSelectAll(availableUnits, group.id); }}
+                        >
+                          {allSelected && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
+                          {!allSelected && pinnedN > 0 && <div className="w-2 h-0.5 bg-[#FFFF00] rounded-full" />}
+                        </div>
+                      )}
 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
@@ -227,26 +231,32 @@ export const EquipmentCatalogPane = ({
                         </span>
                       )}
 
-                      {/* stepper auto-qty */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => onAdjustAuto(group.id, -1, maxAvail)}
-                          disabled={qty === 0}
-                          className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors disabled:opacity-30"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className={`w-6 text-center text-sm font-bold tabular-nums ${qty > 0 ? "text-[#FFFF00]" : "text-white/60"}`}>{qty}</span>
-                        <button
-                          type="button"
-                          onClick={() => onAdjustAuto(group.id, 1, maxAvail)}
-                          disabled={qty + pinnedN >= maxAvail}
-                          className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors disabled:opacity-30"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
+                      {isBulk ? (
+                        /* bulk items have no individual units — quantity stepper only */
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => onAdjustAuto(group.id, -1, maxAvail)}
+                            disabled={qty === 0}
+                            className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors disabled:opacity-30"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className={`w-6 text-center text-sm font-bold tabular-nums ${qty > 0 ? "text-[#FFFF00]" : "text-white/60"}`}>{qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => onAdjustAuto(group.id, 1, maxAvail)}
+                            disabled={qty >= maxAvail}
+                            className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors disabled:opacity-30"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        isExpanded
+                          ? <ChevronDown className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
+                          : <ChevronRight className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
+                      )}
                     </div>
 
                     {/* unit rows — ปักหมุด serial เฉพาะ */}

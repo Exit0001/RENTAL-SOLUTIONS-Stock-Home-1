@@ -3,7 +3,7 @@ import { FileText, Loader2, Paperclip, Upload, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 // อัพโหลดไฟล์ขึ้น Supabase Storage bucket "attachments" แบบ namespaced ตามบริษัท/ประเภท
-export async function uploadAttachment(file: File, folder: "maintenance" | "subrentals" | "incidents" | "stock-items" | "brands" | "avatars" | "job-expenses" | "sets", companyId: string): Promise<string> {
+export async function uploadAttachment(file: File, folder: "maintenance" | "subrentals" | "incidents" | "stock-items" | "brands" | "avatars" | "job-expenses" | "sets" | "containers", companyId: string): Promise<string> {
   const ext = file.name.split(".").pop() || "bin";
   const path = `${companyId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
@@ -19,7 +19,7 @@ export async function uploadAttachment(file: File, folder: "maintenance" | "subr
 
 interface FileUploadFieldProps {
   label: string;
-  folder: "maintenance" | "subrentals" | "incidents" | "stock-items" | "brands" | "avatars" | "job-expenses" | "sets";
+  folder: "maintenance" | "subrentals" | "incidents" | "stock-items" | "brands" | "avatars" | "job-expenses" | "sets" | "containers";
   companyId: string;
   value: string | null;
   onChange: (url: string | null) => void;

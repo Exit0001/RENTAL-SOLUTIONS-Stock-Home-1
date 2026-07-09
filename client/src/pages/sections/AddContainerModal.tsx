@@ -4,22 +4,24 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
+import { FileUploadField } from "@/components/FileUploadField";
 import { ManageContainerTypesModal } from "./ManageContainerTypesModal";
 
 interface AddContainerModalProps {
   onClose: () => void;
-  onAdd: (containers: { name: string; type: string; location: string; barcode: string }[]) => void;
+  onAdd: (containers: { name: string; type: string; location: string; barcode: string; imageUrl: string | null }[]) => void;
 }
 
 export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): JSX.Element => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
-  const { token } = useAppStore();
+  const { token, companyId } = useAppStore();
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [location, setLocation] = useState("");
   const [barcode, setBarcode] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [manageTypesOpen, setManageTypesOpen] = useState(false);
 
   const { data: locations = [] } = useQuery({
@@ -51,7 +53,7 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
       const itemBarcode = trimmedBarcode
         ? (n > 1 ? `${trimmedBarcode}-${i + 1}` : trimmedBarcode)
         : autoBarcode;
-      return { name: `${trimmedName}${suffix}`, type, location, barcode: itemBarcode };
+      return { name: `${trimmedName}${suffix}`, type, location, barcode: itemBarcode, imageUrl };
     });
 
     onAdd(containers);
@@ -171,6 +173,10 @@ export const AddContainerModal = ({ onClose, onAdd }: AddContainerModalProps): J
               className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 font-mono placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
             />
           </div>
+
+          {/* Image */}
+          <FileUploadField label={t("addContainer.imageLabel")} folder="containers" companyId={companyId ?? ""}
+            value={imageUrl} onChange={setImageUrl} />
         </div>
 
         {/* Footer */}

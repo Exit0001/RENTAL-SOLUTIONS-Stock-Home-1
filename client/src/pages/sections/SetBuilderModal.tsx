@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { X, Boxes, Loader2, Save } from "lucide-react";
+import { X, Boxes, Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, equipmentSetsApi } from "@/api";
 import type { StockItemWithUnits } from "@/api";
+import type { StockUnit } from "@shared/schema";
 import { FileUploadField } from "@/components/FileUploadField";
 import {
   EquipmentCatalogPane, EquipmentCartPane,
@@ -22,6 +23,7 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
   const [name, setName]               = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl]       = useState<string | null>(null);
+  const [metaOpen, setMetaOpen]       = useState(false);
   const [autoQty, setAutoQty]         = useState<PickerAutoMap>(new Map());
   const [pinned, setPinned]           = useState<PickerPinMap>(new Map());
   const [saving, setSaving]           = useState(false);
@@ -44,6 +46,7 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
     setName(existing.name);
     setDescription(existing.description ?? "");
     setImageUrl(existing.imageUrl ?? null);
+    if (existing.description || existing.imageUrl) setMetaOpen(true);
     const auto: PickerAutoMap = new Map();
     const pin: PickerPinMap = new Map();
     for (const it of existing.items) {
@@ -66,6 +69,18 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
 
   const togglePin = (unitId: string, stockItemId: string) =>
     setPinned((prev) => { const m = new Map(prev); m.has(unitId) ? m.delete(unitId) : m.set(unitId, stockItemId); return m; });
+
+  const toggleSelectAllUnits = (units: StockUnit[], stockItemId: string) => {
+    const allSelected = units.length > 0 && units.every((u) => pinned.get(u.id) === stockItemId);
+    setPinned((prev) => {
+      const m = new Map(prev);
+      if (allSelected) units.forEach((u) => m.delete(u.id));
+      else             units.forEach((u) => m.set(u.id, stockItemId));
+      return m;
+    });
+    // explicit per-unit selection replaces any legacy auto-pick quantity for this item
+    setAutoQty((prev) => { if (!prev.has(stockItemId)) return prev; const m = new Map(prev); m.delete(stockItemId); return m; });
+  };
 
   const clearItem = (stockItemId: string) => {
     setAutoQty((prev) => { const m = new Map(prev); m.delete(stockItemId); return m; });
@@ -122,27 +137,37 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
           </button>
         </div>
 
-        {/* Meta: name / note / image (compact) */}
-        <div className="px-6 py-3 border-b border-white/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold text-white/70 mb-1">ชื่อชุด *</label>
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                placeholder="เช่น ชุดกลอง Yamaha BG2"
-                className="w-full h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/50" />
-            </div>
-            <div>
+        {/* Meta: name always visible (compact); note/image tucked behind a toggle */}
+        <div className="px-6 py-2.5 border-b border-white/[0.06] flex-shrink-0 flex items-center gap-2.5">
+          <input value={name} onChange={(e) => setName(e.target.value)}
+            placeholder="ชื่อชุด * เช่น ชุดกลอง Yamaha BG2"
+            className="flex-1 h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/50" />
+          <button
+            type="button"
+            onClick={() => setMetaOpen((v) => !v)}
+            className={`h-9 px-3 rounded-lg text-xs font-medium border flex items-center gap-1.5 flex-shrink-0 transition-colors
+              ${metaOpen ? "bg-white/[0.06] border-white/20 text-white" : "border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"}`}
+          >
+            {(description || imageUrl) && <span className="w-1.5 h-1.5 rounded-full bg-[#FFFF00]" />}
+            หมายเหตุ / รูปชุด
+            {metaOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {metaOpen && (
+          <div className="px-6 py-3 border-b border-white/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
               <label className="block text-[11px] font-bold text-white/70 mb-1">หมายเหตุ</label>
               <input value={description} onChange={(e) => setDescription(e.target.value)}
                 placeholder="เช่น Chery Wood Lacquer (CWL)"
                 className="w-full h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/50" />
             </div>
+            <div className="w-full md:w-56 flex-shrink-0">
+              <FileUploadField label="รูปชุด" folder="sets" companyId={companyId ?? ""}
+                value={imageUrl} onChange={setImageUrl} />
+            </div>
           </div>
-          <div className="w-full md:w-56 flex-shrink-0">
-            <FileUploadField label="รูปชุด" folder="sets" companyId={companyId ?? ""}
-              value={imageUrl} onChange={setImageUrl} />
-          </div>
-        </div>
+        )}
 
         {/* Two-pane: catalog (left) + selected cart (right) */}
         <div className="flex-1 min-h-0 flex flex-row">
@@ -153,6 +178,7 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
             pinned={pinned}
             onAdjustAuto={adjustAuto}
             onTogglePin={togglePin}
+            onToggleSelectAll={toggleSelectAllUnits}
           />
           <EquipmentCartPane
             stockGroups={stockGroups}

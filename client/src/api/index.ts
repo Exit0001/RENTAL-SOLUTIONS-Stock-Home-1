@@ -120,7 +120,7 @@ export type ContainerWithItems = Container & {
 export const containersApi = {
   getAll:              () => api.get<ContainerWithItems[]>("/containers"),
   create:              (data: Omit<InsertContainer, "companyId">) => api.post<Container>("/containers", data),
-  update:              (id: string, data: Partial<Pick<InsertContainer, "name" | "type" | "location" | "barcode">>) =>
+  update:              (id: string, data: Partial<Pick<InsertContainer, "name" | "type" | "location" | "barcode" | "imageUrl">>) =>
                          api.put<Container>(`/containers/${id}`, data),
   toggleCheckout:      (id: string) => api.put<Container>(`/containers/${id}/checkout`, {}),
   delete:              (id: string) => api.delete<{ message: string }>(`/containers/${id}`),
