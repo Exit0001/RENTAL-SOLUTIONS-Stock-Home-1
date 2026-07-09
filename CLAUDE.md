@@ -138,6 +138,8 @@ For per-item detail views also invalidate `["stock", stockItemId]`.
 | JobsPage removeContainer | `["job-containers"]`, `["containers"]`, `["stock"]` |
 | JobsPage deleteJob | `["jobs"]`, `["pull-sheets"]`, `["stock"]` |
 | ScanModal scan (any mode) | `["job-units", jobId]`, `["stock"]`, `["stock", unit.stockItemId]` |
+| JobSubRentalsModal add/delete/return | `["job-subrentals", jobId]`, `["subrentals"]`, `["finance-costing"]` |
+| EditContainerModal / batch AddContainerModal | `["containers"]` |
 
 ### Legacy data ⚠️ run this in Supabase SQL Editor
 
@@ -150,7 +152,7 @@ WHERE su.status = 'available'
   AND EXISTS (SELECT 1 FROM job_units ju WHERE ju.stock_unit_id = su.id);
 ```
 
-## Current State (as of 2026-07-07)
+## Current State (as of 2026-07-09)
 
 ### Data
 - **2,188 stock_units** and **793 stock_items** migrated from `tenyear_backup_2026-06-09.sql` via `scripts/migrate-tenyear.js`
@@ -226,6 +228,23 @@ CREATE TYPE "public"."stock_tracking_mode" AS ENUM('unit', 'bulk');
 ALTER TABLE "stock_items" ADD COLUMN "tracking_mode" stock_tracking_mode DEFAULT 'unit' NOT NULL;
 ```
 Until run, creating/editing a bulk-mode item will fail (column doesn't exist).
+
+**Pending (2026-07-09)** — `jobs.company_id` index and `sub_rentals.job_id` made required.
+Already in `shared/schema.ts` and `migrations/0020_jobs_company_index.sql` /
+`migrations/0021_subrental_job_required.sql`. Run in Supabase SQL Editor:
+```sql
+CREATE INDEX IF NOT EXISTS "jobs_company_id_idx" ON "jobs" USING btree ("company_id");
+
+ALTER TABLE "sub_rentals" DROP CONSTRAINT IF EXISTS "sub_rentals_job_id_jobs_id_fk";
+ALTER TABLE "sub_rentals" ALTER COLUMN "job_id" SET NOT NULL;
+ALTER TABLE "sub_rentals" ADD CONSTRAINT "sub_rentals_job_id_jobs_id_fk"
+  FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
+```
+The `SET NOT NULL` statement fails if any existing `sub_rentals` row has a null `job_id` —
+assign it to a job or delete it first (see "Sub-Rentals — Moved to Job-Scoped Management" below
+for why `jobId` is now required). Until run, the schema/DB are out of sync and `db:generate`
+will complain on next run; the app itself still works either way since the client now always
+sends a `jobId`.
 
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
@@ -428,12 +447,13 @@ Client function: `jobsApi.getCrewMatrix()`, query key `["crew-matrix"]`.
   `status: "resolved"` and calls `recalculateUnitHealth()` if linked to a stock unit. "Mark
   Resolved" button shown on open incidents in `JobsPage.tsx`'s Incidents tab.
 - **Sub-rental return**: `PUT /api/maintenance/subrentals/:id` (generic status/field update,
-  no role gate — matches existing subrental routes). "Mark Returned" button in `StockPage.tsx`'s
-  Sub-Rentals list, sets `status: "returned"`.
+  no role gate — matches existing subrental routes), sets `status: "returned"`. Originally
+  triggered only from `StockPage.tsx`'s Sub-Rentals list; also available from `JobSubRentalsModal.tsx`
+  now — see "Sub-Rentals — Moved to Job-Scoped Management" below for the full picture.
 - **Quote/Invoice creation**: previously had zero creation UI (only display tables, with a
   non-functional "Send" icon) — `POST /api/finance/quotes` / `/invoices` already existed
   server-side but were never called from the client. Added `AddQuoteModal.tsx` /
-  `AddInvoiceModal.tsx` (mirrors `AddSubRentalModal.tsx`'s field/select pattern, with an
+  `AddInvoiceModal.tsx` (compact field/select modal, with an
   optional job-link dropdown), wired to "+ New Quote" / "+ New Invoice" buttons in
   `FinancePage.tsx`'s tab headers. Quote/invoice number fields are pre-filled with a suggested
   next number (`QT-001`/`INV-001` style) but freely editable.
@@ -445,6 +465,107 @@ Client function: `jobsApi.getCrewMatrix()`, query key `["crew-matrix"]`.
   line-item tables (`totalValue`/`amount` are single decimal fields), these are **summary
   documents** (number, client, linked job, total, dates, status) — not itemized equipment
   breakdowns. Download icon button per row in `FinancePage.tsx`.
+
+### Equipment Picker — Two-Pane Redesign (`ManageJobStockModal.tsx`)
+Replaced the old single-column nested tree (category → model → unit, all in one scrolling list)
+with two independently-scrolling panes so adding gear across categories doesn't require
+re-scrolling past collapsed headers each time:
+
+- **Left pane** (`ManageJobStockCatalogPane.tsx`): category chip filter bar (always full list,
+  never collapses — switching categories just narrows the visible models). When a category is
+  selected, **Brand** and **Sub-Category** chip rows appear too, scoped to that category so the
+  list stays short (no new API calls — derived client-side from the already-fetched item list).
+  Search now auto-expands matching model groups too, not just categories.
+- **Right pane** (`ManageJobStockCartPane.tsx`): persistent "selected items" cart, grouped by
+  category → model, with a per-unit position `<select>` (see below) so browsing the left pane
+  never hides the cart.
+- **Per-unit position** (FOH/Monitor/Power/Stage/etc.): position is now stored per **unit**
+  (`CartUnitLine.position`), not per stock-item/model — two identical units of the same model can
+  go to two different zones in the same job. Bulk items can be split across multiple zones too
+  (`CartBulkLine`, keyed by a synthetic `lineId` not `stockItemId`, so one model can have several
+  quantity lines each with its own zone).
+- **Active zone selector**: a "เพิ่มเข้าโซน:" chip row in the catalog pane — pick a zone once, then
+  every unit checked / bulk qty incremented while it's active gets that zone immediately, instead
+  of setting position per-row after the fact. "อัตโนมัติ" (auto) falls back to each item's
+  `lastPosition` (smart default, computed server-side — most recent non-null position used for
+  that stock item, company-scoped). A "+" button creates a brand-new zone on the fly via
+  `catalogApi.createPosition` (existing API, previously had no UI consumer) and auto-selects it.
+- **Cart zone tabs** (`ManageJobStockCartPane.tsx`): "ทั้งหมด" / each zone in use / "ไม่ระบุโซน" —
+  narrows the cart to just that zone's lines, so you can see "what's going to FOH" at a glance.
+- Backend: `GET /stock/all-with-units` gained `lastPosition` (per item, via `DISTINCT ON` over
+  `job_units`/`job_stock` joined through `jobs`, company-scoped). `POST /jobs/:id/stock` no
+  longer collapses position to one value per stock item — it trusts whatever `position` each
+  line in the payload sends, which is what makes bulk position-splitting possible. `handleSave`
+  now always calls `setJobStock` (previously skipped if the cart had zero bulk lines — meant
+  clearing all bulk items never actually cleared `job_stock` server-side).
+- New index: `jobs.company_id` (`migrations/0020_jobs_company_index.sql`) — supports the
+  `lastPosition` lookup's join through `jobs`.
+
+### Item Detail — Centered Modal, Real Specs, Per-Unit Schedule (`ItemDetailPanel.tsx`)
+- Changed from a docked right-side sliding panel (`w-80`) to a centered modal (`max-w-3xl`,
+  matching every other modal's `fixed inset-0` + backdrop pattern) — more room, and the Units
+  tab now renders as a 2-column card grid instead of a single stacked list.
+- **Specs tab fix**: previously rendered `Object.entries(item.specs.fields)` with the raw field
+  key as the label (e.g. literally "impedance") and rendered nothing at all if no specs were
+  filled in. Now looks up the item's `specs.template` (sound/lighting/video) via
+  `getSpecTemplates()` (exported from `AddNewItemModal.tsx`, now shared instead of duplicated)
+  to show the real Thai label for every field in that template, with a "ยังไม่ได้กรอก" placeholder
+  when empty — plus Protocol Tags (Dante/AES-EBU/Milan/etc.), which weren't rendered anywhere
+  before.
+- **Units tab**: each unit card now shows a "→ จัดเตรียมสำหรับงาน: [Job] (date)" line when
+  `plannedJob` is set (the data was already being fetched via `GET /stock/:id`, just never read
+  client-side — `units` was typed as plain `StockUnit[]`, now `StockUnitWithPlan[]`). Cards are
+  now **clickable** — opens `UnitDetailModal.tsx` (general info, purchase date/warranty
+  expiry, and maintenance history filtered from `maintenanceApi.getAll()` by `stockUnitId`).
+- **New "ตารางการออกงาน" (Schedule) tab**: `UnitScheduleGantt.tsx`, adapted from the Jobs page's
+  `CrewScheduleView.tsx` Gantt pattern — one row per unit, job bookings as colored bars across a
+  35-day scrollable window, instead of crew members. Backend: `GET /stock/:id` now also returns
+  `bookings: UnitBooking[]` per unit (previously only kept the single earliest non-cancelled job
+  per unit as `plannedJob` — `bookings` keeps **all** of them so the Gantt can show a unit's full
+  schedule, not just its next job).
+- Removed the footer's "แก้ไขรายการ" (Edit) and "เก็บถาวร" (Archive, never had a working handler)
+  buttons — editing an item is still available via the pencil icon on its row in the main
+  Inventory table.
+
+### Containers — Edit & Batch Add
+- **Edit**: pencil icon per container row (Admin/Manager only) opens `EditContainerModal.tsx` —
+  name/type/location/barcode, backed by new `PUT /api/containers/:id`.
+- **Batch add**: `AddContainerModal.tsx` gained a quantity stepper — creating N at once
+  auto-numbers names (`Rack A #1`, `Rack A #2`, ...) and generates distinct barcodes per item
+  (avoids the old single-item fallback barcode scheme colliding when looped). `StockPage.tsx`'s
+  `createContainer` mutation now takes an array and does one `Promise.all` + one invalidation.
+
+### Inventory — Search by Serial/Barcode
+`StockItemsTableSection.tsx`'s search previously only matched `name`/`brand`/`category`/
+`subCategory` on the lightweight `GET /stock` payload (no nested units, so no serial/barcode
+data existed client-side to match against). Now also fetches `stockApi.getAllWithUnits()`
+(only while the user is actively typing a search — same `["stock-with-units"]` query already
+warm from the Maintenance tab) and additionally matches if any of an item's units has a
+matching `serialNumber`/`barcode`. Badge/counts still come from the original `["stock"]` query —
+this is purely an additional match predicate, not a swap of the main data source.
+
+### Sub-Rentals — Moved to Job-Scoped Management
+Sub-rentals (equipment rented **from another company** to cover a job's shortage) are now added
+and managed from inside the job that needs them, not from a standalone Stock-page form:
+
+- **`sub_rentals.jobId` is now required** (`NOT NULL`, `onDelete: cascade` — matches
+  `job_expenses`/`job_vehicles`, previously nullable/optional). Migration:
+  `migrations/0021_subrental_job_required.sql`. This closes a real gap: Finance → Costing's ROI
+  calc already filtered sub-rentals by `jobId` to attribute cost per job — an unlinked sub-rental
+  silently never counted toward any job's cost/profit.
+- **`JobsPage.tsx`**: new "ของเช่าจากภายนอก" section in the job's expanded row (after Vehicles) —
+  a button opens `JobSubRentalsModal.tsx` (self-contained add/list/delete/mark-returned, mirrors
+  `JobExpensesModal.tsx`'s pattern), job is implicit from context so there's no job picker.
+- Backend: `GET/POST /api/jobs/:id/subrentals` + `DELETE /api/jobs/subrentals/:subRentalId`
+  (Admin/Manager only, mirrors the expenses/vehicles route shape exactly).
+- **`StockPage.tsx`'s "เช่าจากภายนอก" tab** is now a **read-only overview** across all jobs — the
+  "+" add button and `AddSubRentalModal.tsx` were removed entirely. `GET /api/maintenance/
+  subrentals` now joins `jobs` server-side so the row shows the actual job name instead of a raw
+  UUID (`sr.jobId ?? "—"` before). "Mark Returned" still works from here via the existing
+  `PUT /api/maintenance/subrentals/:id`.
+- Renamed the Thai label throughout (tab, buttons, modal titles, hints): **"เช่าช่วง" →
+  "เช่าจากภายนอก"** — clearer that it's gear from an external company, not an internal sub-lease.
+  English label unchanged ("Sub-Rentals").
 
 ## Adding a New Feature
 
