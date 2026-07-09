@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { X, Briefcase, Loader2, Plus, LayoutTemplate } from "lucide-react";
+import { X, Briefcase, Loader2, Plus, LayoutTemplate, Boxes } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { jobsApi, jobTemplatesApi } from "@/api";
+import { jobsApi, jobTemplatesApi, equipmentSetsApi } from "@/api";
 import { useAppStore } from "@/store/appStore";
 import type { InsertJob } from "@shared/schema";
 
@@ -42,12 +42,18 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
 
   const [savedHint, setSavedHint] = useState(false);
   const [templateId, setTemplateId] = useState("");
+  const [setId, setSetId] = useState("");
   const [shortfallWarn, setShortfallWarn] = useState<number | null>(null);
 
   const { token } = useAppStore();
   const { data: templates = [] } = useQuery({
     queryKey: ["job-templates"],
     queryFn:  jobTemplatesApi.getAll,
+    enabled:  !!token,
+  });
+  const { data: sets = [] } = useQuery({
+    queryKey: ["equipment-sets"],
+    queryFn:  equipmentSetsApi.getAll,
     enabled:  !!token,
   });
 
@@ -69,12 +75,22 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
         endDate:       new Date(endDate),
         status,
       };
+      let shortfallCount = 0;
+      let createdJobId: string;
       if (templateId) {
         const res = await jobTemplatesApi.createJob(templateId, data);
-        if (res.shortfall?.length) setShortfallWarn(res.shortfall.length);
+        createdJobId = res.id;
+        shortfallCount += res.shortfall?.length ?? 0;
       } else {
-        await jobsApi.create(data);
+        const job = await jobsApi.create(data);
+        createdJobId = job.id;
       }
+      // เพิ่มชุดอุปกรณ์เข้างานที่เพิ่งสร้าง (ถ้าเลือกไว้)
+      if (setId) {
+        const res = await jobsApi.applySet(createdJobId, setId);
+        shortfallCount += res.shortfall?.length ?? 0;
+      }
+      if (shortfallCount > 0) setShortfallWarn(shortfallCount);
       onCreated();
       if (keepOpen) {
         // เก็บ ลูกค้า/สถานที่/วันที่/สถานะ ไว้ — ล้างแค่ชื่องาน แล้ว focus ช่องชื่อ
@@ -136,6 +152,29 @@ export const AddJobModal = ({ onClose, onCreated }: Props): JSX.Element => {
               {templateId && (
                 <p className="text-[10px] text-[#FFFF00]/70">
                   {t("addJob.templateWillAdd", { count: templates.find((tp) => tp.id === templateId)?.totalQty ?? 0 })}
+                </p>
+              )}
+            </div>
+          )}
+          {sets.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium flex items-center gap-1.5">
+                <Boxes className="w-3 h-3 text-[#FFFF00]/60" /> จากชุดอุปกรณ์
+              </label>
+              <select
+                value={setId}
+                onChange={(e) => setSetId(e.target.value)}
+                className="h-9 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white
+                  focus:outline-none focus:border-[#FFFF00]/40 focus:bg-white/[0.06] transition-all"
+              >
+                <option value="">ไม่ใช้ชุด</option>
+                {sets.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.totalQty})</option>
+                ))}
+              </select>
+              {setId && (
+                <p className="text-[10px] text-[#FFFF00]/70">
+                  จะเพิ่มของ {sets.find((s) => s.id === setId)?.totalQty ?? 0} ชิ้นเข้างานอัตโนมัติ
                 </p>
               )}
             </div>

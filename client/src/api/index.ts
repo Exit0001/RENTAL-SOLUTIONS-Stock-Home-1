@@ -24,6 +24,7 @@ import type {
   JobVehicle, InsertJobVehicle,
   ItemAccessory, InsertItemAccessory,
   JobTemplate, JobTemplateItem,
+  EquipmentSet, EquipmentSetItem,
 } from "@shared/schema";
 
 // ─── Companies (ไม่ต้องการ auth) ─────────────────────────
@@ -229,6 +230,8 @@ export const jobsApi = {
                    api.post<void>(`/jobs/${jobId}/containers`, { containerId }),
   removeContainer: (jobId: string, containerId: string) =>
                    api.delete<void>(`/jobs/${jobId}/containers/${containerId}`),
+  applySet:      (jobId: string, setId: string) =>
+                   api.post<{ message: string; shortfall: { stockItemId: string; wanted: number; got: number }[] }>(`/jobs/${jobId}/apply-set/${setId}`, {}),
   getCrewMatrix: () => api.get<{ jobId: string; userId: string }[]>("/jobs/crew-matrix"),
   getJobCrew:    (jobId: string) => api.get<JobCrewMember[]>(`/jobs/${jobId}/crew`),
   assignCrew:    (jobId: string, userId: string) => api.post<JobCrew>(`/jobs/${jobId}/crew`, { userId }),
@@ -413,6 +416,26 @@ export const jobTemplatesApi = {
   delete:      (id: string) => api.delete<{ message: string }>(`/job-templates/${id}`),
   createJob:   (id: string, data: Omit<InsertJob, "companyId">) =>
                  api.post<Job & { shortfall: { stockItemId: string; wanted: number; got: number }[] }>(`/job-templates/${id}/create-job`, data),
+};
+
+// ─── Equipment Sets (ชุดอุปกรณ์ / Kits) ────────────────────
+
+export type EquipmentSetSummary = EquipmentSet & { itemCount: number; totalQty: number };
+export type EquipmentSetItemDetail = EquipmentSetItem & {
+  itemName: string; trackingMode: "unit" | "bulk"; unitName?: string | null; serialNumber?: string | null;
+};
+export type EquipmentSetDetail = EquipmentSet & { items: EquipmentSetItemDetail[] };
+export type EquipmentSetItemInput = { stockItemId: string; quantity: number; unitId?: string | null };
+export type ShortfallLine = { stockItemId: string; wanted: number; got: number };
+
+export const equipmentSetsApi = {
+  getAll:  () => api.get<EquipmentSetSummary[]>("/equipment-sets"),
+  getById: (id: string) => api.get<EquipmentSetDetail>(`/equipment-sets/${id}`),
+  create:  (data: { name: string; description?: string | null; imageUrl?: string | null; items: EquipmentSetItemInput[] }) =>
+             api.post<EquipmentSet>("/equipment-sets", data),
+  update:  (id: string, data: { name?: string; description?: string | null; imageUrl?: string | null; items?: EquipmentSetItemInput[] }) =>
+             api.put<EquipmentSet>(`/equipment-sets/${id}`, data),
+  delete:  (id: string) => api.delete<{ message: string }>(`/equipment-sets/${id}`),
 };
 
 // ─── Web Push ─────────────────────────────────────────────

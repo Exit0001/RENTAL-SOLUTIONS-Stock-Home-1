@@ -7,6 +7,7 @@ import { stockRouter } from "./routes/stock";
 import { containersRouter } from "./routes/containers";
 import { jobsRouter } from "./routes/jobs";
 import { jobTemplatesRouter } from "./routes/jobTemplates";
+import { equipmentSetsRouter } from "./routes/equipmentSets";
 import { financeRouter } from "./routes/finance";
 import { maintenanceRouter } from "./routes/maintenance";
 import { activityRouter } from "./routes/activity";
@@ -33,6 +34,7 @@ export async function registerRoutes(
   app.use("/api/containers",  containersRouter);
   app.use("/api/jobs",        jobsRouter);
   app.use("/api/job-templates", jobTemplatesRouter);
+  app.use("/api/equipment-sets", equipmentSetsRouter);
   app.use("/api/finance",     financeRouter);
   app.use("/api/maintenance", maintenanceRouter);
   app.use("/api/activity",    activityRouter);

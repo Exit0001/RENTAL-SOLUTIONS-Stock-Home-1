@@ -22,6 +22,7 @@ import {
   Loader2,
   Check,
   Layers,
+  Boxes,
   X,
   Trash2,
   Copy,
@@ -54,6 +55,7 @@ import { AddIncidentModal } from "./AddIncidentModal";
 import { AddJobModal } from "./AddJobModal";
 import { ManageJobStockModal } from "./ManageJobStockModal";
 import { AssignContainerModal } from "./AssignContainerModal";
+import { AddSetToJobModal } from "./AddSetToJobModal";
 import { AssignCrewModal } from "./AssignCrewModal";
 import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { AddVehicleModal } from "./AddVehicleModal";
@@ -115,6 +117,7 @@ const JobDetailRow = ({ job }: { job: any }) => {
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
   const [assignContainerOpen, setAssignContainerOpen] = useState(false);
+  const [addSetOpen, setAddSetOpen] = useState(false);
   const [rackBuildOpen, setRackBuildOpen] = useState(false);
   const [assignCrewOpen, setAssignCrewOpen] = useState(false);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
@@ -243,6 +246,12 @@ const JobDetailRow = ({ job }: { job: any }) => {
                 className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
               >
                 <Plus className="w-3 h-3" /> {t("addRack")}
+              </button>
+              <button
+                onClick={() => setAddSetOpen(true)}
+                className="flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold text-[#FFFF00]/70 border border-[#FFFF00]/20 hover:bg-[#FFFF00]/10 transition-colors"
+              >
+                <Boxes className="w-3 h-3" /> เพิ่มชุด
               </button>
             </div>
           </div>
@@ -489,6 +498,9 @@ const JobDetailRow = ({ job }: { job: any }) => {
 
         {assignContainerOpen && (
           <AssignContainerModal jobId={job.id} onClose={() => setAssignContainerOpen(false)} />
+        )}
+        {addSetOpen && (
+          <AddSetToJobModal jobId={job.id} onClose={() => setAddSetOpen(false)} />
         )}
         <RackBuildModal
           open={rackBuildOpen}

@@ -3,6 +3,7 @@
   "tabContainers": "Containers",
   "tabMaintenance": "Maintenance",
   "tabSubRentals": "Sub-Rentals",
+  "tabSets": "Equipment Sets",
 
   "scanContainerHint": "Scan a container barcode to instantly view all contents",
   "addContainer": "Add Container",

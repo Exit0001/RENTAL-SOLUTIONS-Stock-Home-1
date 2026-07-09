@@ -6,6 +6,7 @@ import {
   insertPullSheetSchema, insertJobCrewSchema, users, activityLog, stockUnits, stockItems, containers, containerUnits, companies,
   jobExpenses, insertJobExpenseSchema, jobVehicles, insertJobVehicleSchema,
   subRentals, insertSubRentalSchema,
+  equipmentSets, equipmentSetItems,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
@@ -586,6 +587,89 @@ jobsRouter.post("/:id/containers", async (req, res) => {
     }
 
     res.status(201).json({ message: "Container assigned" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// POST /api/jobs/:id/apply-set/:setId — เพิ่มชุดอุปกรณ์เข้างานทั้งชุด (merge, ไม่ replace)
+// pinned unit → ใช้ตัวนั้น; auto unit → เลือก unit ว่างตามจำนวน; bulk → upsert job_stock
+// ไม่แตะ stock_units.status (เคารพ Sync Contract) — คืน shortfall เมื่อของไม่พอ
+jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
+  try {
+    const jobId = req.params.id;
+
+    const [job] = await db.select().from(jobs)
+      .where(and(eq(jobs.id, jobId), eq(jobs.companyId, req.companyId)));
+    if (!job) return res.status(404).json({ message: "ไม่พบงาน" });
+
+    const [set] = await db.select().from(equipmentSets)
+      .where(and(eq(equipmentSets.id, req.params.setId), eq(equipmentSets.companyId, req.companyId)));
+    if (!set) return res.status(404).json({ message: "ไม่พบชุดอุปกรณ์" });
+
+    const setItems = await db.select().from(equipmentSetItems).where(eq(equipmentSetItems.setId, set.id));
+    if (setItems.length === 0) return res.status(201).json({ message: "ชุดว่าง", shortfall: [] });
+
+    // trackingMode ต่อ item
+    const itemIds = Array.from(new Set(setItems.map((i) => i.stockItemId)));
+    const modes = await db.select({ id: stockItems.id, trackingMode: stockItems.trackingMode })
+      .from(stockItems).where(inArray(stockItems.id, itemIds));
+    const modeMap = Object.fromEntries(modes.map((m) => [m.id, m.trackingMode]));
+
+    // unit ที่อยู่ในงานนี้อยู่แล้ว (กันซ้ำ)
+    const existingUnits = await db.select({ stockUnitId: jobUnits.stockUnitId })
+      .from(jobUnits).where(eq(jobUnits.jobId, jobId));
+    const claimed = new Set(existingUnits.map((u) => u.stockUnitId));
+
+    // bulk ที่อยู่ในงานนี้อยู่แล้ว (สำหรับ upsert)
+    const existingBulk = await db.select().from(jobStock).where(eq(jobStock.jobId, jobId));
+
+    const unitRows: { jobId: string; stockUnitId: string; phase: "planned" }[] = [];
+    const bulkInserts: { jobId: string; stockItemId: string; quantity: number }[] = [];
+    const bulkUpdates: { id: string; quantity: number }[] = [];
+    const shortfall: { stockItemId: string; wanted: number; got: number }[] = [];
+
+    for (const it of setItems) {
+      if (it.unitId) {
+        // ปักหมุด unit เฉพาะ — ต้องว่างและยังไม่อยู่ในงาน
+        if (claimed.has(it.unitId)) continue; // อยู่ในงานแล้ว ถือว่าได้
+        const [u] = await db.select({ id: stockUnits.id, status: stockUnits.status })
+          .from(stockUnits)
+          .where(and(eq(stockUnits.id, it.unitId), eq(stockUnits.companyId, req.companyId)));
+        if (u && u.status === "available") {
+          unitRows.push({ jobId, stockUnitId: u.id, phase: "planned" });
+          claimed.add(u.id);
+        } else {
+          shortfall.push({ stockItemId: it.stockItemId, wanted: 1, got: 0 });
+        }
+      } else if (modeMap[it.stockItemId] === "bulk") {
+        // bulk — upsert job_stock (บวกเพิ่ม qty หรือ insert แถวใหม่)
+        const existing = existingBulk.find((b) => b.stockItemId === it.stockItemId && !b.position);
+        if (existing) {
+          bulkUpdates.push({ id: existing.id, quantity: existing.quantity + it.quantity });
+        } else {
+          bulkInserts.push({ jobId, stockItemId: it.stockItemId, quantity: it.quantity });
+        }
+      } else {
+        // auto unit — เลือก unit ว่างตามจำนวน ที่ยังไม่ถูกจองในงานนี้
+        const avail = await db.select({ id: stockUnits.id }).from(stockUnits)
+          .where(and(
+            eq(stockUnits.companyId, req.companyId),
+            eq(stockUnits.stockItemId, it.stockItemId),
+            eq(stockUnits.status, "available"),
+          ));
+        const pickable = avail.map((a) => a.id).filter((id) => !claimed.has(id)).slice(0, it.quantity);
+        for (const id of pickable) { unitRows.push({ jobId, stockUnitId: id, phase: "planned" }); claimed.add(id); }
+        if (pickable.length < it.quantity)
+          shortfall.push({ stockItemId: it.stockItemId, wanted: it.quantity, got: pickable.length });
+      }
+    }
+
+    if (unitRows.length) await db.insert(jobUnits).values(unitRows);
+    if (bulkInserts.length) await db.insert(jobStock).values(bulkInserts);
+    for (const u of bulkUpdates) await db.update(jobStock).set({ quantity: u.quantity }).where(eq(jobStock.id, u.id));
+
+    res.status(201).json({ message: "เพิ่มชุดอุปกรณ์เข้างานแล้ว", shortfall });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

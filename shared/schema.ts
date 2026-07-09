@@ -323,6 +323,33 @@ export const jobTemplateItems = pgTable("job_template_items", {
 ]);
 
 // ─────────────────────────────────────────────
+// 10e. EQUIPMENT SETS — ชุดอุปกรณ์ (Kit) เช่น "ชุดกลอง BG2", "ชุดถ่าน+ชาร์จ"
+// ตั้งชื่อ + รูป + หมายเหตุ, บันทึกไว้ใช้ซ้ำ → เพิ่มเข้างานทั้งชุดในคลิกเดียว
+// สมาชิกเก็บได้ 2 แบบ: จำนวนตามรุ่น (auto-pick unit ว่าง / bulk qty) หรือปักหมุด unit เฉพาะ (unitId)
+// ─────────────────────────────────────────────
+
+export const equipmentSets = pgTable("equipment_sets", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:        text("name").notNull(),
+  description: text("description"),          // หมายเหตุ
+  imageUrl:    text("image_url"),            // รูปชุด
+  createdAt:   timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("equipment_sets_company_id_idx").on(t.companyId),
+]);
+
+export const equipmentSetItems = pgTable("equipment_set_items", {
+  id:          uuid("id").primaryKey().defaultRandom(),
+  setId:       uuid("set_id").references(() => equipmentSets.id, { onDelete: "cascade" }).notNull(),
+  stockItemId: uuid("stock_item_id").references(() => stockItems.id, { onDelete: "cascade" }).notNull(),
+  quantity:    integer("quantity").default(1).notNull(),
+  unitId:      uuid("unit_id").references(() => stockUnits.id, { onDelete: "set null" }), // null = auto-pick; มีค่า = ปักหมุด unit นี้
+}, (t) => [
+  index("equipment_set_items_set_id_idx").on(t.setId),
+]);
+
+// ─────────────────────────────────────────────
 // 10. PULL SHEETS — รายการเบิกอุปกรณ์ก่อนออกงาน
 // ─────────────────────────────────────────────
 
@@ -637,6 +664,8 @@ export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions
 export const insertItemAccessorySchema    = createInsertSchema(itemAccessories).omit({ id: true, createdAt: true });
 export const insertJobTemplateSchema      = createInsertSchema(jobTemplates).omit({ id: true, createdAt: true });
 export const insertJobTemplateItemSchema  = createInsertSchema(jobTemplateItems).omit({ id: true });
+export const insertEquipmentSetSchema     = createInsertSchema(equipmentSets).omit({ id: true, createdAt: true });
+export const insertEquipmentSetItemSchema = createInsertSchema(equipmentSetItems).omit({ id: true });
 
 // ─────────────────────────────────────────────
 // TYPESCRIPT TYPES — type ที่ใช้ใน code ทั้งหมด
@@ -667,6 +696,11 @@ export type JobTemplate           = typeof jobTemplates.$inferSelect;
 export type InsertJobTemplate     = z.infer<typeof insertJobTemplateSchema>;
 export type JobTemplateItem       = typeof jobTemplateItems.$inferSelect;
 export type InsertJobTemplateItem = z.infer<typeof insertJobTemplateItemSchema>;
+
+export type EquipmentSet            = typeof equipmentSets.$inferSelect;
+export type InsertEquipmentSet      = z.infer<typeof insertEquipmentSetSchema>;
+export type EquipmentSetItem        = typeof equipmentSetItems.$inferSelect;
+export type InsertEquipmentSetItem  = z.infer<typeof insertEquipmentSetItemSchema>;
 
 export type JobContainer       = typeof jobContainers.$inferSelect;
 export type InsertJobContainer = z.infer<typeof insertJobContainerSchema>;

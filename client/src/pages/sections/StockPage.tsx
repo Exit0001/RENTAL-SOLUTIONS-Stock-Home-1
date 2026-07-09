@@ -19,6 +19,7 @@ import {
   Trash2,
   Check,
   Loader2,
+  Boxes,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ import { AddContainerModal } from "./AddContainerModal";
 import { EditContainerModal } from "./EditContainerModal";
 import { RackBuildModal } from "./RackBuildModal";
 import { ManageContainerUnitsModal } from "./ManageContainerUnitsModal";
+import { SetBuilderModal } from "./SetBuilderModal";
 import { AddIndividualUnitModal } from "./AddIndividualUnitModal";
 import { AddLocationModal } from "./AddLocationModal";
 import { AddMaintenanceLogModal } from "./AddMaintenanceLogModal";
@@ -46,15 +48,16 @@ import { StockItemsTableSection } from "./StockItemsTableSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { containersApi, jobsApi, maintenanceApi, stockApi } from "@/api";
+import { containersApi, equipmentSetsApi, jobsApi, maintenanceApi, stockApi } from "@/api";
 import { useToast } from "@/hooks/use-toast";
-import type { ContainerWithItems, CrewMember, StockItemWithUnits, SubRentalWithJob } from "@/api";
+import type { ContainerWithItems, CrewMember, EquipmentSetSummary, StockItemWithUnits, SubRentalWithJob } from "@/api";
 
-type StockTab = "inventory" | "containers" | "maintenance" | "subrentals";
+type StockTab = "inventory" | "containers" | "sets" | "maintenance" | "subrentals";
 
 const stockTabs: { key: StockTab; labelKey: string; icon: typeof Package }[] = [
   { key: "inventory",  labelKey: "tabInventory",   icon: Package },
   { key: "containers", labelKey: "tabContainers",  icon: Box },
+  { key: "sets",       labelKey: "tabSets",        icon: Boxes },
   { key: "maintenance",labelKey: "tabMaintenance", icon: Wrench },
   { key: "subrentals", labelKey: "tabSubRentals",  icon: ArrowRightLeft },
 ];
@@ -96,6 +99,9 @@ export const StockPage = (): JSX.Element => {
   const [editItemOpen, setEditItemOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [assignContainer, setAssignContainer] = useState<ContainerWithItems | null>(null);
+  const [setBuilderOpen, setSetBuilderOpen] = useState(false);
+  const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [deleteSetTarget, setDeleteSetTarget] = useState<{ id: string; name: string } | null>(null);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
@@ -120,6 +126,22 @@ export const StockPage = (): JSX.Element => {
     queryKey: ["containers"],
     queryFn: containersApi.getAll,
     enabled: !!token,
+  });
+
+  // ดึงชุดอุปกรณ์ (Equipment Sets)
+  const { data: equipmentSets = [] } = useQuery<EquipmentSetSummary[]>({
+    queryKey: ["equipment-sets"],
+    queryFn: equipmentSetsApi.getAll,
+    enabled: !!token,
+  });
+
+  // Mutation ลบชุดอุปกรณ์
+  const deleteSet = useMutation({
+    mutationFn: (id: string) => equipmentSetsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["equipment-sets"] });
+      setDeleteSetTarget(null);
+    },
   });
 
   // Mutation สำหรับสร้าง container ใหม่ (รับได้ทีละหลายอัน)
@@ -414,6 +436,12 @@ export const StockPage = (): JSX.Element => {
           onClose={() => setAssignContainer(null)}
         />
       )}
+      {setBuilderOpen && (
+        <SetBuilderModal
+          setId={editingSetId}
+          onClose={() => { setSetBuilderOpen(false); setEditingSetId(null); }}
+        />
+      )}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
         {stockTabs.map((tab) => (
@@ -608,6 +636,90 @@ export const StockPage = (): JSX.Element => {
                   className="bg-red-600 hover:bg-red-700 text-white"
                 >
                   {deleteContainer.isPending ? tc("deleting") : tc("delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
+
+      {activeTab === "sets" && (
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Action bar */}
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+            <Boxes className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
+            <span className="text-sm font-semibold text-white/50">{t("tabSets")}</span>
+            <span className="text-xs text-white/60">{equipmentSets.length}</span>
+            <div className="ml-auto">
+              <button
+                onClick={() => { setEditingSetId(null); setSetBuilderOpen(true); }}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                <Plus className="w-4 h-4" /> สร้างชุด
+              </button>
+            </div>
+          </div>
+
+          {/* Grid of sets */}
+          <div className="flex-1 overflow-auto p-4">
+            {equipmentSets.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-16 text-center text-white/40">
+                <Boxes className="w-10 h-10" />
+                <p className="text-sm">ยังไม่มีชุดอุปกรณ์ — คลิก "สร้างชุด" เพื่อรวมของที่ใช้ด้วยกันบ่อยๆ เป็นชุดเดียว</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {equipmentSets.map((s) => (
+                  <div key={s.id} className="rounded-xl border border-white/[0.08] bg-[#111] overflow-hidden hover:border-[#FFFF00]/30 transition-colors">
+                    <div className="flex">
+                      {s.imageUrl
+                        ? <img src={s.imageUrl} alt="" className="w-24 h-24 object-cover flex-shrink-0" />
+                        : <div className="w-24 h-24 bg-[#FFFF00]/[0.06] flex items-center justify-center flex-shrink-0"><Layers className="w-6 h-6 text-[#FFFF00]/40" /></div>}
+                      <div className="flex-1 min-w-0 p-3 flex flex-col">
+                        <p className="text-sm font-bold text-white truncate">{s.name}</p>
+                        <p className="text-[11px] text-white/50 mt-0.5">{s.itemCount} รายการ · {s.totalQty} ชิ้น</p>
+                        {s.description && <p className="text-[11px] text-white/40 mt-1 line-clamp-2">{s.description}</p>}
+                        <div className="mt-auto flex items-center gap-2 pt-2">
+                          <button
+                            onClick={() => { setEditingSetId(s.id); setSetBuilderOpen(true); }}
+                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors"
+                          >
+                            <Pencil className="w-3 h-3" /> แก้ไข
+                          </button>
+                          {canManage && (
+                            <button
+                              onClick={() => setDeleteSetTarget({ id: s.id, name: s.name })}
+                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" /> ลบ
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <AlertDialog open={!!deleteSetTarget} onOpenChange={(open) => !open && setDeleteSetTarget(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>ลบชุดอุปกรณ์?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  ลบชุด "{deleteSetTarget?.name}" — การลบชุดไม่กระทบของที่เพิ่มเข้างานไปแล้ว
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteSet.isPending}>{tc("cancel")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => deleteSetTarget && deleteSet.mutate(deleteSetTarget.id)}
+                  disabled={deleteSet.isPending}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {deleteSet.isPending ? tc("deleting") : tc("delete")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
