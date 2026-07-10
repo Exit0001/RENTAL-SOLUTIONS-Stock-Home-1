@@ -149,7 +149,21 @@
     "noRacksAvailable": "No racks available (all racks are already checked out)",
     "noRacksFound": "No matching racks found",
     "errorAddFailed": "Failed to add rack to job",
-    "itemsCount": "{{count}} items"
+    "itemsCount": "{{count}} items",
+    "addedToast": "Added rack \"{{name}}\" ({{count}} items)"
+  },
+
+  "addSetToJob": {
+    "searchPlaceholder": "Search sets...",
+    "noSetsYet": "No equipment sets yet — create one at Stock → Equipment Sets",
+    "noSetsFound": "No matching sets found",
+    "errorApplyFailed": "Failed to add set",
+    "itemsSummary": "{{count}} items · {{qty}} pcs",
+    "addedToast": "Added set \"{{name}}\"",
+    "shortfallTitle": "Added \"{{name}}\", but some items were short",
+    "shortfallGot": "Got {{got}}/{{wanted}}",
+    "shortfallHint": "The system added whatever was available — the shortfall can be sourced (rented/borrowed) later.",
+    "shortfallDismiss": "Got it"
   },
 
   "assignCrew": {
@@ -205,6 +219,9 @@
 
   "manageJobStock": {
     "title": "Select Equipment",
+    "modeItems": "Items",
+    "modeRacks": "Racks",
+    "modeSets": "Sets",
     "bulkAvailable": "{{available}} / {{total}} available",
     "zoneLabel": "Zone (FOH/Mon/Power/Stage)",
     "zoneNone": "— zone —",
@@ -222,7 +239,11 @@
     "tabAll": "All",
     "tabUnassigned": "Unassigned",
     "showMoreChips": "+{{count}} more",
-    "showFewerChips": "Show less"
+    "showFewerChips": "Show less",
+    "selectAllHint": "Select multiple to bulk-change zone (Shift+click to select a range)",
+    "selectedForBulk": "{{count}} selected",
+    "bulkZonePlaceholder": "Change zone for selected...",
+    "selectGroupHint": "Select all of this model"
   },
 
   "createPullSheet": {

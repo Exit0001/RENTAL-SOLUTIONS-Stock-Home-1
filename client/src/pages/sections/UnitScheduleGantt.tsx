@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { StockUnitWithPlan } from "@/api";
+import { useResponsiveDayCount } from "@/hooks/use-responsive-day-count";
 
 const COL_W     = 34;  // px per day column
 const ROW_H     = 46;  // px per unit row
 const LEFT_W    = 160; // px for sticky left unit label
-const VIEW_DAYS = 35;  // 5 weeks
+const MIN_DAYS = 14;      // อย่างน้อย 2 สัปดาห์แม้จอแคบ
+const FALLBACK_DAYS = 35; // 5 สัปดาห์ — ใช้ก่อน ResizeObserver วัดความกว้างจริงได้
 
 const STATUS_BAR: Record<string, { bg: string; border: string; text: string }> = {
   draft:     { bg: "rgba(255,255,255,0.07)",  border: "rgba(255,255,255,0.12)", text: "rgba(255,255,255,0.45)" },
@@ -33,6 +35,8 @@ interface Props {
 export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
   const { t } = useTranslation("stock");
   const today = useMemo(() => startOfDay(new Date()), []);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const VIEW_DAYS = useResponsiveDayCount(gridRef, COL_W, LEFT_W, MIN_DAYS, FALLBACK_DAYS);
 
   const [viewStart, setViewStart] = useState<Date>(() => {
     const d = startOfDay(new Date());
@@ -45,7 +49,7 @@ export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
       const d = new Date(viewStart);
       d.setDate(d.getDate() + i);
       return d;
-    }), [viewStart]);
+    }), [viewStart, VIEW_DAYS]);
 
   const monthGroups = useMemo(() => {
     const groups: { label: string; span: number }[] = [];
@@ -100,7 +104,7 @@ export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
       </div>
 
       {/* Scrollable grid */}
-      <div className="overflow-auto max-h-[380px]">
+      <div ref={gridRef} className="overflow-auto max-h-[380px]">
         <div style={{ minWidth: totalW }}>
 
           {/* Month header */}

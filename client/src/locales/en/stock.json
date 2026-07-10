@@ -71,6 +71,7 @@
   "addedOn": "Added {{date}}",
   "inContainer": "in {{name}}",
   "editUnit": "Edit unit",
+  "viewItem": "View this item",
 
   "stockItems": "Stock Items",
   "filteredLabel": "filtered",

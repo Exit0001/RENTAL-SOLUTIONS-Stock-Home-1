@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { ChevronLeft, ChevronRight, LayoutList, CalendarDays } from "lucide-react";
+import { useResponsiveDayCount } from "@/hooks/use-responsive-day-count";
 
 const DAY_W = 44;
 const LABEL_W = 196;
-const TOTAL_DAYS = 14;
+const MIN_DAYS = 7;
+const FALLBACK_DAYS = 14;
 const MAX_CHIPS = 3;
 
 type ViewMode = "timeline" | "month";
@@ -47,6 +49,8 @@ interface Props {
 
 export function JobScheduleView({ jobs }: Props) {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const TOTAL_DAYS = useResponsiveDayCount(timelineRef, DAY_W, LABEL_W, MIN_DAYS, FALLBACK_DAYS);
 
   const [viewMode, setViewMode] = useState<ViewMode>("timeline");
 
@@ -67,7 +71,7 @@ export function JobScheduleView({ jobs }: Props) {
       d.setDate(d.getDate() + i);
       return d;
     });
-  }, [rangeStart]);
+  }, [rangeStart, TOTAL_DAYS]);
 
   const rangeEnd = days[TOTAL_DAYS - 1];
 
@@ -151,7 +155,7 @@ export function JobScheduleView({ jobs }: Props) {
 
       {/* ── Gantt timeline ── */}
       {viewMode === "timeline" && (
-        <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
+        <div ref={timelineRef} className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             {/* Header row */}
             <div

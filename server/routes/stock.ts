@@ -19,31 +19,75 @@ async function checkItemNameUnique(companyId: string, name: string, excludeId?: 
   if (rows.length > 0) throw new Error(`ชื่ออุปกรณ์ "${name}" มีอยู่แล้วในระบบ`);
 }
 
+// carries which unit/item a serial/barcode collides with, so the client can show its name
+// and jump straight to it instead of just a plain "already exists" string
+export class DuplicateUnitError extends Error {
+  constructor(
+    message: string,
+    public duplicateField:    "serialNumber" | "barcode",
+    public duplicateUnitId:   string,
+    public duplicateItemId:  string,
+    public duplicateItemName: string,
+  ) {
+    super(message);
+  }
+}
+
 async function checkUnitUnique(companyId: string, { serialNumber, barcode }: { serialNumber?: string | null; barcode?: string | null }, excludeId?: string) {
   if (serialNumber && serialNumber.trim() !== "") {
-    const rows = await db
-      .select({ id: stockUnits.id })
+    const [row] = await db
+      .select({ id: stockUnits.id, stockItemId: stockUnits.stockItemId, itemName: stockItems.name })
       .from(stockUnits)
+      .innerJoin(stockItems, eq(stockItems.id, stockUnits.stockItemId))
       .where(and(
         eq(stockUnits.companyId, companyId),
         sql`LOWER(${stockUnits.serialNumber}) = LOWER(${serialNumber.trim()})`,
         ...(excludeId ? [ne(stockUnits.id, excludeId)] : [])
       ))
       .limit(1);
-    if (rows.length > 0) throw new Error(`Serial number "${serialNumber.trim()}" มีอยู่แล้วในระบบ`);
+    if (row) {
+      throw new DuplicateUnitError(
+        `Serial number "${serialNumber.trim()}" มีอยู่แล้วในระบบ`,
+        "serialNumber", row.id, row.stockItemId, row.itemName,
+      );
+    }
   }
   if (barcode && barcode.trim() !== "") {
-    const rows = await db
-      .select({ id: stockUnits.id })
+    const [row] = await db
+      .select({ id: stockUnits.id, stockItemId: stockUnits.stockItemId, itemName: stockItems.name })
       .from(stockUnits)
+      .innerJoin(stockItems, eq(stockItems.id, stockUnits.stockItemId))
       .where(and(
         eq(stockUnits.companyId, companyId),
         sql`LOWER(${stockUnits.barcode}) = LOWER(${barcode.trim()})`,
         ...(excludeId ? [ne(stockUnits.id, excludeId)] : [])
       ))
       .limit(1);
-    if (rows.length > 0) throw new Error(`Barcode "${barcode.trim()}" มีอยู่แล้วในระบบ`);
+    if (row) {
+      throw new DuplicateUnitError(
+        `Barcode "${barcode.trim()}" มีอยู่แล้วในระบบ`,
+        "barcode", row.id, row.stockItemId, row.itemName,
+      );
+    }
   }
+}
+
+// แปลง error เป็น JSON response — เติม duplicateItemId/duplicateItemName ให้ client ถ้าเป็น
+// DuplicateUnitError โดยเฉพาะ (ไม่กระทบ error ทั่วไปที่ยังส่งแค่ message เหมือนเดิม)
+function unitErrorResponse(err: any): { status: number; body: Record<string, unknown> } {
+  if (err instanceof DuplicateUnitError) {
+    return {
+      status: 409,
+      body: {
+        message: err.message,
+        duplicateField:    err.duplicateField,
+        duplicateUnitId:   err.duplicateUnitId,
+        duplicateItemId:   err.duplicateItemId,
+        duplicateItemName: err.duplicateItemName,
+      },
+    };
+  }
+  return { status: 400, body: { message: err?.message ?? "Request failed" } };
 }
 
 export const stockRouter = Router();
@@ -470,7 +514,8 @@ stockRouter.post("/:id/units", async (req, res) => {
 
     res.status(201).json(unit);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    const { status, body } = unitErrorResponse(err);
+    res.status(status).json(body);
   }
 });
 
@@ -515,7 +560,8 @@ stockRouter.post("/:id/units/batch", async (req, res) => {
 
     res.status(201).json(inserted);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    const { status, body } = unitErrorResponse(err);
+    res.status(status).json(body);
   }
 });
 
@@ -550,7 +596,8 @@ stockRouter.put("/units/:unitId", async (req, res) => {
     if (!unit) return res.status(404).json({ message: "Unit not found" });
     res.json(unit);
   } catch (err: any) {
-    res.status(500).json({ message: err?.message ?? "Failed to update unit" });
+    const { status, body } = unitErrorResponse(err);
+    res.status(status).json(body);
   }
 });
 

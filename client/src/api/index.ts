@@ -231,7 +231,12 @@ export const jobsApi = {
   removeContainer: (jobId: string, containerId: string) =>
                    api.delete<void>(`/jobs/${jobId}/containers/${containerId}`),
   applySet:      (jobId: string, setId: string) =>
-                   api.post<{ message: string; shortfall: { stockItemId: string; wanted: number; got: number }[] }>(`/jobs/${jobId}/apply-set/${setId}`, {}),
+                   api.post<{
+                     message: string;
+                     shortfall: { stockItemId: string; wanted: number; got: number }[];
+                     addedUnits: { unitId: string; stockItemId: string }[];
+                     addedBulkItems: { stockItemId: string; quantity: number }[];
+                   }>(`/jobs/${jobId}/apply-set/${setId}`, {}),
   getCrewMatrix: () => api.get<{ jobId: string; userId: string }[]>("/jobs/crew-matrix"),
   getJobCrew:    (jobId: string) => api.get<JobCrewMember[]>(`/jobs/${jobId}/crew`),
   assignCrew:    (jobId: string, userId: string) => api.post<JobCrew>(`/jobs/${jobId}/crew`, { userId }),

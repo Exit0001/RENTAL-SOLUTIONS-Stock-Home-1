@@ -21,7 +21,9 @@ async function request<T>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || "Request failed");
+    const error = new Error(err.message || "Request failed");
+    Object.assign(error, err); // preserve extra fields (e.g. duplicateItemId/duplicateItemName)
+    throw error;
   }
 
   return res.json();

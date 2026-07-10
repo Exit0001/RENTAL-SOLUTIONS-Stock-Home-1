@@ -149,7 +149,21 @@
     "noRacksAvailable": "ไม่มีแร็คที่พร้อมใช้งาน (ทุกแร็คถูกเอาออกไปแล้ว)",
     "noRacksFound": "ไม่พบแร็คที่ค้นหา",
     "errorAddFailed": "เพิ่มแร็คเข้างานไม่สำเร็จ",
-    "itemsCount": "{{count}} รายการ"
+    "itemsCount": "{{count}} รายการ",
+    "addedToast": "เพิ่มแร็ค \"{{name}}\" แล้ว ({{count}} ชิ้น)"
+  },
+
+  "addSetToJob": {
+    "searchPlaceholder": "ค้นหาชุด...",
+    "noSetsYet": "ยังไม่มีชุดอุปกรณ์ — สร้างได้ที่ Stock → ชุดอุปกรณ์",
+    "noSetsFound": "ไม่พบชุดที่ค้นหา",
+    "errorApplyFailed": "เพิ่มชุดไม่สำเร็จ",
+    "itemsSummary": "{{count}} รายการ · {{qty}} ชิ้น",
+    "addedToast": "เพิ่มชุด \"{{name}}\" แล้ว",
+    "shortfallTitle": "เพิ่ม \"{{name}}\" แล้ว แต่ของบางรายการไม่พอ",
+    "shortfallGot": "ได้ {{got}}/{{wanted}}",
+    "shortfallHint": "ระบบเพิ่มเท่าที่มีของว่างให้แล้ว ส่วนที่ขาดสามารถจัดหา (เช่า/ยืม) เพิ่มภายหลังได้",
+    "shortfallDismiss": "เข้าใจแล้ว"
   },
 
   "assignCrew": {
@@ -205,6 +219,9 @@
 
   "manageJobStock": {
     "title": "เลือกอุปกรณ์",
+    "modeItems": "อุปกรณ์",
+    "modeRacks": "แร็ค",
+    "modeSets": "ชุด",
     "bulkAvailable": "{{available}} / {{total}} ชิ้นที่ว่าง",
     "zoneLabel": "โซน (FOH/Mon/Power/Stage)",
     "zoneNone": "— โซน —",
@@ -222,7 +239,11 @@
     "tabAll": "ทั้งหมด",
     "tabUnassigned": "ไม่ระบุโซน",
     "showMoreChips": "+{{count}} เพิ่มเติม",
-    "showFewerChips": "ย่อ"
+    "showFewerChips": "ย่อ",
+    "selectAllHint": "เลือกหลายรายการเพื่อเปลี่ยนโซนพร้อมกัน (กด Shift+คลิก เพื่อเลือกทีละช่วง)",
+    "selectedForBulk": "เลือกแล้ว {{count}} รายการ",
+    "bulkZonePlaceholder": "เปลี่ยนโซนที่เลือก...",
+    "selectGroupHint": "เลือกทั้งหมดในรุ่นนี้"
   },
 
   "createPullSheet": {

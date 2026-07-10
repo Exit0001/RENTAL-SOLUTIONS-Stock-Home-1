@@ -1,13 +1,15 @@
 import { useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi } from "@/api";
+import { useResponsiveDayCount } from "@/hooks/use-responsive-day-count";
 
 const COL_W    = 38;   // px per day column
 const ROW_H    = 54;   // px per crew row
 const LEFT_W   = 200;  // px for sticky left crew label
-const VIEW_DAYS = 35;  // 5 weeks
+const MIN_DAYS = 14;      // อย่างน้อย 2 สัปดาห์แม้จอแคบ
+const FALLBACK_DAYS = 35; // 5 สัปดาห์ — ใช้ก่อน ResizeObserver วัดความกว้างจริงได้
 
 const STATUS_BAR: Record<string, { bg: string; border: string; text: string }> = {
   draft:     { bg: "rgba(255,255,255,0.07)",  border: "rgba(255,255,255,0.12)", text: "rgba(255,255,255,0.45)" },
@@ -15,10 +17,6 @@ const STATUS_BAR: Record<string, { bg: string; border: string; text: string }> =
   active:    { bg: "rgba(245,158,11,0.30)",   border: "rgba(251,191,36,0.40)",  text: "rgba(253,230,138,0.9)" },
   completed: { bg: "rgba(16,185,129,0.25)",   border: "rgba(52,211,153,0.35)",  text: "rgba(167,243,208,0.9)" },
   cancelled: { bg: "rgba(239,68,68,0.08)",    border: "rgba(239,68,68,0.12)",   text: "rgba(239,68,68,0.3)"  },
-};
-
-const STATUS_TH: Record<string, string> = {
-  draft: "ร่าง", scheduled: "กำหนด", active: "ดำเนิน", completed: "เสร็จ", cancelled: "ยกเลิก",
 };
 
 const DOW_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
@@ -38,6 +36,8 @@ interface Props      { jobs: any[]; crewMembers: CrewMember[]; onAssignCrew: (jo
 export function CrewScheduleView({ jobs, crewMembers, onAssignCrew }: Props) {
   const { token } = useAppStore();
   const today = useMemo(() => startOfDay(new Date()), []);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const VIEW_DAYS = useResponsiveDayCount(gridRef, COL_W, LEFT_W, MIN_DAYS, FALLBACK_DAYS);
 
   const [viewStart, setViewStart] = useState<Date>(() => {
     const d = startOfDay(new Date());
@@ -50,19 +50,7 @@ export function CrewScheduleView({ jobs, crewMembers, onAssignCrew }: Props) {
       const d = new Date(viewStart);
       d.setDate(d.getDate() + i);
       return d;
-    }), [viewStart]);
-
-  // Group days by month for the header row
-  const monthGroups = useMemo(() => {
-    const groups: { label: string; span: number; startIdx: number }[] = [];
-    days.forEach((d, i) => {
-      const label = d.toLocaleDateString("th-TH", { month: "long", year: "numeric" });
-      const last  = groups[groups.length - 1];
-      if (!last || last.label !== label) groups.push({ label, span: 1, startIdx: i });
-      else last.span++;
-    });
-    return groups;
-  }, [days]);
+    }), [viewStart, VIEW_DAYS]);
 
   const { data: matrixRows = [] } = useQuery({
     queryKey:  ["crew-matrix"],
@@ -108,79 +96,46 @@ export function CrewScheduleView({ jobs, crewMembers, onAssignCrew }: Props) {
 
       {/* ── Toolbar ──────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06] flex-shrink-0">
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1.5">
           <button type="button" onClick={() => navigate(-1)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors">
-            <ChevronLeft className="w-4 h-4" />
+            className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <ChevronLeft className="w-3.5 h-3.5" />
           </button>
+          <span className="text-[11px] text-white/50 min-w-[160px] text-center">
+            {days[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })} –{" "}
+            {days[VIEW_DAYS - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+          </span>
           <button type="button" onClick={() => navigate(1)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors">
-            <ChevronRight className="w-4 h-4" />
+            className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
-        </div>
-        <button type="button" onClick={goToday}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] text-[11px] text-white/50 hover:text-white/80 hover:border-white/[0.15] transition-colors">
-          <CalendarDays className="w-3 h-3" />
-          วันนี้
-        </button>
-        <span className="text-[11px] text-white/25 ml-2">
-          {days[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })} –{" "}
-          {days[VIEW_DAYS - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
-        </span>
-
-        {/* Legend */}
-        <div className="ml-auto flex items-center gap-3">
-          {Object.entries(STATUS_TH).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 rounded-sm" style={{ background: STATUS_BAR[key]?.bg, border: `1px solid ${STATUS_BAR[key]?.border}` }} />
-              <span className="text-[10px] text-white/30">{label}</span>
-            </div>
-          ))}
+          <button type="button" onClick={goToday} className="text-[11px] text-[#FFFF00]/50 hover:text-[#FFFF00] transition-colors px-1">
+            วันนี้
+          </button>
         </div>
       </div>
 
       {/* ── Scrollable grid ──────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div ref={gridRef} className="flex-1 overflow-auto">
         <div style={{ minWidth: totalW }}>
 
-          {/* Month header */}
-          <div className="flex sticky top-0 z-30 bg-[#0a0a0a]">
+          {/* Day-of-week + date header — single row, matches JobScheduleView's day header */}
+          <div className="flex sticky top-0 z-30 bg-[#0a0a0a] border-b border-white/[0.06]">
             <div
-              className="flex-shrink-0 sticky left-0 z-40 bg-[#0a0a0a] border-b border-r border-white/[0.06] flex items-center px-4"
-              style={{ width: LEFT_W, height: 26 }}
-            >
-              <span className="text-[9px] font-bold text-[#FFFF00]/50 uppercase tracking-widest">ทีมงาน</span>
-            </div>
-            {monthGroups.map((mg, i) => (
-              <div key={i} className="flex-shrink-0 flex items-center px-2 border-b border-r border-white/[0.06]"
-                style={{ width: mg.span * COL_W, height: 26 }}>
-                <span className="text-[10px] font-semibold text-white/40 truncate">{mg.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Day-of-week + date header */}
-          <div className="flex sticky top-[26px] z-30 bg-[#0a0a0a]">
-            <div
-              className="flex-shrink-0 sticky left-0 z-40 bg-[#0a0a0a] border-b border-r border-white/[0.06]"
-              style={{ width: LEFT_W, height: 42 }}
+              className="flex-shrink-0 sticky left-0 z-40 bg-[#0a0a0a] border-r border-white/[0.06]"
+              style={{ width: LEFT_W }}
             />
             {days.map((d, i) => {
-              const isToday   = i === todayOffset;
-              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+              const isToday = i === todayOffset;
               return (
                 <div key={i}
-                  className={`flex-shrink-0 flex flex-col items-center justify-center border-b border-r border-white/[0.06] ${isWeekend ? "bg-white/[0.015]" : ""}`}
-                  style={{ width: COL_W, height: 42 }}>
-                  <span className={`text-[9px] font-medium leading-none ${isToday ? "text-[#FFFF00]/70" : "text-white/25"}`}>
+                  className={`shrink-0 border-r border-white/[0.04] text-center py-2 ${isToday ? "bg-[#FFFF00]/[0.06]" : ""}`}
+                  style={{ width: COL_W }}>
+                  <div className={`text-[9px] uppercase tracking-wide ${isToday ? "text-[#FFFF00]/70" : "text-white/25"}`}>
                     {DOW_TH[d.getDay()]}
-                  </span>
-                  <div className={`mt-1 w-[22px] h-[22px] flex items-center justify-center rounded-full ${
-                    isToday ? "bg-[#FFFF00]" : ""}`}>
-                    <span className={`text-[11px] font-bold leading-none ${
-                      isToday ? "text-black" : isWeekend ? "text-white/30" : "text-white/55"}`}>
-                      {d.getDate()}
-                    </span>
+                  </div>
+                  <div className={`text-[11px] font-semibold mt-0.5 ${isToday ? "text-[#FFFF00]" : "text-white/40"}`}>
+                    {d.getDate()}
                   </div>
                 </div>
               );
@@ -215,19 +170,14 @@ export function CrewScheduleView({ jobs, crewMembers, onAssignCrew }: Props) {
                   style={{ width: VIEW_DAYS * COL_W, height: ROW_H }}
                 >
                   {/* Background day columns */}
-                  {days.map((d, di) => {
-                    const isToday   = di === todayOffset;
-                    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                  {days.map((_, di) => {
+                    const isToday = di === todayOffset;
                     return (
                       <div key={di} className="absolute top-0 bottom-0 border-r border-white/[0.04]"
                         style={{
-                          left:    di * COL_W,
-                          width:   COL_W,
-                          background: isToday
-                            ? "rgba(255,255,0,0.04)"
-                            : isWeekend
-                            ? "rgba(255,255,255,0.008)"
-                            : undefined,
+                          left:  di * COL_W,
+                          width: COL_W,
+                          background: isToday ? "rgba(255,255,0,0.04)" : undefined,
                         }}
                       />
                     );

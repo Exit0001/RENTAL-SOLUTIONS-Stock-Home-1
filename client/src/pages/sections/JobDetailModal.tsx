@@ -1,14 +1,12 @@
 import { useState, useMemo } from "react";
 import {
-  X, Calendar, MapPin, Package, Layers, ScanLine, Plus, Boxes,
+  X, Calendar, MapPin, Package, Layers, ScanLine, Plus,
   Loader2, Users, Wallet, UserPlus, ArrowRightLeft, Truck, ChevronRight, Briefcase,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi, jobVehiclesApi, jobSubRentalsApi, stockApi } from "@/api";
-import { AssignContainerModal } from "./AssignContainerModal";
-import { AddSetToJobModal } from "./AddSetToJobModal";
 import { RackBuildModal } from "./RackBuildModal";
 import { AssignCrewModal } from "./AssignCrewModal";
 import { AddVehicleModal } from "./AddVehicleModal";
@@ -30,8 +28,6 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
   const { token, userRole } = useAppStore();
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
-  const [assignContainerOpen, setAssignContainerOpen] = useState(false);
-  const [addSetOpen, setAddSetOpen] = useState(false);
   const [rackBuildOpen, setRackBuildOpen] = useState(false);
   const [assignCrewOpen, setAssignCrewOpen] = useState(false);
   const [addVehicleOpen, setAddVehicleOpen] = useState(false);
@@ -168,18 +164,6 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
                   className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
                 >
                   <ScanLine className="w-3.5 h-3.5" /> Build Racks
-                </button>
-                <button
-                  onClick={() => setAssignContainerOpen(true)}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" /> {t("addRack")}
-                </button>
-                <button
-                  onClick={() => setAddSetOpen(true)}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
-                >
-                  <Boxes className="w-3.5 h-3.5" /> เพิ่มชุด
                 </button>
               </div>
             </div>
@@ -421,12 +405,6 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
         </div>
       </div>
 
-      {assignContainerOpen && (
-        <AssignContainerModal jobId={job.id} onClose={() => setAssignContainerOpen(false)} />
-      )}
-      {addSetOpen && (
-        <AddSetToJobModal jobId={job.id} onClose={() => setAddSetOpen(false)} />
-      )}
       <RackBuildModal
         open={rackBuildOpen}
         onClose={() => setRackBuildOpen(false)}

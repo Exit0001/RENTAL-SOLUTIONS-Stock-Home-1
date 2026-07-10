@@ -608,7 +608,7 @@ jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
     if (!set) return res.status(404).json({ message: "ไม่พบชุดอุปกรณ์" });
 
     const setItems = await db.select().from(equipmentSetItems).where(eq(equipmentSetItems.setId, set.id));
-    if (setItems.length === 0) return res.status(201).json({ message: "ชุดว่าง", shortfall: [] });
+    if (setItems.length === 0) return res.status(201).json({ message: "ชุดว่าง", shortfall: [], addedUnits: [], addedBulkItems: [] });
 
     // trackingMode ต่อ item
     const itemIds = Array.from(new Set(setItems.map((i) => i.stockItemId)));
@@ -628,6 +628,9 @@ jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
     const bulkInserts: { jobId: string; stockItemId: string; quantity: number }[] = [];
     const bulkUpdates: { id: string; quantity: number }[] = [];
     const shortfall: { stockItemId: string; wanted: number; got: number }[] = [];
+    // ติดตาม unit/bulk ที่เพิ่งเพิ่มเข้าไปจริงในการเรียกครั้งนี้ (สำหรับ client ไปติดโซนต่อ)
+    const addedUnits: { unitId: string; stockItemId: string }[] = [];
+    const addedBulkItems: { stockItemId: string; quantity: number }[] = [];
 
     for (const it of setItems) {
       if (it.unitId) {
@@ -638,6 +641,7 @@ jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
           .where(and(eq(stockUnits.id, it.unitId), eq(stockUnits.companyId, req.companyId)));
         if (u && u.status === "available") {
           unitRows.push({ jobId, stockUnitId: u.id, phase: "planned" });
+          addedUnits.push({ unitId: u.id, stockItemId: it.stockItemId });
           claimed.add(u.id);
         } else {
           shortfall.push({ stockItemId: it.stockItemId, wanted: 1, got: 0 });
@@ -650,6 +654,7 @@ jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
         } else {
           bulkInserts.push({ jobId, stockItemId: it.stockItemId, quantity: it.quantity });
         }
+        addedBulkItems.push({ stockItemId: it.stockItemId, quantity: it.quantity });
       } else {
         // auto unit — เลือก unit ว่างตามจำนวน ที่ยังไม่ถูกจองในงานนี้
         const avail = await db.select({ id: stockUnits.id }).from(stockUnits)
@@ -659,7 +664,11 @@ jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
             eq(stockUnits.status, "available"),
           ));
         const pickable = avail.map((a) => a.id).filter((id) => !claimed.has(id)).slice(0, it.quantity);
-        for (const id of pickable) { unitRows.push({ jobId, stockUnitId: id, phase: "planned" }); claimed.add(id); }
+        for (const id of pickable) {
+          unitRows.push({ jobId, stockUnitId: id, phase: "planned" });
+          addedUnits.push({ unitId: id, stockItemId: it.stockItemId });
+          claimed.add(id);
+        }
         if (pickable.length < it.quantity)
           shortfall.push({ stockItemId: it.stockItemId, wanted: it.quantity, got: pickable.length });
       }
@@ -669,7 +678,7 @@ jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
     if (bulkInserts.length) await db.insert(jobStock).values(bulkInserts);
     for (const u of bulkUpdates) await db.update(jobStock).set({ quantity: u.quantity }).where(eq(jobStock.id, u.id));
 
-    res.status(201).json({ message: "เพิ่มชุดอุปกรณ์เข้างานแล้ว", shortfall });
+    res.status(201).json({ message: "เพิ่มชุดอุปกรณ์เข้างานแล้ว", shortfall, addedUnits, addedBulkItems });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

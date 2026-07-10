@@ -103,14 +103,17 @@ const fmtDate = (d: string | Date | null | undefined) => {
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-const UnitRows = ({ itemId }: { itemId: string }) => {
+type SaveError = { message: string; duplicateItemId?: string; duplicateItemName?: string };
+
+const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: StockItem) => void }) => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   const qc = useQueryClient();
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<SaveError | null>(null);
+  const [jumpingToDuplicate, setJumpingToDuplicate] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["stock", itemId],
@@ -128,10 +131,20 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
     },
     onError: (err: any) => {
       const msg = err?.message ?? "เกิดข้อผิดพลาด";
-      setSaveError(msg);
+      setSaveError({ message: msg, duplicateItemId: err?.duplicateItemId, duplicateItemName: err?.duplicateItemName });
       toast({ title: "ไม่สามารถบันทึกได้", description: msg, variant: "destructive" });
     },
   });
+
+  const jumpToDuplicate = async (id: string) => {
+    setJumpingToDuplicate(true);
+    try {
+      const item = await stockApi.getById(id);
+      onViewItem?.(item);
+    } finally {
+      setJumpingToDuplicate(false);
+    }
+  };
 
   const startEdit = (unit: StockUnit) => {
     setEditingId(unit.id);
@@ -243,7 +256,21 @@ const UnitRows = ({ itemId }: { itemId: string }) => {
                   </div>
                   <div className="flex items-center gap-2 justify-end flex-wrap">
                     {saveError && (
-                      <span className="text-[11px] text-red-400 flex-1 min-w-0 truncate">{saveError}</span>
+                      <span className="text-[11px] text-red-400 flex-1 min-w-0 truncate">
+                        {saveError.message}
+                        {saveError.duplicateItemId && (
+                          <>
+                            {" "}
+                            <button
+                              onClick={() => jumpToDuplicate(saveError.duplicateItemId!)}
+                              disabled={jumpingToDuplicate}
+                              className="underline hover:text-red-300 disabled:opacity-50 transition-colors"
+                            >
+                              ({saveError.duplicateItemName ?? t("viewItem")})
+                            </button>
+                          </>
+                        )}
+                      </span>
                     )}
                     <button onClick={() => { setEditingId(null); setSaveError(null); }}
                       className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-colors">
@@ -631,7 +658,7 @@ export const StockItemsTableSection = ({
                             />
                           </TableCell>
                         </TableRow>
-                        {isExpanded && <UnitRows key={`units-${item.id}`} itemId={item.id} />}
+                        {isExpanded && <UnitRows key={`units-${item.id}`} itemId={item.id} onViewItem={onViewItem} />}
                       </React.Fragment>
                     );
                   })}

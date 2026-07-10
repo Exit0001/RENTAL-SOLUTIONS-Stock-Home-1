@@ -71,6 +71,7 @@
   "addedOn": "เพิ่มเมื่อ {{date}}",
   "inContainer": "ใน {{name}}",
   "editUnit": "แก้ไขยูนิต",
+  "viewItem": "ดูรายการนี้",
 
   "stockItems": "รายการสต็อก",
   "filteredLabel": "กรองแล้ว",

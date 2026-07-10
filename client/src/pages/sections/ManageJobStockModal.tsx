@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { X, Package, Loader2, Save } from "lucide-react";
+import { X, Package, Layers, Boxes, Loader2, Save } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
@@ -9,9 +9,14 @@ import type { Position } from "@shared/schema";
 import type { StockUnit, ItemAccessory } from "@shared/schema";
 import { ManageJobStockCatalogPane } from "./ManageJobStockCatalogPane";
 import { ManageJobStockCartPane } from "./ManageJobStockCartPane";
+import { ManageJobStockZoneBar } from "./ManageJobStockZoneBar";
+import { ManageJobStockRackPane } from "./ManageJobStockRackPane";
+import { ManageJobStockSetPane } from "./ManageJobStockSetPane";
 
 export type CartUnitLine = { unitId: string; stockItemId: string; position: string | null };
 export type CartBulkLine = { lineId: string; stockItemId: string; quantity: number; position: string | null };
+
+type PickerMode = "items" | "racks" | "sets";
 
 interface Props {
   jobId:       string;
@@ -32,6 +37,12 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
   const [cartBulkLines,  setCartBulkLines]  = useState<Map<string, CartBulkLine>>(new Map());
   const [saving,         setSaving]         = useState(false);
   const [error,          setError]          = useState<string | null>(null);
+  const [pickerMode,     setPickerMode]     = useState<PickerMode>("items");
+
+  // ติดตาม unit/bulk line ที่ผู้ใช้ลบออกจากตะกร้าในเซสชันนี้ (ยังไม่กด Save) — กันไม่ให้
+  // effect เติมข้อมูลจากเซิร์ฟเวอร์ (merge-only, ดูด้านล่าง) เผลอเติมของที่ลบไปแล้วกลับเข้ามา
+  const [removedUnitIds,     setRemovedUnitIds]     = useState<Set<string>>(new Set());
+  const [removedBulkLineIds, setRemovedBulkLineIds] = useState<Set<string>>(new Set());
 
   // โซนที่กำลัง "เพิ่มของเข้า" ตอนนี้ — "auto" = ใช้ lastPosition ต่อ item (smart default เดิม),
   // string = บังคับโซนนี้กับของที่เพิ่มใหม่ทุกชิ้น, null = บังคับไม่ระบุโซน
@@ -117,23 +128,37 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
   const resolvePosition = (stockItemId: string): string | null =>
     activeZone === "auto" ? (lastPositionByItem.get(stockItemId) ?? null) : activeZone;
 
-  // pre-populate cart from saved job data — always trusts the row's own saved position, never overrides it
+  // pre-populate cart from saved job data — merge-only (add rows the map doesn't have yet,
+  // never remove/overwrite an existing local entry). A plain full-replace here would blow away
+  // unsaved local edits whenever a rack/set add (below) invalidates this same query mid-session.
+  // Rows the user explicitly removed this session are tracked in removedUnitIds/removedBulkLineIds
+  // so a refetch doesn't resurrect them before Save commits the removal server-side.
   useEffect(() => {
     if (assignedLoading) return;
-    const map = new Map<string, CartUnitLine>();
-    for (const u of assignedUnits) {
-      map.set(u.id, { unitId: u.id, stockItemId: u.stockItemId, position: u.position ?? null });
-    }
-    setCartUnits(map);
+    setCartUnits((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const u of assignedUnits) {
+        if (removedUnitIds.has(u.id) || next.has(u.id)) continue;
+        next.set(u.id, { unitId: u.id, stockItemId: u.stockItemId, position: u.position ?? null });
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
   }, [assignedUnits, assignedLoading]);
 
   useEffect(() => {
     if (bulkLoading) return;
-    const map = new Map<string, CartBulkLine>();
-    for (const entry of jobBulkEntries) {
-      map.set(entry.id, { lineId: entry.id, stockItemId: entry.stockItemId, quantity: entry.quantity, position: entry.position ?? null });
-    }
-    setCartBulkLines(map);
+    setCartBulkLines((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const entry of jobBulkEntries) {
+        if (removedBulkLineIds.has(entry.id) || next.has(entry.id)) continue;
+        next.set(entry.id, { lineId: entry.id, stockItemId: entry.stockItemId, quantity: entry.quantity, position: entry.position ?? null });
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
   }, [jobBulkEntries, bulkLoading]);
 
   // pre-expand model groups that already have a selected unit
@@ -247,8 +272,10 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
     });
   };
 
-  const onBulkLineRemove = (lineId: string) =>
+  const onBulkLineRemove = (lineId: string) => {
     setCartBulkLines((prev) => { const next = new Map(prev); next.delete(lineId); return next; });
+    setRemovedBulkLineIds((prev) => { const next = new Set(prev); next.add(lineId); return next; });
+  };
 
   const onBulkLinePositionChange = (lineId: string, position: string | null) =>
     setCartBulkLines((prev) => {
@@ -268,8 +295,10 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
       return next;
     });
 
-  const onUnitRemove = (unitId: string) =>
+  const onUnitRemove = (unitId: string) => {
     setCartUnits((prev) => { const next = new Map(prev); next.delete(unitId); return next; });
+    setRemovedUnitIds((prev) => { const next = new Set(prev); next.add(unitId); return next; });
+  };
 
   const onGroupApplyPositionToUnits = (stockItemId: string, position: string | null) =>
     setCartUnits((prev) => {
@@ -279,6 +308,70 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
       }
       return next;
     });
+
+  // เพิ่ม unit เข้าตะกร้าทันที (จากแร็ค/ชุด) พร้อม tag โซนตาม activeZone ปัจจุบัน — เหมือนเลือกเอง
+  // จากแคตตาล็อกทุกอย่าง ต่างกันที่มาจากแร็ค/ชุด ไม่ใช่การติ๊กทีละชิ้น
+  const mergeUnitsWithPosition = (units: { unitId: string; stockItemId: string }[]) => {
+    if (units.length === 0) return;
+    setCartUnits((prev) => {
+      const next = new Map(prev);
+      for (const u of units) next.set(u.unitId, { unitId: u.unitId, stockItemId: u.stockItemId, position: resolvePosition(u.stockItemId) });
+      return next;
+    });
+    // เผื่อ unit นี้เคยถูกลบออกจากตะกร้าไปก่อนหน้าในเซสชันนี้ แล้วกลับมาผ่านแร็ค/ชุดอีกรอบ
+    setRemovedUnitIds((prev) => {
+      if (units.every((u) => !prev.has(u.unitId))) return prev;
+      const next = new Set(prev);
+      for (const u of units) next.delete(u.unitId);
+      return next;
+    });
+  };
+
+  // แร็ค — ผูกเข้างานจริงทันทีตอนกด (ทำใน ManageJobStockRackPane) แล้วรีพอร์ต unit ที่ได้มาที่นี่
+  // เพื่อติดโซนต่อ: setPositions ต่อ unit ปลอดภัย เพราะ update แค่ stockUnitId ที่ระบุ ไม่กระทบแถวอื่น
+  const handleRackUnitsAdded = async (units: { unitId: string; stockItemId: string }[]) => {
+    mergeUnitsWithPosition(units);
+    if (units.length === 0) return;
+    try {
+      await jobsApi.setPositions(jobId, {
+        units: units.map((u) => ({ stockUnitId: u.unitId, position: resolvePosition(u.stockItemId) })),
+      });
+    } catch {
+      // การเพิ่มแร็คเข้างานสำเร็จไปแล้ว — ติดโซนพลาดไม่ critical, ผู้ใช้ปรับที่ตะกร้าเองได้
+    }
+  };
+
+  // ชุดอุปกรณ์ — applySet เขียนเข้างานจริงทันทีแล้ว (ทำใน ManageJobStockSetPane) ที่นี่แค่รับผลมา
+  // ติดโซนต่อ: unit ใช้ setPositions ได้เลย (ปลอดภัยเหมือนแร็ค); ส่วน bulk item ไม่เรียก setPositions
+  // เพราะ endpoint นั้น update ทุกแถวของ stockItemId เดียวกันรวด (จะไปโดนแถวโซนอื่นที่มีอยู่ก่อนด้วย) —
+  // เก็บโซนไว้ในตะกร้าอย่างเดียวพอ แล้วให้ Save (setJobStock แบบ replace-all) เขียนโซนให้ถูกต้องทีเดียว
+  const handleSetApplied = async (result: {
+    units:     { unitId: string; stockItemId: string }[];
+    bulkItems: { stockItemId: string; quantity: number }[];
+  }) => {
+    mergeUnitsWithPosition(result.units);
+
+    if (result.bulkItems.length > 0) {
+      setCartBulkLines((prev) => {
+        const next = new Map(prev);
+        for (const b of result.bulkItems) {
+          const lineId = crypto.randomUUID();
+          next.set(lineId, { lineId, stockItemId: b.stockItemId, quantity: b.quantity, position: resolvePosition(b.stockItemId) });
+        }
+        return next;
+      });
+    }
+
+    if (result.units.length > 0) {
+      try {
+        await jobsApi.setPositions(jobId, {
+          units: result.units.map((u) => ({ stockUnitId: u.unitId, position: resolvePosition(u.stockItemId) })),
+        });
+      } catch {
+        // เพิ่มชุดเข้างานสำเร็จไปแล้ว — ติดโซนพลาดไม่ critical, ผู้ใช้ปรับที่ตะกร้าเองได้
+      }
+    }
+  };
 
   const isLoading = stockLoading || assignedLoading || bulkLoading;
 
@@ -303,6 +396,10 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
       if (unitPos.length > 0) {
         await jobsApi.setPositions(jobId, { units: unitPos });
       }
+
+      // server truth now matches the cart — removal-guards no longer needed
+      setRemovedUnitIds(new Set());
+      setRemovedBulkLineIds(new Set());
 
       qc.invalidateQueries({ queryKey: ["job-units", jobId] });
       qc.invalidateQueries({ queryKey: ["job-bulk-stock", jobId] });
@@ -340,28 +437,57 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
           </button>
         </div>
 
-        {/* Two-pane body: catalog (left) + persistent cart (right) */}
+        {/* Mode tabs: items / racks / sets — เพิ่มอุปกรณ์เดี่ยว/แร็คที่มีอยู่/ชุดอุปกรณ์ ในหน้าเดียวกัน */}
+        <div className="flex items-center gap-2 px-6 py-2 border-b border-white/[0.06] flex-shrink-0">
+          {([
+            ["items", Package, t("manageJobStock.modeItems")],
+            ["racks", Layers,  t("manageJobStock.modeRacks")],
+            ["sets",  Boxes,   t("manageJobStock.modeSets")],
+          ] as const).map(([mode, Icon, label]) => (
+            <button
+              key={mode}
+              onClick={() => setPickerMode(mode)}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-colors border
+                ${pickerMode === mode ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}
+            >
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+
+        <ManageJobStockZoneBar
+          zones={zones}
+          activeZone={activeZone}
+          onActiveZoneChange={setActiveZone}
+          onCreateZone={onCreateZone}
+          creatingZone={createZoneMutation.isPending}
+        />
+
+        {/* Two-pane body: catalog/racks/sets (left) + persistent cart (right) */}
         <div className="flex-1 min-h-0 flex flex-row">
-          <ManageJobStockCatalogPane
-            stockGroups={stockGroups}
-            isLoading={isLoading}
-            search={search}
-            onSearchChange={setSearch}
-            categoryFilter={categoryFilter}
-            onCategoryFilterChange={setCategoryFilter}
-            expanded={expanded}
-            onToggleGroupExpand={toggleGroupExpand}
-            cartUnits={cartUnits}
-            cartBulkLines={cartBulkLines}
-            onToggleUnit={toggleUnit}
-            onToggleSelectAll={toggleSelectAll}
-            onAdjustBulkQty={adjustBulkQty}
-            zones={zones}
-            activeZone={activeZone}
-            onActiveZoneChange={setActiveZone}
-            onCreateZone={onCreateZone}
-            creatingZone={createZoneMutation.isPending}
-          />
+          {pickerMode === "items" && (
+            <ManageJobStockCatalogPane
+              stockGroups={stockGroups}
+              isLoading={isLoading}
+              search={search}
+              onSearchChange={setSearch}
+              categoryFilter={categoryFilter}
+              onCategoryFilterChange={setCategoryFilter}
+              expanded={expanded}
+              onToggleGroupExpand={toggleGroupExpand}
+              cartUnits={cartUnits}
+              cartBulkLines={cartBulkLines}
+              onToggleUnit={toggleUnit}
+              onToggleSelectAll={toggleSelectAll}
+              onAdjustBulkQty={adjustBulkQty}
+            />
+          )}
+          {pickerMode === "racks" && (
+            <ManageJobStockRackPane jobId={jobId} onUnitsAdded={handleRackUnitsAdded} />
+          )}
+          {pickerMode === "sets" && (
+            <ManageJobStockSetPane jobId={jobId} onApplied={handleSetApplied} />
+          )}
           <ManageJobStockCartPane
             stockGroups={stockGroups}
             zones={zones}

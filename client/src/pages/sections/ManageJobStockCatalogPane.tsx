@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Search, Loader2, Check, ChevronDown, ChevronRight, Layers, Minus, Plus, Package, X as XIcon } from "lucide-react";
+import { Search, Loader2, Check, ChevronDown, ChevronRight, Layers, Minus, Plus, Package } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { StockItemWithUnits } from "@/api";
-import type { StockUnit, Position } from "@shared/schema";
+import type { StockUnit } from "@shared/schema";
 import type { CartUnitLine, CartBulkLine } from "./ManageJobStockModal";
 import { FilterChipRow } from "./FilterChipRow";
 import { FilterDropdown } from "./FilterDropdown";
@@ -28,25 +28,17 @@ interface Props {
   onToggleUnit:       (unitId: string) => void;
   onToggleSelectAll:  (units: StockUnit[], stockItemId: string) => void;
   onAdjustBulkQty:    (stockItemId: string, delta: number) => void;
-  zones:           Position[];
-  activeZone:      string | null;
-  onActiveZoneChange: (v: string | null) => void;
-  onCreateZone:       (name: string) => void;
-  creatingZone:       boolean;
 }
 
 export const ManageJobStockCatalogPane = ({
   stockGroups, isLoading, search, onSearchChange, categoryFilter, onCategoryFilterChange,
   expanded, onToggleGroupExpand, cartUnits, cartBulkLines, onToggleUnit, onToggleSelectAll, onAdjustBulkQty,
-  zones, activeZone, onActiveZoneChange, onCreateZone, creatingZone,
 }: Props): JSX.Element => {
   const { t }  = useTranslation("modals");
   const { t: tc } = useTranslation("common");
 
   const [brandFilter,       setBrandFilter]       = useState<string | null>(null);
   const [subCategoryFilter, setSubCategoryFilter] = useState<string | null>(null);
-  const [addingZone,        setAddingZone]        = useState(false);
-  const [newZoneName,       setNewZoneName]       = useState("");
 
   const isFiltering = !!search;
 
@@ -181,66 +173,6 @@ export const ManageJobStockCatalogPane = ({
             )}
           </div>
         )}
-
-        {/* Active zone — โซนที่ของชิ้นใหม่จะถูกเพิ่มเข้าไปตอนติ๊กเลือก */}
-        <div className="flex flex-wrap gap-1.5 items-center pt-1 border-t border-white/[0.04]">
-          <span className="text-[9px] uppercase tracking-wider text-white/30 mr-0.5">{t("manageJobStock.addingToZone")}</span>
-          <button
-            onClick={() => onActiveZoneChange("auto")}
-            className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-              ${activeZone === "auto" ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
-          >
-            {t("manageJobStock.zoneAuto")}
-          </button>
-          {zones.map((z) => (
-            <button
-              key={z.id}
-              onClick={() => onActiveZoneChange(z.name)}
-              className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-                ${activeZone === z.name ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
-            >
-              {z.name}
-            </button>
-          ))}
-          <button
-            onClick={() => onActiveZoneChange(null)}
-            className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-              ${activeZone === null ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
-          >
-            {t("manageJobStock.zoneNone")}
-          </button>
-
-          {!addingZone ? (
-            <button
-              onClick={() => setAddingZone(true)}
-              className="h-6 w-6 rounded-full border border-white/10 text-white/40 hover:text-[#FFFF00] hover:border-[#FFFF00]/40 flex items-center justify-center transition-colors"
-              title={t("manageJobStock.addZone")}
-            >
-              <Plus className="w-3 h-3" />
-            </button>
-          ) : (
-            <div className="flex items-center gap-1">
-              <input
-                autoFocus
-                value={newZoneName}
-                onChange={(e) => setNewZoneName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { onCreateZone(newZoneName); setNewZoneName(""); setAddingZone(false); }
-                  if (e.key === "Escape") { setNewZoneName(""); setAddingZone(false); }
-                }}
-                placeholder={t("manageJobStock.newZonePlaceholder")}
-                disabled={creatingZone}
-                className="h-6 w-24 px-2 rounded-full bg-white/[0.06] border border-white/10 text-[10px] text-white outline-none focus:border-[#FFFF00]/40"
-              />
-              <button
-                onClick={() => { setNewZoneName(""); setAddingZone(false); }}
-                className="text-white/40 hover:text-white transition-colors"
-              >
-                <XIcon className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* List */}
