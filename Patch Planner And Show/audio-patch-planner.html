@@ -17,9 +17,11 @@
     --text: #eceeef;
     --text-2: #9aa0a8;
     --text-3: #5e636b;
-    --accent: #4f8cff;
-    --accent-dim: rgba(79,140,255,.16);
-    --accent-2: #f5a623;
+    /* "Accent" is monochrome by design — near-white, used only to mark selected/primary
+       controls via brightness contrast. Color is reserved for --danger (mute/warnings). */
+    --accent: #eceeef;
+    --accent-dim: rgba(255,255,255,.10);
+    --accent-2: #c7cbd1;
     --danger: #f0564a;
     --danger-dim: rgba(240,86,74,.14);
     --radius: 7px;
@@ -47,19 +49,19 @@
     outline-offset: 1px;
   }
 
-  /* ── TOP BAR ── */
+  /* ── TOP BAR (mobile-first) ── */
   .topbar {
     background: var(--bg-2);
     border-bottom: 1px solid var(--border);
-    padding: 10px 16px;
+    padding: 10px 14px;
     display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 9px;
     position: sticky;
     top: 0;
     z-index: 10;
   }
+  .topbar-row1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .topbar .brand {
     display: inline-flex;
     align-items: center;
@@ -68,7 +70,6 @@
     letter-spacing: .02em;
     text-transform: uppercase;
     color: var(--text);
-    margin-right: 4px;
   }
   .topbar .brand .brand-glyph {
     width: 8px; height: 8px;
@@ -80,41 +81,55 @@
   }
   .topbar .brand span { color: var(--text-3); font-weight: 400; margin-left: 5px; }
 
-  .show-pill {
-    display: flex;
-    align-items: center;
-    gap: 0;
+  .icon-btn {
+    width: 34px; height: 34px;
+    flex: 0 0 auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .12s, color .12s;
+  }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+  #showSelect {
+    width: 100%;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    overflow: hidden;
     background: var(--surface);
-  }
-  #showSelect {
-    border: none;
-    background: transparent;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
-    padding: 6px 8px;
+    padding: 9px 10px;
     color: var(--text);
     cursor: pointer;
     outline: none;
-    max-width: 180px;
   }
   #showSelect option { background: var(--surface); color: var(--text); }
-  .show-pill button {
-    border: none;
-    border-left: 1px solid var(--border);
-    background: transparent;
-    padding: 6px 9px;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--text-2);
-    line-height: 1;
-    transition: background .12s, color .12s;
-  }
-  .show-pill button:hover { background: var(--surface-2); color: var(--text); }
 
-  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+  .device-picker {
+    width: 100%;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 10px;
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+  }
+  .device-picker option { background: var(--surface); color: var(--text); }
+
+  .port-row.is-empty { opacity: .45; }
+  .port-row.is-empty .card-head { padding-top: 9px; padding-bottom: 9px; }
+  .port-row + .port-row { margin-top: 0; }
+
+  .view-tabs-full { display: flex; width: 100%; }
+  .view-tabs-full .view-tab { flex: 1 1 0; text-align: center; padding: 9px 10px; }
 
   .filter-select {
     border: 1px solid var(--border);
@@ -131,7 +146,72 @@
   .filter-select:focus { border-color: var(--accent); }
   .filter-select option { background: var(--surface); color: var(--text); }
 
-  .topbar-right { margin-left: auto; display: flex; gap: 6px; }
+  /* ── LIST TOOLBAR ── */
+  .list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .select-all-lbl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+  .select-all-lbl input { margin: 0; }
+  .chip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text-2);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color .12s, color .12s;
+  }
+  .chip-btn:hover { border-color: var(--border-strong); color: var(--text); }
+  .chip-btn.active { border-color: var(--accent); color: var(--text); }
+  .chip-btn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: none; }
+  .chip-btn.active .dot { display: inline-block; }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed;
+    right: 18px;
+    bottom: 20px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    font-size: 26px;
+    line-height: 1;
+    box-shadow: 0 8px 20px rgba(0,0,0,.5), 0 2px 10px rgba(0,0,0,.4);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50;
+    transition: transform .1s;
+  }
+  .fab:active { transform: scale(.92); }
+
+  /* ── ACTION SHEET / MENU ── */
+  .modal-menu { width: 100%; max-width: 340px; padding: 8px; }
+  .menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    padding: 13px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .menu-item:hover, .menu-item:active { background: var(--surface-2); }
+  .menu-item.danger { color: var(--danger); }
+  .menu-sep { height: 1px; background: var(--border); margin: 6px 6px; }
 
   .btn {
     display: inline-flex;
@@ -149,8 +229,8 @@
   }
   .btn:hover { background: var(--surface-2); border-color: #4a4f59; }
   .btn:active { transform: scale(.96); }
-  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .btn.primary:hover { background: #6b9cff; border-color: #6b9cff; }
+  .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { background: #ffffff; border-color: #ffffff; }
   .btn.danger { color: var(--danger); border-color: rgba(240,86,74,.35); background: transparent; }
   .btn.danger:hover { background: var(--danger-dim); }
 
@@ -177,28 +257,11 @@
   .stat .sl { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
   .stat .sv { font-size: 16px; font-weight: 600; color: var(--text); }
 
-  /* ── GRID ── */
-  .grid-wrap { padding: 0; }
-
-  .grid-header {
-    display: grid;
-    grid-template-columns: 26px 56px 52px 1.1fr 120px 1.9fr 115px 70px;
-    gap: 4px;
-    padding: 7px 16px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--text-3);
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-2);
-    position: sticky;
-    top: 53px;
-    z-index: 9;
-  }
+  /* ── GRID (mobile card list) ── */
+  .grid-wrap { padding: 10px 10px 100px; }
 
   .section-header {
-    padding: 8px 16px 6px;
+    padding: 8px 6px 6px;
     font-size: 11px;
     font-weight: 600;
     color: var(--text-2);
@@ -213,7 +276,7 @@
   }
   .section-header .s-count {
     background: var(--accent-dim);
-    color: #8db4ff;
+    color: var(--text-2);
     font-size: 10px;
     font-weight: 700;
     padding: 1px 7px;
@@ -221,23 +284,83 @@
   }
 
   .ch-row {
-    display: grid;
-    grid-template-columns: 26px 56px 52px 1.1fr 120px 1.9fr 115px 70px;
-    gap: 4px;
-    padding: 5px 16px;
-    border-bottom: 1px solid var(--border);
-    align-items: center;
-    transition: background .12s, box-shadow .12s;
-    min-height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    margin-bottom: 8px;
+    overflow: hidden;
     position: relative;
+    transition: opacity .15s, border-color .12s;
   }
-  .ch-row:hover { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
-  .ch-row.is-muted { opacity: .45; }
-  .ch-row.is-muted:hover { box-shadow: inset 3px 0 0 var(--danger); }
+  .ch-row:hover { border-color: var(--border-strong); }
+  .ch-row.is-muted { opacity: .5; }
 
-  .row-top, .row-meta { display: contents; }
-  .field { display: contents; }
-  .cap { display: none; }
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 10px 10px 16px;
+    cursor: pointer;
+  }
+  .card-head .row-select { flex: 0 0 auto; }
+  .card-title { flex: 1 1 auto; min-width: 0; }
+  .card-title .f-name { font-size: 14px; font-weight: 600; padding: 4px 6px; }
+  .card-sub {
+    font-size: 11px;
+    color: var(--text-3);
+    padding: 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-sub .adv-chip {
+    flex: 0 0 auto;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    color: var(--accent-2);
+    border-radius: 20px;
+    padding: 1px 7px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .03em;
+  }
+  .chevron-btn {
+    flex: 0 0 auto;
+    width: 28px; height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s;
+  }
+  .ch-row.is-expanded .chevron-btn { transform: rotate(180deg); }
+
+  .card-details {
+    display: none;
+    padding: 2px 12px 12px 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ch-row.is-expanded .card-details { display: flex; }
+  .card-details .field { display: flex; flex-direction: column; gap: 3px; }
+  .card-details .row-acts { justify-content: flex-start; gap: 6px; margin-top: 2px; }
+
+  .field { display: flex; flex-direction: column; min-width: 0; }
+  .cap {
+    display: block;
+    font-size: 10px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 2px;
+  }
 
   .cell-in {
     width: 100%;
@@ -256,6 +379,20 @@
   .cell-in:focus { border-color: var(--accent); background: var(--surface-2); box-shadow: 0 0 0 3px var(--accent-dim); }
   .cell-in.mono { font-family: var(--font-mono); font-size: 12px; }
   .cell-in.ch-num { color: var(--text-2); font-family: var(--font-mono); font-size: 12px; }
+  .card-head .f-ch {
+    flex: 0 0 46px;
+    width: 46px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 13px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 7px 2px;
+    background-position: right 4px center;
+  }
+  .card-head span.f-ch { display: inline-flex; align-items: center; justify-content: center; }
 
   select.cell-in {
     cursor: pointer;
@@ -281,13 +418,12 @@
     letter-spacing: .04em;
     white-space: nowrap;
   }
-  .b-sb  { background: rgba(79,140,255,.16);  color: #8db4ff; }
-  .b-di  { background: rgba(34,197,94,.16);   color: #86efac; }
-  .b-ear { background: rgba(245,166,35,.16);  color: #fbbf24; }
-  .b-ins { background: rgba(167,139,250,.16); color: #c4b5fd; }
-  .b-aux { background: rgba(45,212,191,.16);  color: #5eead4; }
-  .b-foh { background: rgba(251,146,60,.16);  color: #fdba74; }
-  .b-nil { background: rgba(255,255,255,.06); color: var(--text-3); }
+  /* Monochrome by design — the 2–3 letter label carries the distinction, not hue. */
+  .b-sb, .b-di, .b-ear, .b-ins, .b-aux, .b-foh, .b-nil {
+    background: var(--surface-2);
+    color: var(--text-2);
+    border: 1px solid var(--border-strong);
+  }
 
   /* ── ROW ACTIONS ── */
   .row-acts { display: flex; gap: 3px; justify-content: flex-end; align-items: center; }
@@ -318,30 +454,33 @@
   .empty-state .big { font-size: 32px; margin-bottom: 8px; opacity: .8; }
   .empty-state p { font-size: 14px; }
 
-  /* ── MODAL ── */
+  /* ── MODAL (bottom sheet on mobile) ── */
   .modal-backdrop {
     display: none;
     position: fixed; inset: 0;
     background: rgba(0,0,0,.55);
     backdrop-filter: blur(3px);
     z-index: 100;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
   }
   .modal-backdrop.open { display: flex; }
   @keyframes modalIn {
-    from { opacity: 0; transform: scale(.96) translateY(6px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
   .modal {
     background: var(--surface);
     border: 1px solid var(--border-strong);
-    border-radius: 10px;
-    padding: 20px;
-    width: 360px;
-    max-width: 90vw;
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    max-width: 480px;
+    max-height: 88vh;
+    overflow-y: auto;
     box-shadow: var(--shadow);
-    animation: modalIn .16s ease;
+    animation: modalIn .18s ease;
   }
   .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
   .modal input, .modal select, .modal textarea {
@@ -349,7 +488,7 @@
     background: var(--surface-2);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
-    padding: 8px 10px;
+    padding: 10px 10px;
     font-size: 14px;
     color: var(--text);
     font-family: inherit;
@@ -360,9 +499,10 @@
   .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
   .modal input::placeholder, .modal textarea::placeholder { color: var(--text-3); }
   .modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .modal .btn { padding: 9px 15px; }
 
   /* ── SETUP MODAL ── */
-  .modal.modal-lg { width: 500px; max-height: 82vh; overflow-y: auto; }
+  .modal.modal-lg { max-width: 560px; max-height: 88vh; overflow-y: auto; }
   .setup-body { display: flex; flex-direction: column; gap: 12px; margin-bottom: 4px; }
   .setup-section {
     border: 1px solid var(--border);
@@ -387,10 +527,10 @@
   }
   .qty-stepper button:hover { background: var(--surface-2); }
   .qty-stepper .qty-val { min-width: 16px; text-align: center; font-size: 13px; font-weight: 700; color: var(--text); }
-  .setup-items { display: flex; flex-direction: column; gap: 6px; }
-  .setup-item { display: flex; gap: 6px; align-items: center; }
+  .setup-items { display: flex; flex-direction: column; gap: 10px; }
+  .setup-item { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .setup-item-name {
-    flex: 1 1 auto;
+    flex: 1 1 100%;
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 600;
@@ -398,7 +538,7 @@
     padding: 4px 7px;
   }
   .setup-item input.cell-in { flex: 1 1 auto; background: var(--surface); border: 1px solid var(--border-strong); }
-  .setup-item select.cell-in { flex: 0 0 150px; background: var(--surface); border: 1px solid var(--border-strong); }
+  .setup-item select.cell-in { flex: 1 1 140px; background: var(--surface); border: 1px solid var(--border-strong); }
   .setup-item input.setup-chcount { flex: 0 0 64px; background: var(--surface); border: 1px solid var(--border-strong); }
   .setup-empty { font-size: 12px; color: var(--text-3); padding: 3px 2px; }
   .setup-item input.setup-fromto { flex: 1 1 80px; background: var(--surface); border: 1px solid var(--border-strong); }
@@ -407,18 +547,32 @@
   /* ── PATH EDITOR ── */
   .path-hint { font-size: 12px; color: var(--text-3); margin-bottom: 10px; line-height: 1.4; }
   .path-dir { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .hop-list { display: flex; flex-direction: column; gap: 8px; }
-  .hop-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); padding: 9px; }
-  .hop-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .hop-list { display: flex; flex-direction: column; gap: 0; }
+  .hop-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-2); overflow: hidden; }
+  .hop-head { display: flex; align-items: center; gap: 8px; padding: 9px; cursor: pointer; }
+  .hop-card.is-expanded .hop-head { border-bottom: 1px solid var(--border); }
   .hop-idx {
     width: 20px; height: 20px; flex: 0 0 20px;
-    border-radius: 50%; background: var(--accent-dim); color: #8db4ff;
+    border-radius: 50%; background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong);
     font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
   }
-  .hop-kind { flex: 0 0 120px; background: var(--surface); border: 1px solid var(--border-strong); }
-  .hop-kind-name { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); flex: 1 1 auto; }
-  .hop-move { display: flex; gap: 2px; }
-  .hop-fields { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .hop-kind { flex: 0 0 108px; background: var(--surface); border: 1px solid var(--border-strong); }
+  .hop-summary {
+    flex: 1 1 auto; min-width: 0;
+    font-size: 12px; color: var(--text-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .hop-move { display: flex; gap: 2px; flex: 0 0 auto; }
+  .hop-card .chevron-btn { flex: 0 0 auto; }
+  .hop-card.is-expanded .chevron-btn { transform: rotate(180deg); }
+  .hop-connector {
+    text-align: center;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1;
+    padding: 3px 0;
+  }
+  .hop-fields { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 9px; }
   .hop-fields .cell-in { background: var(--surface); border: 1px solid var(--border-strong); flex: 1 1 130px; min-width: 90px; }
   .hop-fields .cell-in.hop-pin { flex: 0 0 64px; min-width: 0; }
   .hop-fields .cell-in.hop-proto { flex: 0 0 96px; }
@@ -435,10 +589,10 @@
   .hop-add .btn, .hop-tpl .btn { font-size: 12px; padding: 5px 10px; }
   .hop-tpl { border-top: 1px solid var(--border); padding-top: 10px; }
 
-  /* ── WARNING DOT ── (absolute so it stays out of the grid column flow) */
+  /* ── WARNING DOT ── (absolute, pinned to the collapsed card-head row) */
   .warn-dot {
     position: absolute;
-    left: 5px; top: 50%; transform: translateY(-50%);
+    left: 6px; top: 24px; transform: translateY(-50%);
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--danger);
     box-shadow: 0 0 6px rgba(240,86,74,.8);
@@ -465,10 +619,11 @@
   }
   .view-tab + .view-tab { border-left: 1px solid var(--border); }
   .view-tab:hover { background: var(--surface-2); color: var(--text); }
-  .view-tab.active { background: var(--accent); color: #fff; }
+  .view-tab.active { background: var(--accent); color: var(--bg); font-weight: 800; }
 
   .direction-header {
-    padding: 10px 16px 7px;
+    padding: 10px 6px 7px;
+    margin-top: 2px;
     font-size: 12px;
     font-weight: 800;
     color: var(--accent-2);
@@ -482,7 +637,7 @@
     gap: 8px;
   }
   .direction-header .s-count {
-    background: rgba(245,166,35,.16);
+    background: var(--accent-dim);
     color: var(--accent-2);
     font-size: 10px;
     font-weight: 700;
@@ -494,19 +649,32 @@
 
   input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 
-  /* ── BULK BAR ── */
-  .bulk-bar {
+  /* ── BULK SELECTION: floating pill + action sheet ── */
+  .bulk-fab {
     display: none;
+    position: fixed;
+    left: 18px;
+    bottom: 22px;
+    z-index: 49;
     align-items: center;
     gap: 8px;
-    padding: 8px 16px;
-    background: var(--accent-dim);
-    border-bottom: 1px solid var(--accent);
-    flex-wrap: wrap;
+    padding: 12px 18px;
+    border-radius: 30px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0,0,0,.5);
   }
-  .bulk-bar.show { display: flex; }
-  .bulk-bar .bulk-count { font-size: 12px; font-weight: 700; color: #8db4ff; margin-right: 2px; white-space: nowrap; }
-  .bulk-bar .filter-select { background: var(--surface); }
+  .bulk-fab.show { display: inline-flex; }
+  .bulk-fab .chev { color: var(--text-3); font-weight: 400; }
+  .bulk-sheet-field { display: flex; gap: 8px; margin-bottom: 10px; }
+  .bulk-sheet-field select { flex: 1 1 auto; margin-bottom: 0; }
+  .bulk-sheet-field .btn { flex: 0 0 auto; }
+  .bulk-sheet-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .bulk-sheet-row .btn { flex: 1 1 0; justify-content: center; }
 
   /* ── PATCH MODAL ── */
   .patch-btn { text-align: left; font: inherit; appearance: none; -webkit-appearance: none; }
@@ -550,125 +718,144 @@
   }
 
   /* ── RESPONSIVE ── */
-  @media (max-width: 900px) {
-    .grid-header { display: none; }
-
-    .ch-row {
-      display: block;
-      padding: 12px 14px;
-    }
-    .ch-row:hover { box-shadow: inset 3px 0 0 var(--accent); }
-
-    .row-top {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .row-top .cell-in.f-name { font-size: 14px; font-weight: 500; }
-
-    .row-meta {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 8px 14px;
-    }
-    .field { display: flex; flex-direction: column; min-width: 0; }
-    .cap {
-      display: block;
-      font-size: 10px;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      color: var(--text-3);
-      margin-bottom: 2px;
-    }
-
-    .row-acts { justify-content: flex-end; margin-top: 8px; }
+  @media (max-width: 400px) {
+    .topbar { padding: 8px 10px; }
+    .statsbar { padding: 8px 10px; flex-wrap: nowrap; overflow-x: auto; }
+    .stat { flex-shrink: 0; }
+    .grid-wrap { padding: 8px 8px 100px; }
+    .card-head { padding: 9px 8px 9px 12px; }
   }
 
-  @media (max-width: 580px) {
-    .topbar { padding: 9px 12px; }
-    .topbar-right { margin-left: 0; width: 100%; justify-content: flex-end; }
-    .statsbar { padding: 8px 12px; flex-wrap: nowrap; overflow-x: auto; }
-    .stat { flex-shrink: 0; }
-    .ch-row { padding: 11px 12px; }
+  @media (min-width: 640px) {
+    body { display: flex; justify-content: center; }
+    .app-shell { width: 100%; max-width: 640px; }
   }
 </style>
 </head>
 <body>
+<div class="app-shell">
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="brand"><span class="brand-glyph"></span>Patch <span>Planner</span></div>
-  <div class="sep"></div>
-
-  <div class="show-pill">
-    <select id="showSelect" onchange="switchShow(this.value)"></select>
-    <button onclick="openNewShowModal()" title="New show">+</button>
-    <button onclick="renameShow()" title="Rename show">✎</button>
-    <button onclick="deleteShow()" title="Delete show" style="color:#f0564a">✕</button>
+  <div class="topbar-row1">
+    <div class="brand"><span class="brand-glyph"></span>Patch <span>Planner</span></div>
+    <div style="display:flex; gap:6px;">
+      <button class="icon-btn" onclick="openSetupModal()" title="System setup">⚙</button>
+      <button class="icon-btn" onclick="openMoreMenu()" title="More">⋯</button>
+    </div>
   </div>
 
-  <button class="btn" onclick="openSetupModal()" title="Configure consoles, stage boxes &amp; splitters">⚙ Setup</button>
+  <select id="showSelect" onchange="switchShow(this.value)"></select>
 
-  <div class="sep"></div>
+  <div class="view-tabs view-tabs-full viewby-tabs">
+    <button class="view-tab" data-viewby="board" onclick="setViewBy('board')">Board</button>
+    <button class="view-tab" data-viewby="stagebox" onclick="setViewBy('stagebox')">Stagebox</button>
+    <button class="view-tab" data-viewby="splitter" onclick="setViewBy('splitter')">Splitter</button>
+  </div>
 
-  <div class="view-tabs">
+  <div class="view-tabs view-tabs-full" id="fohMonTabs">
     <button class="view-tab" data-view="foh" onclick="setView('foh')">FOH</button>
     <button class="view-tab" data-view="mon" onclick="setView('mon')">MON</button>
   </div>
 
-  <div class="sep"></div>
-
-  <select class="filter-select" id="filterSrc" onchange="renderGrid()">
-    <option value="">All sources</option>
-    <option value="Stage Box">Stage Box</option>
-    <option value="Direct Out">Direct Out</option>
-    <option value="Ear / IEM">Ear / IEM</option>
-    <option value="Insert">Insert</option>
-    <option value="Aux / Matrix">Aux / Matrix</option>
-    <option value="FOH Tie Line">FOH Tie Line</option>
-  </select>
-
-  <select class="filter-select" id="filterSec" onchange="renderGrid()">
-    <option value="">All sections</option>
-  </select>
-
-  <div class="topbar-right">
-    <button class="btn" onclick="addChannel()">＋ Add channel</button>
-    <button class="btn" onclick="openBulkAddModal()">＋ Bulk add</button>
-    <button class="btn" onclick="exportCSV()">↓ CSV</button>
-    <button class="btn primary" onclick="saveAll()">Save</button>
-  </div>
+  <select id="devicePicker" class="device-picker" style="display:none;" onchange="onDevicePickerChange(this.value)"></select>
 </div>
 
 <!-- STATS BAR -->
 <div class="statsbar" id="statsbar"></div>
 
-<!-- BULK ACTION BAR -->
-<div class="bulk-bar" id="bulkBar">
-  <span class="bulk-count" id="bulkCount2"></span>
-  <select class="filter-select" id="bulkSection"></select>
-  <button class="btn" onclick="bulkApplySection()">Set section</button>
-  <select class="filter-select" id="bulkConsole"></select>
-  <button class="btn" onclick="bulkApplyConsole()">Set console</button>
-  <button class="btn" onclick="bulkMuteSelected()">Toggle mute</button>
-  <button class="btn danger" onclick="bulkDeleteSelected()">Delete</button>
-  <button class="btn" onclick="clearSelection()">Clear</button>
+<!-- LIST TOOLBAR -->
+<div class="list-toolbar">
+  <label class="select-all-lbl">
+    <input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this.checked)" title="Select all visible">
+    <span id="listCount">0 channels</span>
+  </label>
+  <button class="chip-btn" id="filterChip" onclick="openFilterSheet()"><span class="dot"></span>⚗ Filter</button>
+</div>
+
+<!-- BULK SELECTION PILL (opens the action sheet below) -->
+<button class="bulk-fab" id="bulkFab" onclick="openBulkSheet()">
+  <span id="bulkFabCount">0 selected</span><span class="chev">▴</span>
+</button>
+
+<!-- BULK ACTION SHEET -->
+<div class="modal-backdrop" id="bulkSheet">
+  <div class="modal">
+    <h3><span id="bulkCount2"></span></h3>
+    <div class="bulk-sheet-field">
+      <select id="bulkSection"></select>
+      <button class="btn" onclick="bulkApplySection()">Set section</button>
+    </div>
+    <div class="bulk-sheet-field">
+      <select id="bulkConsole"></select>
+      <button class="btn" onclick="bulkApplyConsole()">Set console</button>
+    </div>
+    <div class="bulk-sheet-row">
+      <button class="btn" onclick="bulkMuteSelected()">Toggle mute</button>
+      <button class="btn danger" onclick="bulkDeleteSelected()">Delete</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="clearSelection()">Clear selection</button>
+      <button class="btn primary" onclick="closeModals()">Done</button>
+    </div>
+  </div>
 </div>
 
 <!-- GRID -->
 <div class="grid-wrap">
-  <div class="grid-header">
-    <input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this.checked)" title="Select all visible">
-    <span>Ch</span>
-    <span>Src</span>
-    <span>Name</span>
-    <span>Section</span>
-    <span>Signal Path</span>
-    <span>Console</span>
-    <span></span>
-  </div>
   <div id="grid"></div>
+</div>
+
+<!-- ADD CHANNEL FAB -->
+<button class="fab" onclick="openAddMenu()" title="Add channel">＋</button>
+
+<!-- ADD MENU (action sheet) -->
+<div class="modal-backdrop" id="addMenu">
+  <div class="modal modal-menu">
+    <button class="menu-item" onclick="closeModals(); addChannel()">＋ Add single channel</button>
+    <button class="menu-item" onclick="closeModals(); openBulkAddModal()">＋＋ Bulk add channels</button>
+  </div>
+</div>
+
+<!-- MORE MENU (action sheet) -->
+<div class="modal-backdrop" id="moreMenu">
+  <div class="modal modal-menu">
+    <button class="menu-item" onclick="closeModals(); openNewShowModal()">＋ New show</button>
+    <button class="menu-item" onclick="closeModals(); renameShow()">✎ Rename show</button>
+    <button class="menu-item danger" onclick="closeModals(); deleteShow()">✕ Delete show</button>
+    <div class="menu-sep"></div>
+    <button class="menu-item" onclick="closeModals(); exportCSV()">↓ Export CSV</button>
+    <button class="menu-item" onclick="closeModals(); exportJobJSON()">💾 Save job to file (.json)</button>
+    <button class="menu-item" onclick="closeModals(); triggerImportJob()">📂 Load job from file…</button>
+    <div class="menu-sep"></div>
+    <button class="menu-item" onclick="closeModals(); saveAll()">✓ Save now</button>
+  </div>
+</div>
+<input type="file" id="importJobInput" accept="application/json,.json" style="display:none;" onchange="importJobJSON(this.files[0])">
+
+<!-- FILTER SHEET -->
+<div class="modal-backdrop" id="filterSheet">
+  <div class="modal">
+    <h3>Filter channels</h3>
+    <span class="modal-label">Source</span>
+    <select id="filterSrc" onchange="renderGrid(); syncFilterChip();">
+      <option value="">All sources</option>
+      <option value="Stage Box">Stage Box</option>
+      <option value="Direct Out">Direct Out</option>
+      <option value="Ear / IEM">Ear / IEM</option>
+      <option value="Insert">Insert</option>
+      <option value="Aux / Matrix">Aux / Matrix</option>
+      <option value="FOH Tie Line">FOH Tie Line</option>
+    </select>
+    <span class="modal-label">Section</span>
+    <select id="filterSec" onchange="renderGrid(); syncFilterChip();">
+      <option value="">All sections</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn" onclick="clearFilters()">Clear filters</button>
+      <button class="btn primary" onclick="closeModals()">Done</button>
+    </div>
+  </div>
 </div>
 
 <!-- NEW SHOW MODAL -->
@@ -747,6 +934,8 @@
 
 <div id="toast"></div>
 
+</div><!-- /app-shell -->
+
 <script>
 // ─── Constants ───────────────────────────────────────────────
 const SOURCE_TYPES = ['Stage Box','Direct Out','Ear / IEM','Insert','Aux / Matrix','FOH Tie Line'];
@@ -775,6 +964,19 @@ const HOP_KIND_LABEL = {
   origin:'Origin', multicore:'Multicore', adapter:'Adapter', splitter:'Splitter', device:'Device', console:'Console',
 };
 const ORIGIN_LABELS = ['Mic','DI','Line','Wireless RX','Playback','Comms','—'];
+// Preset model lists for the origin hop's "model" field — shown as a datalist so the
+// common gear is one tap away, but any custom text is still accepted (list, not enum).
+const MIC_MODELS = [
+  'Shure SM57', 'Shure SM58', 'Shure Beta 57A', 'Shure Beta 58A', 'Shure Beta 52A', 'Shure Beta 91A',
+  'Shure SM7B', 'Shure KSM8', 'Sennheiser e604', 'Sennheiser e609', 'Sennheiser e906', 'Sennheiser e914',
+  'Sennheiser MD421', 'Sennheiser MKH416', 'AKG C414', 'AKG D112', 'AKG C451B', 'Audix D6', 'Audix i5',
+  'Neumann KM184', 'Neumann U87', 'Audio-Technica AT4050', 'Audio-Technica ATM350', 'Countryman B6',
+  'DPA 4099', 'Electro-Voice RE20', 'Royer R-121',
+];
+const DI_MODELS = [
+  'Radial J48', 'Radial ProDI', 'Radial JDI', 'Radial JDX', 'BSS AR133', 'BSS AR116',
+  'Countryman Type 85', 'Whirlwind IMP2', 'Behringer DI100', 'Avalon U5', 'LR Baggs Venue DI',
+];
 const ADAPTER_TYPES = ['XLR F-F','XLR M-M','Gender Changer','TRS↔XLR','Turnaround','Transformer','—'];
 const PHANTOM_OWNERS = ['OFF','FOH','MON'];
 const SPLIT_TAPS = ['direct','iso1','iso2'];
@@ -804,7 +1006,11 @@ let shows = {};       // { showId: { name, venue, channels: [] } }
 let activeId = null;
 let noteTargetId = null;
 let activeView = 'foh'; // 'foh' | 'mon'
+let viewBy = 'board'; // 'board' | 'stagebox' | 'splitter'
+let selectedStagebox = null;
+let selectedSplitter = null;
 let selectedIds = new Set();
+let expandedIds = new Set();
 let lastRenderedIds = [];
 let bulkMode = 'box'; // 'box' | 'qty'
 let _idCounter = 1;
@@ -815,14 +1021,14 @@ function hid() { return 'h_' + (Date.now()) + '_' + (_idCounter++); }
 // ─── Persistence ─────────────────────────────────────────────
 function newHop(kind, extra) {
   return Object.assign({
-    id: hid(), kind: kind || 'device', ref:'', label:'', pin:'',
+    id: hid(), kind: kind || 'device', ref:'', label:'', pin:'', model:'',
     protocol:'Analog', slotCard:'', slotNum:'', phantom:'OFF',
     adapterType:'XLR F-F', flip:false, branches:[], note:'',
   }, extra || {});
 }
 function newBranch(extra) {
   return Object.assign({
-    tap:'direct', to:'FOH', dest:'', destPin:'', protocol:'Analog',
+    id: hid(), tap:'direct', to:'FOH', dest:'', destPin:'', protocol:'Analog',
     console:'', ch:'', groundLift:false, phantom:'OFF', note:'',
   }, extra || {});
 }
@@ -860,6 +1066,12 @@ function migrateChannel(ch) {
     }));
     ch.path = path;
   }
+  // Ensure every hop/branch has a stable id — older saves predate the by-point views,
+  // which look hops and branches up by id to reassign a port without opening the path modal.
+  ch.path.forEach(h => {
+    if (!h.id) h.id = hid();
+    if (h.kind === 'splitter') (h.branches || []).forEach(b => { if (!b.id) b.id = hid(); });
+  });
 }
 
 function load() {
@@ -1037,11 +1249,22 @@ function toggleMute(id) {
   if (ch) { ch.muted = !ch.muted; save(); renderGrid(); }
 }
 
+// ch.path is the source of truth for routing; ch.console/ch.ch are a denormalized cache
+// read by the Board view's quick-edit dropdowns (and by CSV/sorting). Any write to the
+// cache has to land on the path's console hop too, or the two silently drift apart —
+// e.g. Signal Path / Stagebox / Splitter views would keep showing the old console.
+function setChannelConsoleField(ch, field, value) {
+  ch[field] = value;
+  const consoleHop = (ch.path || []).slice().reverse().find(h => h.kind === 'console');
+  if (consoleHop) consoleHop[field === 'console' ? 'label' : 'pin'] = value;
+}
+
 function updateField(id, field, value) {
   const s = getShow(); if (!s) return;
   const ch = s.channels.find(c => c.id === id);
   if (!ch) return;
-  ch[field] = value;
+  if (field === 'console' || field === 'ch') setChannelConsoleField(ch, field, value);
+  else ch[field] = value;
   save();
   if (['section','src','console','ch'].includes(field)) renderGrid();
   if (field === 'console') {
@@ -1071,6 +1294,30 @@ function saveNote() {
 
 function closeModals() {
   document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
+}
+
+// ─── Action sheets (more menu / add menu / filter sheet) ─────────
+function openMoreMenu() {
+  document.getElementById('moreMenu').classList.add('open');
+}
+function openAddMenu() {
+  document.getElementById('addMenu').classList.add('open');
+}
+function openFilterSheet() {
+  renderFilterSec();
+  document.getElementById('filterSheet').classList.add('open');
+}
+function clearFilters() {
+  document.getElementById('filterSrc').value = '';
+  document.getElementById('filterSec').value = '';
+  renderGrid();
+  syncFilterChip();
+}
+function syncFilterChip() {
+  const chip = document.getElementById('filterChip');
+  if (!chip) return;
+  const active = document.getElementById('filterSrc').value || document.getElementById('filterSec').value;
+  chip.classList.toggle('active', !!active);
 }
 
 // ─── Signal-path resolvers ──────────────────────────────────────
@@ -1103,7 +1350,7 @@ function protoLabel(proto, n) {
 }
 function hopToken(h) {
   switch (h.kind) {
-    case 'origin':    return (h.label || 'Src') + (h.phantom && h.phantom !== 'OFF' ? ` +48(${h.phantom})` : '');
+    case 'origin':    return (h.label || 'Src') + (h.model ? ` (${h.model})` : '') + (h.phantom && h.phantom !== 'OFF' ? ` +48(${h.phantom})` : '');
     case 'multicore': return `${h.label || 'Multicore'}${h.pin ? ' c' + h.pin : ''}`;
     case 'adapter':   return `${h.adapterType || 'Adapter'}${h.flip ? ' ⇄' : ''}`;
     case 'device':    return `${h.label || 'Device'}${h.pin ? ' c' + h.pin : ''}`;
@@ -1196,6 +1443,9 @@ function channelIssues(s, ch) {
 
 // ─── Path Editor Modal ──────────────────────────────────────────
 let pathTargetId = null, pathDraft = [], pathDir = 'input';
+// Hops render collapsed to a one-line summary by default (see hopSummaryText) — this
+// tracks which ones are pinned open, by hop id so it survives reordering.
+let pathExpandedHopIds = new Set();
 
 function openPathModal(id) {
   const s = getShow(); if (!s) return;
@@ -1204,6 +1454,7 @@ function openPathModal(id) {
   pathTargetId = id;
   pathDraft = clonePath(ch.path && ch.path.length ? ch.path : [newHop('device'), newHop('console', { label: ch.console, pin: ch.ch })]);
   pathDir = ch.direction || 'input';
+  pathExpandedHopIds = new Set();
   document.getElementById('pathModalTitle').textContent = `Signal path — ${ch.name}`;
   renderPathModal();
   document.getElementById('pathModal').classList.add('open');
@@ -1227,7 +1478,7 @@ function renderPathModal() {
   const s = getShow(); if (!s) return;
   const dl = pathDatalists(s);
   const body = document.getElementById('pathBody');
-  const hopsHtml = pathDraft.map((h, i) => renderHopCard(h, i, dl)).join('');
+  const hopsHtml = pathDraft.map((h, i) => renderHopCard(h, i, dl) + (i < pathDraft.length - 1 ? '<div class="hop-connector">↓</div>' : '')).join('');
   body.innerHTML = `
     <div class="path-dir">
       <span class="modal-label" style="margin:0;">Direction</span>
@@ -1258,6 +1509,8 @@ function renderHopCard(h, i, dl) {
     fields = `
       <input class="cell-in" list="dlOrigin" value="${escapeHtml(h.label)}" placeholder="Mic / DI / Line…" onchange="pathSetHop(${i},'label',this.value)">
       <datalist id="dlOrigin">${dlOptions(ORIGIN_LABELS)}</datalist>
+      <input class="cell-in" list="dlOriginModel" value="${escapeHtml(h.model)}" placeholder="Model — e.g. Shure SM57, Radial J48…" onchange="pathSetHop(${i},'model',this.value)">
+      <datalist id="dlOriginModel">${dlOptions(MIC_MODELS.concat(DI_MODELS))}</datalist>
       <label class="hop-inline">+48V <select class="cell-in" onchange="pathSetHop(${i},'phantom',this.value)">${optlist(PHANTOM_OWNERS, h.phantom)}</select></label>`;
   } else if (h.kind === 'multicore') {
     fields = `
@@ -1297,20 +1550,39 @@ function renderHopCard(h, i, dl) {
       <div class="branch-list">${branches || '<div class="setup-empty">No taps yet.</div>'}</div>
       <button class="btn" type="button" onclick="pathAddBranch(${i})">＋ Tap (direct / iso)</button>`;
   }
+  const expanded = pathExpandedHopIds.has(h.id);
   return `
-    <div class="hop-card">
-      <div class="hop-head">
+    <div class="hop-card ${expanded ? 'is-expanded' : ''}">
+      <div class="hop-head" onclick="onHopHeadClick(event,'${h.id}')">
         <span class="hop-idx">${i + 1}</span>
-        <select class="cell-in hop-kind" onchange="pathSetKind(${i},this.value)">${optlist(HOP_KINDS.map(k => k), h.kind)}</select>
-        <span class="hop-kind-name">${HOP_KIND_LABEL[h.kind]}</span>
+        <select class="cell-in hop-kind" onchange="pathSetKind(${i},this.value)">${HOP_KINDS.map(k => `<option value="${k}" ${k === h.kind ? 'selected' : ''}>${HOP_KIND_LABEL[k]}</option>`).join('')}</select>
+        <span class="hop-summary">${escapeHtml(hopSummaryText(h))}</span>
         <div class="hop-move">
-          <button class="act-btn" type="button" onclick="pathMoveHop(${i},-1)" title="Up">▲</button>
-          <button class="act-btn" type="button" onclick="pathMoveHop(${i},1)" title="Down">▼</button>
-          <button class="act-btn del-btn" type="button" onclick="pathRemoveHop(${i})" title="Remove hop">✕</button>
+          <button class="act-btn" type="button" onclick="event.stopPropagation(); pathMoveHop(${i},-1)" title="Up">▲</button>
+          <button class="act-btn" type="button" onclick="event.stopPropagation(); pathMoveHop(${i},1)" title="Down">▼</button>
+          <button class="act-btn del-btn" type="button" onclick="event.stopPropagation(); pathRemoveHop(${i})" title="Remove hop">✕</button>
         </div>
+        <button type="button" class="chevron-btn" title="${expanded ? 'Collapse' : 'Expand'}">⌄</button>
       </div>
-      <div class="hop-fields">${fields}</div>
+      ${expanded ? `<div class="hop-fields">${fields}</div>` : ''}
     </div>`;
+}
+function hopSummaryText(h) {
+  const base = hopToken(h) || '(not set yet)';
+  if (h.kind === 'splitter') {
+    const n = (h.branches || []).length;
+    return `${base} — ${n} tap${n === 1 ? '' : 's'}`;
+  }
+  return base;
+}
+function onHopHeadClick(e, hopId) {
+  if (e.target.closest('input,select,a,option')) return;
+  pathToggleHopExpand(hopId);
+}
+function pathToggleHopExpand(hopId) {
+  if (pathExpandedHopIds.has(hopId)) pathExpandedHopIds.delete(hopId);
+  else pathExpandedHopIds.add(hopId);
+  renderPathModal();
 }
 function optlistProto(cur) { return PROTOCOL_TYPES.map(p => `<option${p === cur ? ' selected' : ''}>${p}</option>`).join(''); }
 
@@ -1324,9 +1596,15 @@ function pathSetKind(i, kind) {
   if (!pathDraft[i]) return;
   const keep = pathDraft[i];
   pathDraft[i] = newHop(kind, { id: keep.id, label: keep.label, pin: keep.pin, protocol: keep.protocol, note: keep.note });
+  pathExpandedHopIds.add(pathDraft[i].id);
   renderPathModal();
 }
-function pathAddHop(kind) { pathDraft.push(newHop(kind)); renderPathModal(); }
+function pathAddHop(kind) {
+  const h = newHop(kind);
+  pathDraft.push(h);
+  pathExpandedHopIds.add(h.id);
+  renderPathModal();
+}
 function pathRemoveHop(i) { pathDraft.splice(i, 1); renderPathModal(); }
 function pathMoveHop(i, dir) {
   const j = i + dir;
@@ -1521,13 +1799,28 @@ function syncSelectAllCheckbox() {
   cb.indeterminate = visible.length > 0 && visible.length < lastRenderedIds.length;
 }
 
+// Selection controls live in a floating pill + action sheet rather than a bar pinned to
+// the top, so they only take up space while something is actually selected.
 function renderBulkBar() {
-  const s = getShow();
-  const bar = document.getElementById('bulkBar');
   const n = selectedIds.size;
-  bar.classList.toggle('show', n > 0);
-  if (n === 0) return;
-  document.getElementById('bulkCount2').textContent = `${n} selected`;
+  const fab = document.getElementById('bulkFab');
+  fab.classList.toggle('show', n > 0);
+  document.getElementById('bulkFabCount').textContent = `${n} selected`;
+  if (n === 0) closeModals();
+  const openSheet = document.getElementById('bulkSheet');
+  if (n > 0 && openSheet.classList.contains('open')) populateBulkSheet();
+}
+
+function openBulkSheet() {
+  if (!selectedIds.size) return;
+  populateBulkSheet();
+  document.getElementById('bulkSheet').classList.add('open');
+}
+
+function populateBulkSheet() {
+  const s = getShow();
+  const n = selectedIds.size;
+  document.getElementById('bulkCount2').textContent = `${n} channel${n === 1 ? '' : 's'} selected`;
   document.getElementById('bulkSection').innerHTML = `<option value="">Set section…</option>` + secOptions('');
   document.getElementById('bulkConsole').innerHTML = `<option value="">Set console…</option>` + conOptions('', s);
 }
@@ -1545,7 +1838,7 @@ function bulkApplyConsole() {
   const s = getShow(); if (!s) return;
   const value = document.getElementById('bulkConsole').value;
   if (!value) return;
-  s.channels.forEach(c => { if (selectedIds.has(c.id)) c.console = value; });
+  s.channels.forEach(c => { if (selectedIds.has(c.id)) setChannelConsoleField(c, 'console', value); });
   save(); renderGrid();
   toast(`Console updated for ${selectedIds.size} channel(s)`);
 }
@@ -1628,6 +1921,36 @@ function modelItemName(setup, sec, model, excludeItem) {
   return `${model} #${String(n).padStart(2, '0')}`;
 }
 
+// Setup items (consoles/stageboxes/splitters/multicores) are referenced from channel
+// paths purely by name string (hop.label, branch.dest/console, plus the legacy
+// ch.console/ch.box.name cache). Nothing enforces that link automatically, so a rename
+// or delete in Setup has to walk every channel and fix up the references itself —
+// otherwise a renamed console silently detaches from every channel patched to it.
+function renameSetupReferences(s, oldName, newName) {
+  if (!oldName || oldName === newName) return;
+  s.channels.forEach(ch => {
+    if (ch.console === oldName) ch.console = newName;
+    if (ch.box && ch.box.name === oldName) ch.box.name = newName;
+    (ch.path || []).forEach(h => {
+      if (h.label === oldName) h.label = newName;
+      (h.branches || []).forEach(b => {
+        if (b.dest === oldName) b.dest = newName;
+        if (b.console === oldName) b.console = newName;
+      });
+    });
+  });
+}
+
+function countChannelUsage(s, name) {
+  if (!name) return 0;
+  return s.channels.filter(ch => {
+    if (ch.console === name || (ch.box && ch.box.name === name)) return true;
+    return (ch.path || []).some(h =>
+      h.label === name || (h.branches || []).some(b => b.dest === name || b.console === name)
+    );
+  }).length;
+}
+
 function setupQtyStep(key, delta) {
   const s = getShow(); if (!s) return;
   const setup = getSetup(s);
@@ -1641,6 +1964,9 @@ function setupQtyStep(key, delta) {
     if (sec.hasIsoCount) item.isoCount = 1;
     list.push(item);
   } else if (list.length) {
+    const item = list[list.length - 1];
+    const used = countChannelUsage(s, item.name);
+    if (used && !confirm(`"${item.name}" is patched on ${used} channel(s). Remove it anyway? Those channels will keep pointing at the old name.`)) return;
     list.pop();
   }
   save(); renderSetupModal(); renderGrid();
@@ -1648,6 +1974,10 @@ function setupQtyStep(key, delta) {
 
 function setupRemoveItem(key, idx) {
   const s = getShow(); if (!s) return;
+  const item = getSetup(s)[key][idx];
+  if (!item) return;
+  const used = countChannelUsage(s, item.name);
+  if (used && !confirm(`"${item.name}" is patched on ${used} channel(s). Remove it anyway? Those channels will keep pointing at the old name.`)) return;
   getSetup(s)[key].splice(idx, 1);
   save(); renderSetupModal(); renderGrid();
 }
@@ -1657,12 +1987,14 @@ function setupUpdateItem(key, idx, field, value) {
   const setup = getSetup(s);
   const item = setup[key][idx];
   if (!item) return;
+  const oldName = item.name;
   item[field] = value;
   if (field === 'model') {
     const sec = SETUP_SECTIONS.find(x => x.key === key);
     item.name = modelItemName(setup, sec, value, item);
     if (sec.hasChannelCount) item.channels = sec.channelDefaults[value] || item.channels;
   }
+  if (item.name !== oldName) renameSetupReferences(s, oldName, item.name);
   save(); renderGrid(); renderSetupModal();
 }
 
@@ -1722,6 +2054,257 @@ function setView(view) {
   activeView = view;
   selectedIds.clear();
   renderGrid();
+}
+
+// ─── View by point (Board / Stagebox / Splitter) ─────────────────
+function allStageboxes(s) {
+  const setup = getSetup(s);
+  return [
+    ...setup.stageboxFoh.map(b => ({ ...b, side: 'FOH' })),
+    ...setup.stageboxMon.map(b => ({ ...b, side: 'MON' })),
+  ];
+}
+
+function setViewBy(mode) {
+  viewBy = mode;
+  document.querySelectorAll('.viewby-tabs .view-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.viewby === mode));
+  document.getElementById('fohMonTabs').style.display = mode === 'board' ? 'flex' : 'none';
+  document.getElementById('devicePicker').style.display = mode === 'board' ? 'none' : 'block';
+  selectedIds.clear();
+  expandedIds.clear();
+  populateDevicePicker();
+  renderGrid();
+}
+
+function populateDevicePicker() {
+  const s = getShow();
+  const sel = document.getElementById('devicePicker');
+  if (!s || viewBy === 'board') { sel.innerHTML = ''; return; }
+  if (viewBy === 'stagebox') {
+    const boxes = allStageboxes(s);
+    if (!boxes.find(b => b.name === selectedStagebox)) selectedStagebox = boxes[0] ? boxes[0].name : null;
+    sel.innerHTML = boxes.map(b => `<option value="${escapeHtml(b.name)}" ${b.name === selectedStagebox ? 'selected' : ''}>${escapeHtml(b.name)} (${b.side})</option>`).join('');
+  } else if (viewBy === 'splitter') {
+    const setup = getSetup(s);
+    if (!setup.splitter.find(sp => sp.name === selectedSplitter)) selectedSplitter = setup.splitter[0] ? setup.splitter[0].name : null;
+    sel.innerHTML = setup.splitter.map(sp => `<option value="${escapeHtml(sp.name)}" ${sp.name === selectedSplitter ? 'selected' : ''}>${escapeHtml(sp.name)}</option>`).join('');
+  }
+}
+
+function onDevicePickerChange(value) {
+  if (viewBy === 'stagebox') selectedStagebox = value;
+  else if (viewBy === 'splitter') selectedSplitter = value;
+  selectedIds.clear();
+  expandedIds.clear();
+  renderGrid();
+}
+
+// Every port a channel occupies on a given stagebox — either a direct device hop, or a
+// splitter branch whose dest lands on that box. Mirrors devicePortIndex's key space so
+// this stays consistent with the existing "port already used" validation.
+function stageboxPortOccupants(s, boxName) {
+  const map = {};
+  s.channels.forEach(ch => {
+    (ch.path || []).forEach(h => {
+      if (h.kind === 'device' && h.label === boxName && h.pin) {
+        (map[h.pin] = map[h.pin] || []).push({ ch, kind: 'device', hop: h });
+      }
+      if (h.kind === 'splitter') (h.branches || []).forEach(b => {
+        if (b.dest === boxName && b.destPin) (map[b.destPin] = map[b.destPin] || []).push({ ch, kind: 'branch', hop: h, branch: b });
+      });
+    });
+  });
+  return map;
+}
+
+function splitterChannelOccupants(s, splitterName) {
+  const map = {};
+  s.channels.forEach(ch => {
+    (ch.path || []).forEach(h => {
+      if (h.kind === 'splitter' && h.label === splitterName && h.pin) {
+        (map[h.pin] = map[h.pin] || []).push({ ch, hop: h });
+      }
+    });
+  });
+  return map;
+}
+
+function setHopFieldById(chId, hopId, field, value) {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === chId); if (!ch) return;
+  const hop = (ch.path || []).find(h => h.id === hopId); if (!hop) return;
+  hop[field] = value;
+  syncLegacyFromPath(ch);
+  save(); renderGrid();
+}
+function setBranchFieldById(chId, hopId, branchId, field, value) {
+  const s = getShow(); if (!s) return;
+  const ch = s.channels.find(c => c.id === chId); if (!ch) return;
+  const hop = (ch.path || []).find(h => h.id === hopId); if (!hop) return;
+  const br = (hop.branches || []).find(b => b.id === branchId); if (!br) return;
+  br[field] = value;
+  syncLegacyFromPath(ch);
+  save(); renderGrid();
+}
+
+function quickAddAtStagebox(boxName, port) {
+  const s = getShow(); if (!s) return;
+  const groupNames = consoleNamesForGroup(s, activeView);
+  const defaultConsole = groupNames[0] || consoleNameList(s)[0];
+  const chNo = nextFreeChannelNumber(s, defaultConsole);
+  const ch = {
+    id: uid(), ch: chNo, name: 'New Channel', section: '—', src: 'Stage Box', direction: 'input',
+    box: { name: boxName, port: String(port) },
+    patch: { protocol: 'Analog', slotCard: '', slotNum: '', chNum: '' },
+    console: defaultConsole, muted: false, note: '',
+    path: [
+      newHop('device', { label: boxName, pin: String(port), protocol: 'Analog' }),
+      newHop('console', { label: defaultConsole, pin: chNo, protocol: 'Analog' }),
+    ],
+  };
+  s.channels.push(ch);
+  save();
+  renderGrid();
+  toast('Channel added at port ' + port);
+}
+
+function renderStageboxPortRow(box, port, occupants, allBoxes) {
+  if (!occupants.length) {
+    return `
+      <div class="ch-row port-row is-empty">
+        <div class="card-head">
+          <span class="f-ch">${port}</span>
+          <div class="card-title"><div class="card-sub" style="padding-top:6px;">— empty —</div></div>
+          <button class="btn" style="font-size:12px;" onclick="quickAddAtStagebox('${escapeHtml(box.name)}', ${port})">+ Add</button>
+        </div>
+      </div>`;
+  }
+  const boxOptions = allBoxes.map(b => `<option value="${escapeHtml(b.name)}">${escapeHtml(b.name)} (${b.side})</option>`).join('');
+  return occupants.map(o => {
+    const ch = o.ch;
+    const b = SRC_BADGE[ch.src] || { label: '—', cls: 'b-nil' };
+    const originHop = (ch.path || []).find(h => h.kind === 'origin');
+    const gear = originHop && (originHop.label || originHop.model) ? `${originHop.label || ''}${originHop.model ? ' · ' + originHop.model : ''}` : '';
+    const sub = [gear || ch.section, o.kind === 'branch' ? 'via splitter' : ''].filter(Boolean).join(' · ');
+    const portField = o.kind === 'device'
+      ? `<input class="cell-in ch-num f-ch" type="number" min="1" value="${escapeHtml(o.hop.pin)}" onchange="setHopFieldById('${ch.id}','${o.hop.id}','pin',this.value)">`
+      : `<input class="cell-in ch-num f-ch" type="number" min="1" value="${escapeHtml(o.branch.destPin)}" onchange="setBranchFieldById('${ch.id}','${o.hop.id}','${o.branch.id}','destPin',this.value)">`;
+    const moveSelect = allBoxes.length > 1
+      ? (o.kind === 'device'
+        ? `<select class="cell-in" onchange="setHopFieldById('${ch.id}','${o.hop.id}','label',this.value)"><option value="">Move to box…</option>${boxOptions}</select>`
+        : `<select class="cell-in" onchange="setBranchFieldById('${ch.id}','${o.hop.id}','${o.branch.id}','dest',this.value)"><option value="">Move to box…</option>${boxOptions}</select>`)
+      : '';
+    return `
+      <div class="ch-row port-row">
+        <div class="card-head">
+          ${portField}
+          <div class="card-title">
+            <div style="font-size:14px; font-weight:600; color:var(--text);">${escapeHtml(ch.name)}</div>
+            <div class="card-sub">${escapeHtml(sub)}</div>
+          </div>
+          <span class="badge ${b.cls}">${b.label}</span>
+          <button type="button" class="chevron-btn" onclick="openPathModal('${ch.id}')" title="Edit signal path">✎</button>
+        </div>
+        ${moveSelect ? `<div class="card-details" style="display:flex;"><div class="field"><span class="cap">Move to a different box</span>${moveSelect}</div></div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function renderStageboxView() {
+  const s = getShow();
+  const grid = document.getElementById('grid');
+  const listCountEl = document.getElementById('listCount');
+  if (!s || !grid) return;
+  const boxes = allStageboxes(s);
+  if (!boxes.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="big">🎛️</div><p>No stage boxes configured yet — open <strong>⚙ Setup</strong> to add one.</p></div>`;
+    lastRenderedIds = [];
+    renderStats([]);
+    if (listCountEl) listCountEl.textContent = '0 channels';
+    return;
+  }
+  if (!selectedStagebox || !boxes.find(b => b.name === selectedStagebox)) selectedStagebox = boxes[0].name;
+  const box = boxes.find(b => b.name === selectedStagebox);
+  const occ = stageboxPortOccupants(s, box.name);
+  const cap = Number(box.channels) || 16;
+  let html = '';
+  const occupiedChannels = [];
+  for (let p = 1; p <= cap; p++) {
+    const list = occ[p] || [];
+    html += renderStageboxPortRow(box, p, list, boxes);
+    list.forEach(o => occupiedChannels.push(o.ch));
+  }
+  lastRenderedIds = occupiedChannels.map(c => c.id);
+  syncSelectAllCheckbox();
+  renderBulkBar();
+  renderStats(occupiedChannels);
+  if (listCountEl) listCountEl.textContent = `${cap} ports · ${occupiedChannels.length} patched`;
+  grid.innerHTML = html;
+}
+
+function renderSplitterPortRow(pin, occupants) {
+  if (!occupants.length) {
+    return `
+      <div class="ch-row port-row is-empty">
+        <div class="card-head">
+          <span class="f-ch">${pin}</span>
+          <div class="card-title"><div class="card-sub" style="padding-top:6px;">— empty —</div></div>
+        </div>
+      </div>`;
+  }
+  return occupants.map(o => {
+    const ch = o.ch;
+    const b = SRC_BADGE[ch.src] || { label: '—', cls: 'b-nil' };
+    const branches = o.hop.branches || [];
+    const branchSummary = branches.length
+      ? branches.map(br => `${TAP_LABEL[br.tap] || br.tap}→${br.to}${br.dest ? ' ' + br.dest : ''}${br.destPin ? ' c' + br.destPin : ''}`).join(' · ')
+      : 'no taps yet';
+    return `
+      <div class="ch-row port-row">
+        <div class="card-head">
+          <input class="cell-in ch-num f-ch" type="number" min="1" value="${escapeHtml(o.hop.pin)}" onchange="setHopFieldById('${ch.id}','${o.hop.id}','pin',this.value)">
+          <div class="card-title">
+            <div style="font-size:14px; font-weight:600; color:var(--text);">${escapeHtml(ch.name)}</div>
+            <div class="card-sub">${escapeHtml(branchSummary)}</div>
+          </div>
+          <span class="badge ${b.cls}">${b.label}</span>
+          <button type="button" class="chevron-btn" onclick="openPathModal('${ch.id}')" title="Edit taps">✎</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderSplitterView() {
+  const s = getShow();
+  const grid = document.getElementById('grid');
+  const listCountEl = document.getElementById('listCount');
+  if (!s || !grid) return;
+  const setup = getSetup(s);
+  const splitters = setup.splitter;
+  if (!splitters.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="big">🎛️</div><p>No splitters configured yet — open <strong>⚙ Setup</strong> to add one.</p></div>`;
+    lastRenderedIds = [];
+    renderStats([]);
+    if (listCountEl) listCountEl.textContent = '0 channels';
+    return;
+  }
+  if (!selectedSplitter || !splitters.find(sp => sp.name === selectedSplitter)) selectedSplitter = splitters[0].name;
+  const sp = splitters.find(x => x.name === selectedSplitter);
+  const occ = splitterChannelOccupants(s, sp.name);
+  const cap = Number(sp.channels) || 12;
+  let html = '';
+  const occupiedChannels = [];
+  for (let p = 1; p <= cap; p++) {
+    const list = occ[p] || [];
+    html += renderSplitterPortRow(p, list);
+    list.forEach(o => occupiedChannels.push(o.ch));
+  }
+  lastRenderedIds = occupiedChannels.map(c => c.id);
+  syncSelectAllCheckbox();
+  renderBulkBar();
+  renderStats(occupiedChannels);
+  if (listCountEl) listCountEl.textContent = `${cap} splitter ch · ${occupiedChannels.length} patched`;
+  grid.innerHTML = html;
 }
 
 // ─── Render ───────────────────────────────────────────────────
@@ -1804,6 +2387,18 @@ function chOptions(cur, max) {
   return opts;
 }
 
+function toggleCardExpand(id) {
+  if (expandedIds.has(id)) expandedIds.delete(id); else expandedIds.add(id);
+  renderGrid();
+}
+// Card header is one big tap target; ignore taps that land on an editable control inside it.
+// (The mute button stops its own propagation, so it's excluded without needing to be listed here —
+// leaving 'button' out lets a tap on the chevron button itself still bubble up and toggle expand.)
+function onCardHeadClick(e, id) {
+  if (e.target.closest('input,select,a,option')) return;
+  toggleCardExpand(id);
+}
+
 function renderChRow(ch, s) {
   const b = SRC_BADGE[ch.src] || { label:'—', cls:'b-nil' };
   const noteBtn = `<button class="act-btn" onclick="openNote('${ch.id}')" title="Note${ch.note ? ': ' + ch.note.substring(0,30) : ''}" style="font-size:13px;">${ch.note ? '📝' : '📄'}</button>`;
@@ -1818,22 +2413,34 @@ function renderChRow(ch, s) {
     ? `<span class="cell-in mono f-console" title="Set via Signal Path" style="opacity:.8">${escapeHtml(route.console || '—')}</span>`
     : `<select class="cell-in f-console" onchange="updateField('${ch.id}','console',this.value)">${conOptions(ch.console, s)}</select>`;
   const pathStr = formatPath(ch, activeView);
+  // Multi-hop paths (splitters/adapters/multicores) are power-user territory — flag them
+  // with a small chip so the card stays scannable without hiding that routing exists.
+  const isAdvanced = !!splitHop(ch) || (ch.path || []).length > 2;
+  const expanded = expandedIds.has(ch.id);
+  const originHop = (ch.path || []).find(h => h.kind === 'origin');
+  const gearText = originHop && originHop.model ? ` · ${escapeHtml(originHop.model)}` : '';
+  const subText = `${escapeHtml(route.console || '—')} · CH${escapeHtml(route.ch || '—')} · ${escapeHtml(ch.section)}${gearText}`;
   return `
-      <div class="ch-row ${ch.muted ? 'is-muted' : ''}" id="row-${ch.id}">
+      <div class="ch-row ${ch.muted ? 'is-muted' : ''} ${expanded ? 'is-expanded' : ''}" id="row-${ch.id}">
         ${warnDot}
-        <div class="row-top">
+        <div class="card-head" onclick="onCardHeadClick(event,'${ch.id}')">
           <input type="checkbox" class="row-select" ${selectedIds.has(ch.id) ? 'checked' : ''} onchange="toggleRowSelect('${ch.id}', this.checked)">
 
           ${chCell}
 
-          <span class="f-src"><span class="badge ${b.cls}">${b.label}</span></span>
+          <div class="card-title">
+            <input class="cell-in f-name" value="${escapeHtml(ch.name)}" placeholder="Channel name"
+              onchange="updateField('${ch.id}','name',this.value)"
+              onblur="updateField('${ch.id}','name',this.value)">
+            <div class="card-sub">${subText}${isAdvanced ? '<span class="adv-chip">⚡ ADV</span>' : ''}</div>
+          </div>
 
-          <input class="cell-in f-name" value="${escapeHtml(ch.name)}" placeholder="Channel name"
-            onchange="updateField('${ch.id}','name',this.value)"
-            onblur="updateField('${ch.id}','name',this.value)">
+          <span class="badge ${b.cls}">${b.label}</span>
+          <button class="act-btn m-btn ${ch.muted ? 'active' : ''}" onclick="event.stopPropagation(); toggleMute('${ch.id}')" title="${ch.muted ? 'Unmute' : 'Mute'}">M</button>
+          <button type="button" class="chevron-btn" title="${expanded ? 'Hide details' : 'Show details'}">⌄</button>
         </div>
 
-        <div class="row-meta">
+        <div class="card-details">
           <div class="field">
             <span class="cap">Section</span>
             <select class="cell-in f-section" onchange="updateField('${ch.id}','section',this.value)">${secOptions(ch.section)}</select>
@@ -1848,13 +2455,12 @@ function renderChRow(ch, s) {
             <span class="cap">Console</span>
             ${consoleCell}
           </div>
-        </div>
 
-        <div class="row-acts">
-          <button class="act-btn m-btn ${ch.muted ? 'active' : ''}" onclick="toggleMute('${ch.id}')" title="${ch.muted ? 'Unmute' : 'Mute'}">M</button>
-          ${noteBtn}
-          <button class="act-btn dup-btn" onclick="duplicateChannel('${ch.id}')" title="Duplicate">⧉</button>
-          <button class="act-btn del-btn" onclick="deleteChannel('${ch.id}')" title="Delete">✕</button>
+          <div class="row-acts">
+            ${noteBtn}
+            <button class="act-btn dup-btn" onclick="duplicateChannel('${ch.id}')" title="Duplicate">⧉</button>
+            <button class="act-btn del-btn" onclick="deleteChannel('${ch.id}')" title="Delete">✕</button>
+          </div>
         </div>
       </div>`;
 }
@@ -1862,10 +2468,13 @@ function renderChRow(ch, s) {
 function renderGrid() {
   renderFilterSec();
   const s = getShow();
-
-  document.querySelectorAll('.view-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.view === activeView));
-
   if (s) refreshIssueCtx(s);
+
+  if (viewBy === 'stagebox') { renderStageboxView(); return; }
+  if (viewBy === 'splitter') { renderSplitterView(); return; }
+
+  document.querySelectorAll('#fohMonTabs .view-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.view === activeView));
+
   let filtered = getFiltered();
   let setup = null;
   let noConsolesConfigured = true;
@@ -1880,6 +2489,8 @@ function renderGrid() {
   lastRenderedIds = filtered.map(c => c.id);
   syncSelectAllCheckbox();
   renderBulkBar();
+  const listCountEl = document.getElementById('listCount');
+  if (listCountEl) listCountEl.textContent = `${filtered.length} channel${filtered.length === 1 ? '' : 's'}`;
 
   const grid = document.getElementById('grid');
 
@@ -1914,6 +2525,7 @@ function renderGrid() {
 
 function renderAll() {
   renderShowSelect();
+  document.querySelectorAll('.viewby-tabs .view-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.viewby === viewBy));
   renderGrid();
 }
 
@@ -1928,6 +2540,68 @@ function exportCSV() {
   a.download = s.name.replace(/[^a-z0-9]/gi,'_') + '-patch.csv';
   a.click();
   toast('Exported CSV');
+}
+
+// A job file is one show (name/venue/setup/channels) as standalone JSON — save it
+// locally, move it between machines, or hand it to someone else; no login required.
+// Kept separate from the CSV export, which is a flattened read-only summary.
+const JOB_FILE_VERSION = 1;
+
+function exportJobJSON() {
+  const s = getShow(); if (!s) return;
+  const payload = {
+    jobFileVersion: JOB_FILE_VERSION,
+    exportedAt: new Date().toISOString(),
+    show: s,
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = s.name.replace(/[^a-z0-9]/gi, '_') + '-job.json';
+  a.click();
+  toast('Job saved to file');
+}
+
+function triggerImportJob() {
+  document.getElementById('importJobInput').click();
+}
+
+function importJobJSON(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); }
+    catch (e) { toast('That file is not valid JSON'); return; }
+    const show = data && data.show ? data.show : data; // accept a raw show object too
+    if (!show || typeof show !== 'object' || !Array.isArray(show.channels)) {
+      toast('That file does not look like a job export');
+      return;
+    }
+    let name = show.name || 'Imported job';
+    const existingNames = new Set(Object.values(shows).map(s => s.name));
+    if (existingNames.has(name)) {
+      let n = 2;
+      while (existingNames.has(`${name} (${n})`)) n++;
+      name = `${name} (${n})`;
+    }
+    const id = 'show_' + Date.now();
+    shows[id] = {
+      name,
+      venue: show.venue || '',
+      setup: show.setup || { foh: [], mon: [], stageboxFoh: [], stageboxMon: [], multicore: [], splitter: [] },
+      channels: show.channels || [],
+    };
+    shows[id].channels.forEach(migrateChannel);
+    activeId = id;
+    save();
+    renderAll();
+    toast(`Loaded "${name}"`);
+  };
+  reader.onerror = () => toast('Could not read that file');
+  reader.readAsText(file);
+  // Reset so picking the same filename again still fires 'change'.
+  document.getElementById('importJobInput').value = '';
 }
 
 // ─── Toast ────────────────────────────────────────────────────
