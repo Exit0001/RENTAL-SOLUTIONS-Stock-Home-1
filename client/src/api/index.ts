@@ -189,7 +189,18 @@ export type CrewData = {
 export type JobStockItem    = { stockItemId: string; itemName: string; itemCategory: string; quantity: number };
 export type JobDetail       = Job & { stock: JobStockItem[]; crew: unknown[]; pullSheets: unknown[] };
 export type JobContainerRow = Container & { itemCount: number };
-export type JobCrewMember   = { userId: string; name: string; initials: string; role: string };
+export type CrewType = "own_crew" | "freelancer" | "outsource" | "loader";
+export type JobCrewMember   = { crewMemberId: string; name: string; type: CrewType; role: string | null; initials: string; hasAccount: boolean };
+// Roster row types (backend crew_members / vehicles) — kept separate from the getCrew() `CrewMember` payload above
+export type CrewMemberRow = {
+  id: string; companyId: string; name: string; type: CrewType;
+  phone: string | null; role: string | null; note: string | null;
+  dayRate: string | null; userId: string | null; active: boolean; createdAt: string;
+};
+export type VehicleRow = {
+  id: string; companyId: string; name: string; type: string | null;
+  plate: string | null; capacity: string | null; note: string | null; active: boolean; createdAt: string;
+};
 export type JobBulkEntry    = { id: string; jobId: string; stockItemId: string; quantity: number; position: string | null };
 
 export const jobsApi = {
@@ -237,10 +248,9 @@ export const jobsApi = {
                      addedUnits: { unitId: string; stockItemId: string }[];
                      addedBulkItems: { stockItemId: string; quantity: number }[];
                    }>(`/jobs/${jobId}/apply-set/${setId}`, {}),
-  getCrewMatrix: () => api.get<{ jobId: string; userId: string }[]>("/jobs/crew-matrix"),
   getJobCrew:    (jobId: string) => api.get<JobCrewMember[]>(`/jobs/${jobId}/crew`),
-  assignCrew:    (jobId: string, userId: string) => api.post<JobCrew>(`/jobs/${jobId}/crew`, { userId }),
-  unassignCrew:  (jobId: string, userId: string) => api.delete<void>(`/jobs/${jobId}/crew/${userId}`),
+  assignCrew:    (jobId: string, crewMemberId: string, role?: string) => api.post<JobCrew>(`/jobs/${jobId}/crew`, { crewMemberId, role }),
+  unassignCrew:  (jobId: string, crewMemberId: string) => api.delete<void>(`/jobs/${jobId}/crew/${crewMemberId}`),
 };
 
 // ─── Job Expenses (ค่าเด็กโหลด / ค่าเดินทาง-ส่งของ พร้อมสลิป) ──────
@@ -254,11 +264,35 @@ export const jobExpensesApi = {
 
 // ─── Job Vehicles (รถที่ใช้ในงาน) ──────────────────────────
 
+export type JobVehicleRow = JobVehicle & { plate: string | null; driverName: string | null };
+
 export const jobVehiclesApi = {
-  getForJob: (jobId: string) => api.get<JobVehicle[]>(`/jobs/${jobId}/vehicles`),
-  create:    (jobId: string, data: Omit<InsertJobVehicle, "companyId" | "jobId">) =>
+  getForJob: (jobId: string) => api.get<JobVehicleRow[]>(`/jobs/${jobId}/vehicles`),
+  create:    (jobId: string, data: { vehicleId?: string | null; driverCrewMemberId?: string | null; vehicleType?: string; note?: string | null }) =>
                api.post<JobVehicle>(`/jobs/${jobId}/vehicles`, data),
   delete:    (vehicleId: string) => api.delete<{ message: string }>(`/jobs/vehicles/${vehicleId}`),
+};
+
+// ─── Crew & Vehicle Roster (ทีมงาน & คลังรถ) ───────────────
+
+export const crewApi = {
+  getRoster: (type?: CrewType) => api.get<CrewMemberRow[]>(`/crew${type ? `?type=${type}` : ""}`),
+  create:    (data: { name: string; type: CrewType; phone?: string | null; role?: string | null; note?: string | null; dayRate?: string | null; userId?: string | null }) =>
+               api.post<CrewMemberRow>("/crew", data),
+  update:    (id: string, data: Partial<{ name: string; type: CrewType; phone: string | null; role: string | null; note: string | null; dayRate: string | null; userId: string | null; active: boolean }>) =>
+               api.put<CrewMemberRow>(`/crew/${id}`, data),
+  delete:    (id: string) => api.delete<{ message: string }>(`/crew/${id}`),
+  getMatrix: () => api.get<{ jobId: string; crewMemberId: string }[]>("/crew/matrix"),
+};
+
+export const vehiclesApi = {
+  getRoster: () => api.get<VehicleRow[]>("/crew/vehicles"),
+  create:    (data: { name: string; type?: string | null; plate?: string | null; capacity?: string | null; note?: string | null }) =>
+               api.post<VehicleRow>("/crew/vehicles", data),
+  update:    (id: string, data: Partial<{ name: string; type: string | null; plate: string | null; capacity: string | null; note: string | null; active: boolean }>) =>
+               api.put<VehicleRow>(`/crew/vehicles/${id}`, data),
+  delete:    (id: string) => api.delete<{ message: string }>(`/crew/vehicles/${id}`),
+  getMatrix: () => api.get<{ jobId: string; vehicleId: string }[]>("/crew/vehicles/matrix"),
 };
 
 // ─── Job Sub-Rentals (อุปกรณ์ที่เช่าจากภายนอกสำหรับงานนี้) ──

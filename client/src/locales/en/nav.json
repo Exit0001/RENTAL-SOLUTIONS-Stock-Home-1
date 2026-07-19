@@ -2,6 +2,7 @@
   "home": "Home",
   "stock": "Stock",
   "jobs": "Jobs",
+  "crew": "Crew",
   "finance": "Finance",
   "history": "History",
   "settings": "Settings",
@@ -16,6 +17,7 @@
     "Stock": "Stock Management",
     "Finance": "Finance & Billing",
     "Jobs": "Job Management",
+    "Crew": "Crew & Vehicles",
     "History": "History & Analytics",
     "Settings": "Settings"
   }

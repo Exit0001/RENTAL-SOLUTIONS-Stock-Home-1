@@ -41,7 +41,6 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { JobScheduleView } from "./JobScheduleView";
-import { CrewScheduleView } from "./CrewScheduleView";
 import { AddIncidentModal } from "./AddIncidentModal";
 import { AddJobModal } from "./AddJobModal";
 import { ManageJobStockModal } from "./ManageJobStockModal";
@@ -50,12 +49,11 @@ import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { JobOperationsModal } from "./JobOperationsModal";
 import { JobDetailModal } from "./JobDetailModal";
 
-type JobTab = "jobs" | "pullsheets" | "crew" | "incidents" | "schedule";
+type JobTab = "jobs" | "pullsheets" | "incidents" | "schedule";
 
 const jobTabs: { key: JobTab; labelKey: string; icon: typeof Briefcase }[] = [
   { key: "jobs",       labelKey: "tabJobs",       icon: Briefcase },
   { key: "pullsheets", labelKey: "tabPullSheets", icon: FileText },
-  { key: "crew",       labelKey: "tabCrew",       icon: Users },
   { key: "incidents",  labelKey: "tabIncidents",  icon: Camera },
 ];
 
@@ -107,7 +105,6 @@ export const JobsPage = (): JSX.Element => {
   const [createPullSheetOpen, setCreatePullSheetOpen] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [deleteJobTarget, setDeleteJobTarget] = useState<any>(null);
-  const [assignCrewTabJob, setAssignCrewTabJob] = useState<any>(null);
   const { token, userRole } = useAppStore();
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
@@ -142,15 +139,6 @@ export const JobsPage = (): JSX.Element => {
     enabled: !!token,
   });
 
-  const { data: crewData } = useQuery({
-    queryKey: ["crew"],
-    queryFn: jobsApi.getCrew,
-    enabled: !!token,
-  });
-
-  const crewMembers       = crewData?.crew              ?? [];
-  const myTasks           = crewData?.tasks             ?? [];
-  const responsibilityLog = crewData?.responsibilityLog ?? [];
 
   const createJob = useMutation({
     mutationFn: (data: Parameters<typeof jobsApi.create>[0]) => jobsApi.create(data),
@@ -250,12 +238,6 @@ export const JobsPage = (): JSX.Element => {
           jobId={manageJob.id}
           jobName={manageJob.name}
           onClose={() => setManageJob(null)}
-        />
-      )}
-      {assignCrewTabJob && (
-        <AssignCrewModal
-          jobId={assignCrewTabJob.id}
-          onClose={() => setAssignCrewTabJob(null)}
         />
       )}
       {createPullSheetOpen && (
@@ -581,16 +563,6 @@ export const JobsPage = (): JSX.Element => {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {activeTab === "crew" && (
-        <div className="-m-6 border border-white/[0.06] rounded-xl overflow-hidden bg-[#0a0a0a]" style={{ height: "calc(100vh - 160px)" }}>
-          <CrewScheduleView
-            jobs={jobs}
-            crewMembers={crewMembers}
-            onAssignCrew={(job) => setAssignCrewTabJob(job)}
-          />
         </div>
       )}
 

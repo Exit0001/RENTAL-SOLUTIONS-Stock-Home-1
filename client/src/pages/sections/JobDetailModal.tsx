@@ -8,8 +8,8 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi, jobVehiclesApi, jobSubRentalsApi, stockApi } from "@/api";
 import { RackBuildModal } from "./RackBuildModal";
-import { AssignCrewModal } from "./AssignCrewModal";
-import { AddVehicleModal } from "./AddVehicleModal";
+import { AssignCrewModal, CREW_TYPE_LABEL } from "./AssignCrewModal";
+import { AssignVehicleModal } from "./AssignVehicleModal";
 import { JobExpensesModal } from "./JobExpensesModal";
 import { JobSubRentalsModal } from "./JobSubRentalsModal";
 
@@ -74,16 +74,19 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
   });
 
   const removeCrew = useMutation({
-    mutationFn: (userId: string) => jobsApi.unassignCrew(job.id, userId),
+    mutationFn: (crewMemberId: string) => jobsApi.unassignCrew(job.id, crewMemberId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job-crew", job.id] });
-      qc.invalidateQueries({ queryKey: ["crew"] });
+      qc.invalidateQueries({ queryKey: ["crew-matrix"] });
     },
   });
 
   const removeVehicle = useMutation({
     mutationFn: (vehicleId: string) => jobVehiclesApi.delete(vehicleId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["job-vehicles", job.id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["job-vehicles", job.id] });
+      qc.invalidateQueries({ queryKey: ["vehicle-matrix"] });
+    },
   });
 
   const updatePhase = useMutation({
@@ -224,15 +227,15 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
             ) : (
               <div className="space-y-1">
                 {jobCrew.map((c) => (
-                  <div key={c.userId} className="group/crew flex items-center gap-3 -mx-1 px-1 py-2 rounded-lg hover:bg-white/[0.03] transition-colors">
+                  <div key={c.crewMemberId} className="group/crew flex items-center gap-3 -mx-1 px-1 py-2 rounded-lg hover:bg-white/[0.03] transition-colors">
                     <div className="w-8 h-8 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-xs font-bold text-[#FFFF00]/80 flex-shrink-0">
                       {c.initials}
                     </div>
                     <span className="text-sm font-medium text-white/85 flex-1 min-w-0 truncate">{c.name}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold capitalize text-white/60 bg-white/[0.06] flex-shrink-0">{c.role}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-white/60 bg-white/[0.06] flex-shrink-0">{CREW_TYPE_LABEL[c.type]}</span>
                     {canManage && (
                       <button
-                        onClick={() => removeCrew.mutate(c.userId)}
+                        onClick={() => removeCrew.mutate(c.crewMemberId)}
                         disabled={removeCrew.isPending}
                         title={t("removeFromJob")}
                         className="opacity-0 group-hover/crew:opacity-100 p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
@@ -288,8 +291,12 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
                 {jobVehicles.map((v) => (
                   <div key={v.id} className="group/veh flex items-center gap-3 -mx-1 px-1 py-2 rounded-lg hover:bg-white/[0.03] transition-colors">
                     <Truck className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
-                    <span className="text-sm font-medium text-white/85 flex-1 min-w-0 truncate">{v.vehicleType}</span>
-                    {v.note && <span className="text-xs text-white/50 truncate max-w-[180px]">{v.note}</span>}
+                    <span className="text-sm font-medium text-white/85 flex-1 min-w-0 truncate">
+                      {v.vehicleType}
+                      {v.plate && <span className="text-white/40 font-normal"> · {v.plate}</span>}
+                    </span>
+                    {v.driverName && <span className="text-xs text-white/50 truncate max-w-[120px]">🧑‍✈️ {v.driverName}</span>}
+                    {v.note && <span className="text-xs text-white/50 truncate max-w-[120px]">{v.note}</span>}
                     {canManage && (
                       <button
                         onClick={() => removeVehicle.mutate(v.id)}
@@ -415,7 +422,7 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
         <AssignCrewModal jobId={job.id} onClose={() => setAssignCrewOpen(false)} />
       )}
       {addVehicleOpen && (
-        <AddVehicleModal jobId={job.id} onClose={() => setAddVehicleOpen(false)} />
+        <AssignVehicleModal jobId={job.id} onClose={() => setAddVehicleOpen(false)} />
       )}
       {expensesOpen && (
         <JobExpensesModal jobId={job.id} jobName={job.name} onClose={() => setExpensesOpen(false)} />

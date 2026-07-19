@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { eq, and, desc, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db";
 import {
   jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, incidents, insertJobSchema,
@@ -7,6 +8,7 @@ import {
   jobExpenses, insertJobExpenseSchema, jobVehicles, insertJobVehicleSchema,
   subRentals, insertSubRentalSchema,
   equipmentSets, equipmentSetItems,
+  crewMembers, jobCrewMembers, vehicles,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
@@ -757,35 +759,48 @@ jobsRouter.post("/:id/containers/:containerId/load", async (req, res) => {
   }
 });
 
-// GET /api/jobs/:id/crew — ทีมงานที่ assign ให้ job นี้
+// คำนวณ initials จากชื่อ (2 ตัวอักษรแรกของคำแรก 2 คำ)
+function crewInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+// GET /api/jobs/:id/crew — ทีมงานที่ assign ให้ job นี้ (จาก crew_members roster)
 jobsRouter.get("/:id/crew", async (req, res) => {
   try {
     const assigned = await db
       .select()
-      .from(jobCrew)
-      .where(eq(jobCrew.jobId, req.params.id));
+      .from(jobCrewMembers)
+      .where(eq(jobCrewMembers.jobId, req.params.id));
 
     if (assigned.length === 0) return res.json([]);
 
-    const userIds = assigned.map((a) => a.userId);
-    const userRows = await db
-      .select({ id: users.id, name: users.name, initials: users.initials, role: users.role })
-      .from(users)
-      .where(inArray(users.id, userIds));
-    const userMap = Object.fromEntries(userRows.map((u) => [u.id, u]));
+    const ids = assigned.map((a) => a.crewMemberId);
+    const memberRows = await db
+      .select({ id: crewMembers.id, name: crewMembers.name, type: crewMembers.type, role: crewMembers.role, userId: crewMembers.userId })
+      .from(crewMembers)
+      .where(inArray(crewMembers.id, ids));
+    const memberMap = Object.fromEntries(memberRows.map((m) => [m.id, m]));
 
-    res.json(assigned.map((a) => ({
-      userId:   a.userId,
-      name:     userMap[a.userId]?.name     ?? "Unknown",
-      initials: userMap[a.userId]?.initials ?? "?",
-      role:     userMap[a.userId]?.role     ?? "crew",
-    })));
+    res.json(assigned.map((a) => {
+      const m = memberMap[a.crewMemberId];
+      return {
+        crewMemberId: a.crewMemberId,
+        name:     m?.name ?? "Unknown",
+        type:     m?.type ?? "own_crew",
+        role:     a.role ?? m?.role ?? null,
+        initials: crewInitials(m?.name ?? "?"),
+        hasAccount: !!m?.userId,
+      };
+    }));
   } catch {
     res.status(500).json({ message: "Failed to fetch job crew" });
   }
 });
 
-// POST /api/jobs/:id/crew — assign ทีมงานคนหนึ่งเข้า job
+// POST /api/jobs/:id/crew — assign ทีมงาน (crew_member) เข้า job; own-crew ที่มี account ได้ notification
 jobsRouter.post("/:id/crew", async (req, res) => {
   try {
     const [job] = await db
@@ -795,27 +810,38 @@ jobsRouter.post("/:id/crew", async (req, res) => {
 
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-    const { userId }: { userId: string } = req.body;
-    if (!userId) return res.status(400).json({ message: "userId is required" });
+    const { crewMemberId, role }: { crewMemberId: string; role?: string } = req.body;
+    if (!crewMemberId) return res.status(400).json({ message: "crewMemberId is required" });
+
+    // ต้องเป็นทีมงานของบริษัทนี้
+    const [member] = await db
+      .select({ id: crewMembers.id, userId: crewMembers.userId })
+      .from(crewMembers)
+      .where(and(eq(crewMembers.id, crewMemberId), eq(crewMembers.companyId, req.companyId)));
+    if (!member) return res.status(404).json({ message: "ไม่พบทีมงาน" });
 
     const existing = await db
       .select()
-      .from(jobCrew)
-      .where(and(eq(jobCrew.jobId, req.params.id), eq(jobCrew.userId, userId)));
+      .from(jobCrewMembers)
+      .where(and(eq(jobCrewMembers.jobId, req.params.id), eq(jobCrewMembers.crewMemberId, crewMemberId)));
 
-    if (existing.length > 0) return res.status(409).json({ message: "User already assigned to this job" });
+    if (existing.length > 0) return res.status(409).json({ message: "ทีมงานคนนี้ถูก assign เข้างานนี้แล้ว" });
 
-    const data = insertJobCrewSchema.parse({ jobId: req.params.id, userId, role: null });
-    const [row] = await db.insert(jobCrew).values(data).returning();
+    const [row] = await db.insert(jobCrewMembers)
+      .values({ jobId: req.params.id, crewMemberId, role: role ?? null })
+      .returning();
 
-    await notify({
-      companyId: req.companyId,
-      userIds: [userId],
-      actorId: req.userId,
-      type: "job_assigned",
-      meta: { jobName: job.name },
-      link: "Jobs",
-    });
+    // แจ้งเตือนเฉพาะ own-crew ที่ผูก user account
+    if (member.userId) {
+      await notify({
+        companyId: req.companyId,
+        userIds: [member.userId],
+        actorId: req.userId,
+        type: "job_assigned",
+        meta: { jobName: job.name },
+        link: "Jobs",
+      });
+    }
 
     res.status(201).json(row);
   } catch (err: any) {
@@ -823,8 +849,8 @@ jobsRouter.post("/:id/crew", async (req, res) => {
   }
 });
 
-// DELETE /api/jobs/:id/crew/:userId — เอาทีมงานออกจาก job
-jobsRouter.delete("/:id/crew/:userId", async (req, res) => {
+// DELETE /api/jobs/:id/crew/:crewMemberId — เอาทีมงานออกจาก job
+jobsRouter.delete("/:id/crew/:crewMemberId", async (req, res) => {
   try {
     const [job] = await db
       .select({ name: jobs.name })
@@ -832,13 +858,18 @@ jobsRouter.delete("/:id/crew/:userId", async (req, res) => {
       .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
 
     await db
-      .delete(jobCrew)
-      .where(and(eq(jobCrew.jobId, req.params.id), eq(jobCrew.userId, req.params.userId)));
+      .delete(jobCrewMembers)
+      .where(and(eq(jobCrewMembers.jobId, req.params.id), eq(jobCrewMembers.crewMemberId, req.params.crewMemberId)));
 
-    if (job) {
+    const [member] = await db
+      .select({ userId: crewMembers.userId })
+      .from(crewMembers)
+      .where(eq(crewMembers.id, req.params.crewMemberId));
+
+    if (job && member?.userId) {
       await notify({
         companyId: req.companyId,
-        userIds: [req.params.userId],
+        userIds: [member.userId],
         actorId: req.userId,
         type: "job_removed",
         meta: { jobName: job.name },
@@ -1238,12 +1269,25 @@ jobsRouter.delete("/expenses/:expenseId", async (req, res) => {
 
 // ─── Job Vehicles (รถที่ใช้ในงาน — logistics เท่านั้น ไม่ผูกกับต้นทุน) ──────
 
-// GET /api/jobs/:id/vehicles
+// GET /api/jobs/:id/vehicles — รถที่ใช้ในงาน (join คลังรถ + คนขับ)
 jobsRouter.get("/:id/vehicles", async (req, res) => {
   try {
+    const driver = alias(crewMembers, "driver");
     const result = await db
-      .select()
+      .select({
+        id:                 jobVehicles.id,
+        jobId:              jobVehicles.jobId,
+        vehicleType:        jobVehicles.vehicleType,
+        vehicleId:          jobVehicles.vehicleId,
+        driverCrewMemberId: jobVehicles.driverCrewMemberId,
+        note:               jobVehicles.note,
+        createdAt:          jobVehicles.createdAt,
+        plate:              vehicles.plate,
+        driverName:         driver.name,
+      })
       .from(jobVehicles)
+      .leftJoin(vehicles, eq(jobVehicles.vehicleId, vehicles.id))
+      .leftJoin(driver, eq(jobVehicles.driverCrewMemberId, driver.id))
       .where(and(eq(jobVehicles.jobId, req.params.id), eq(jobVehicles.companyId, req.companyId)))
       .orderBy(desc(jobVehicles.createdAt));
     res.json(result);
@@ -1252,13 +1296,28 @@ jobsRouter.get("/:id/vehicles", async (req, res) => {
   }
 });
 
-// POST /api/jobs/:id/vehicles — เพิ่มรถที่ใช้ในงาน
+// POST /api/jobs/:id/vehicles — เพิ่มรถ (จากคลัง vehicleId หรือ ad-hoc vehicleType) + คนขับ (optional)
 jobsRouter.post("/:id/vehicles", async (req, res) => {
   try {
+    const { vehicleId, driverCrewMemberId, note } = req.body ?? {};
+    let vehicleType: string | undefined = req.body?.vehicleType?.trim() || undefined;
+
+    if (vehicleId) {
+      const [v] = await db.select({ name: vehicles.name })
+        .from(vehicles)
+        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.companyId, req.companyId)));
+      if (!v) return res.status(404).json({ message: "ไม่พบรถในคลัง" });
+      if (!vehicleType) vehicleType = v.name;   // ใช้ชื่อรถจากคลังเป็น label
+    }
+    if (!vehicleType) return res.status(400).json({ message: "ต้องระบุรถ (เลือกจากคลัง หรือพิมพ์ประเภทรถ)" });
+
     const data = insertJobVehicleSchema.parse({
-      ...req.body,
-      jobId:     req.params.id,
-      companyId: req.companyId,
+      jobId:              req.params.id,
+      companyId:          req.companyId,
+      vehicleType,
+      vehicleId:          vehicleId ?? null,
+      driverCrewMemberId: driverCrewMemberId ?? null,
+      note:               note ?? null,
     });
 
     const [vehicle] = await db.insert(jobVehicles).values(data).returning();

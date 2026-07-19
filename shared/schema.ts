@@ -39,6 +39,7 @@ export const activityTypeEnum = pgEnum("activity_type", ["stock", "finance", "ma
 export const jobExpenseCategoryEnum = pgEnum("job_expense_category", ["staff", "transport"]);
 export const jobUnitPhaseEnum        = pgEnum("job_unit_phase", ["planned", "prepared", "dispatched", "returned"]);
 export const stockTrackingModeEnum  = pgEnum("stock_tracking_mode", ["unit", "bulk"]);
+export const crewTypeEnum           = pgEnum("crew_type", ["own_crew", "freelancer", "outsource", "loader"]);
 export const notificationTypeEnum = pgEnum("notification_type", [
   "job_assigned", "job_removed", "job_updated",
   "pullsheet_assigned", "maintenance_assigned", "stock_added",
@@ -233,13 +234,54 @@ export const jobExpenses = pgTable("job_expenses", {
 // 7c. JOB VEHICLES — รถที่ใช้ในงาน (เช่น รถ 6 ล้อ, กระบะ) — ข้อมูล logistics ไม่ผูกกับต้นทุน
 // ─────────────────────────────────────────────
 
+// ─────────────────────────────────────────────
+// 7b. CREW MEMBERS — คลังทีมงาน (roster) รวมทุกประเภท (own/freelancer/outsource/loader)
+// own-crew ผูก user account ได้ (login + แจ้งเตือน); freelancer/loader ไม่ต้องมี account
+// ─────────────────────────────────────────────
+
+export const crewMembers = pgTable("crew_members", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),
+  type:      crewTypeEnum("type").default("own_crew").notNull(),
+  phone:     text("phone"),
+  role:      text("role"),                       // ตำแหน่ง เช่น "Sound Engineer" (free text)
+  note:      text("note"),
+  dayRate:   decimal("day_rate", { precision: 10, scale: 2 }),   // ค่าตัว/วัน (optional)
+  userId:    uuid("user_id").references(() => users.id, { onDelete: "set null" }),  // own-crew ↔ account
+  active:    boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("crew_members_company_id_idx").on(t.companyId),
+]);
+
+// ─────────────────────────────────────────────
+// 7c. VEHICLES — คลังรถ (roster) ใช้ซ้ำได้ + จัดตารางลงงาน
+// ─────────────────────────────────────────────
+
+export const vehicles = pgTable("vehicles", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  name:      text("name").notNull(),             // เช่น "รถ 6 ล้อ คันที่ 1"
+  type:      text("type"),                       // เช่น "รถ 6 ล้อ", "กระบะ"
+  plate:     text("plate"),                       // ทะเบียน
+  capacity:  text("capacity"),                    // เช่น "5 ตัน"
+  note:      text("note"),
+  active:    boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("vehicles_company_id_idx").on(t.companyId),
+]);
+
 export const jobVehicles = pgTable("job_vehicles", {
-  id:          uuid("id").primaryKey().defaultRandom(),
-  companyId:   uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
-  jobId:       uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
-  vehicleType: text("vehicle_type").notNull(),
-  note:        text("note"),
-  createdAt:   timestamp("created_at").defaultNow().notNull(),
+  id:                 uuid("id").primaryKey().defaultRandom(),
+  companyId:          uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:              uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  vehicleType:        text("vehicle_type").notNull(),   // label (จากคลัง = vehicle.name, หรือ ad-hoc free-text)
+  vehicleId:          uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),          // อ้างคลังรถ (null = ad-hoc)
+  driverCrewMemberId: uuid("driver_crew_member_id").references(() => crewMembers.id, { onDelete: "set null" }), // คนขับ
+  note:               text("note"),
+  createdAt:          timestamp("created_at").defaultNow().notNull(),
 });
 
 // ─────────────────────────────────────────────
@@ -269,6 +311,17 @@ export const jobCrew = pgTable("job_crew", {
 }, (t) => [
   index("job_crew_job_id_idx").on(t.jobId),
   index("job_crew_user_id_idx").on(t.userId),
+]);
+
+// job_crew_members — assignment ทีมงาน (crew_members) เข้างาน — แทนที่ job_crew (users)
+export const jobCrewMembers = pgTable("job_crew_members", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  jobId:        uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  crewMemberId: uuid("crew_member_id").references(() => crewMembers.id, { onDelete: "cascade" }).notNull(),
+  role:         text("role"),  // ตำแหน่งเฉพาะงานนี้ (optional)
+}, (t) => [
+  index("job_crew_members_job_id_idx").on(t.jobId),
+  index("job_crew_members_crew_member_id_idx").on(t.crewMemberId),
 ]);
 
 // ─────────────────────────────────────────────
@@ -658,6 +711,9 @@ export const insertContainerTypeSchema = createInsertSchema(containerTypes).omit
 export const insertJobUnitSchema      = createInsertSchema(jobUnits).omit({ id: true });
 export const insertJobContainerSchema = createInsertSchema(jobContainers).omit({ id: true });
 export const insertJobCrewSchema      = createInsertSchema(jobCrew).omit({ id: true });
+export const insertCrewMemberSchema   = createInsertSchema(crewMembers).omit({ id: true, createdAt: true });
+export const insertVehicleSchema      = createInsertSchema(vehicles).omit({ id: true, createdAt: true });
+export const insertJobCrewMemberSchema = createInsertSchema(jobCrewMembers).omit({ id: true });
 export const insertPullSheetSchema    = createInsertSchema(pullSheets)
   .omit({ id: true, createdAt: true, companyId: true, createdById: true, status: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
@@ -708,6 +764,13 @@ export type InsertJobContainer = z.infer<typeof insertJobContainerSchema>;
 
 export type JobCrew       = typeof jobCrew.$inferSelect;
 export type InsertJobCrew = z.infer<typeof insertJobCrewSchema>;
+
+export type CrewMember       = typeof crewMembers.$inferSelect;
+export type InsertCrewMember = z.infer<typeof insertCrewMemberSchema>;
+export type Vehicle          = typeof vehicles.$inferSelect;
+export type InsertVehicle    = z.infer<typeof insertVehicleSchema>;
+export type JobCrewMember       = typeof jobCrewMembers.$inferSelect;
+export type InsertJobCrewMember = z.infer<typeof insertJobCrewMemberSchema>;
 
 export type PullSheet       = typeof pullSheets.$inferSelect;
 export type InsertPullSheet = z.infer<typeof insertPullSheetSchema>;

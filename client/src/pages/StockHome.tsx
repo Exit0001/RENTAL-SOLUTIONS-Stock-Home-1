@@ -1,10 +1,11 @@
-import { Home, Boxes, Briefcase, DollarSign, Clock, Settings } from "lucide-react";
+import { Home, Boxes, Briefcase, DollarSign, Clock, Settings, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { StockManagementHeaderSection } from "./sections/StockManagementHeaderSection";
 import { HomePage } from "./sections/HomePage";
 import { StockPage } from "./sections/StockPage";
 import { FinancePage } from "./sections/FinancePage";
 import { JobsPage } from "./sections/JobsPage";
+import { CrewPage } from "./sections/CrewPage";
 import { HistoryPage } from "./sections/HistoryPage";
 import { SettingsPage } from "./sections/SettingsPage";
 import { useAppStore } from "@/store/appStore";
@@ -33,6 +34,7 @@ export const StockHome = (): JSX.Element => {
     { key: "Stock",    labelKey: "stock",    Icon: Boxes,      roles: ["admin", "manager"] },
     { key: "Finance",  labelKey: "finance",  Icon: DollarSign, roles: ["admin", "manager"] },
     { key: "Jobs",     labelKey: "jobs",     Icon: Briefcase,  roles: ["admin", "manager", "crew"] },
+    { key: "Crew",     labelKey: "crew",     Icon: Users,      roles: ["admin", "manager"] },
     { key: "History",  labelKey: "history",  Icon: Clock,      roles: ["admin", "manager"] },
     { key: "Settings", labelKey: "settings", Icon: Settings,   roles: ["admin", "manager", "crew"] },
   ].filter((item) => !userRole || item.roles.includes(userRole));
@@ -43,6 +45,7 @@ export const StockHome = (): JSX.Element => {
       case "Stock":    return <StockPage />;
       case "Finance":  return <FinancePage />;
       case "Jobs":     return <JobsPage />;
+      case "Crew":     return <CrewPage />;
       case "History":  return <HistoryPage />;
       case "Settings": return <SettingsPage />;
       default:         return <HomePage onNavigate={setActivePage} />;

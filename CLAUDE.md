@@ -78,17 +78,20 @@ style={{ backgroundColor: "#FFFF00" }}
 className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0"
 ```
 
-## Database Schema (33 tables)
+## Database Schema (36 tables)
 
 ```
 companies → users, stock_items, containers, jobs, maintenance_logs, quotes, invoices, incidents, activity_log
 stock_items → stock_units → container_units → containers
 stock_items → item_accessories (goes-with links)
-jobs → job_stock, job_crew, job_units, job_containers, job_expenses, job_vehicles, pull_sheets, sub_rentals, quotes, invoices, incidents
+jobs → job_stock, job_crew_members, job_units, job_containers, job_expenses, job_vehicles, pull_sheets, sub_rentals, quotes, invoices, incidents
 job_templates → job_template_items          (named item+qty lists → create a NEW job)
-equipment_sets → equipment_set_items         (reusable kits → add to ANY job, see below)
+equipment_sets → equipment_set_items         (reusable kits → add to ANY job)
+crew_members (roster, all types) → job_crew_members    (crew assigned to jobs — see "Crew & Vehicles")
+vehicles (roster) → job_vehicles.vehicle_id            (vehicles assigned to jobs, + driver)
 catalog: brands, categories, sub_categories, locations, positions, container_types
 notifications, push_subscriptions
+job_crew (LEGACY, users↔jobs) — superseded by job_crew_members; kept for the /jobs/crew data endpoint
 ```
 
 All enums are `pgEnum` (enforced at DB level): `userRoleEnum`, `jobStatusEnum`, `stockUnitStatusEnum`, `containerTypeEnum`, `maintenanceTypeEnum`, `quoteStatusEnum`, `invoiceStatusEnum`, `incidentSeverityEnum`, `activityTypeEnum`, `maintenanceStatusEnum`, `subRentalStatusEnum`, `incidentStatusEnum`, `pullSheetStatusEnum`, `stockTrackingModeEnum`.
@@ -639,6 +642,38 @@ types. Selection model = `autoQty: Map<stockItemId, number>` + `pinned: Map<unit
 `SetBuilderModal.tsx` is the reference consumer. (This is a *different* selection model from
 `ManageJobStockModal`'s `cartUnits`/`cartBulkLines`+zones, which stays job-specific — don't try to
 merge them.)
+
+### Crew & Vehicles — dedicated resource-management page (`Crew` nav, separate from Jobs)
+Crew/team + vehicle management is its own top-level section (`StockHome.tsx` navItems key `"Crew"`,
+`CrewPage.tsx`), split from Jobs so **operations (jobs) and resources (people+vehicles) are separate**.
+People and vehicles can be assigned to a job **in advance** (a job needs only a name/dates, no
+equipment) — assignment happens from `JobDetailModal.tsx`'s Crew & Vehicles sections.
+
+- **Data**: `crew_members` (roster of ALL people: `crew_type` enum `own_crew|freelancer|outsource|loader`;
+  own-crew optionally links a `users` account via `user_id` for login + notifications; freelancers/
+  loaders need no account). `vehicles` (roster: name/type/plate/capacity). `job_crew_members`
+  (crew↔job, **replaces the old `job_crew` which was users↔job**). `job_vehicles` gained `vehicle_id`
+  (→ roster) + `driver_crew_member_id`; `vehicle_type` text kept for ad-hoc + as the roster-name label.
+  Migration `0015_youthful_rictor.sql` + `scripts/migrate-crew.mjs` (seeds crew_members from users,
+  migrates job_crew → job_crew_members). Already applied to the live DB.
+- **Backend** `server/routes/crew.ts` (`/api/crew`): roster CRUD `GET/POST/PUT/DELETE /` (crew) and
+  `/vehicles` (write = Admin/Manager); `GET /matrix` → `{jobId, crewMemberId}[]` and
+  `GET /vehicles/matrix` → `{jobId, vehicleId}[]` feed the schedule Gantt. Job assignment moved in
+  `jobs.ts`: `GET/POST /jobs/:id/crew` (`{crewMemberId}`) + `DELETE /jobs/:id/crew/:crewMemberId` now
+  use `job_crew_members`; **notify() fires only when the crew_member has a linked `user_id`**.
+  `POST /jobs/:id/vehicles` accepts `{vehicleId?, driverCrewMemberId?, vehicleType?, note?}`; `GET`
+  joins vehicle plate + driver name (self-join `alias`).
+- **Client** (`client/src/api/index.ts`): `crewApi` + `vehiclesApi` (roster CRUD + `getMatrix`);
+  `jobsApi.assignCrew(jobId, crewMemberId)`. Types `CrewMemberRow`/`VehicleRow`/`JobVehicleRow`/
+  `CrewType` (note: the older `CrewMember` type = the `/jobs/crew` payload, kept separate). Query keys
+  `["crew-members"]`, `["vehicles"]`, `["crew-matrix"]`, `["vehicle-matrix"]`, `["job-crew", jobId]`,
+  `["job-vehicles", jobId]`.
+- **UI**: `CrewPage.tsx` = 3 tabs — **ทีมงาน** (roster grouped by 4 types), **รถ** (vehicle roster),
+  **ตารางงาน** (`ResourceScheduleView.tsx` — the old CrewScheduleView generalized to any resource;
+  rows = crew grouped by type + a vehicles section, bars from job dates, bar click → `JobDetailModal`).
+  Modals: `AddCrewMemberModal`, `AddVehicleRosterModal`, reworked `AssignCrewModal` (roster + type
+  filter, exports `CREW_TYPE_LABEL`), new `AssignVehicleModal` (roster vehicle + driver). The old Jobs
+  "crew" sub-tab and `CrewScheduleView.tsx` were removed.
 
 ### Backup / Data Export (Admin-only, company-scoped)
 Per-company data export as a single downloadable JSON — the **multi-tenant-safe** way to let a
