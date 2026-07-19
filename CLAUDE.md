@@ -78,13 +78,16 @@ style={{ backgroundColor: "#FFFF00" }}
 className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0"
 ```
 
-## Database Schema (25 tables)
+## Database Schema (33 tables)
 
 ```
 companies → users, stock_items, containers, jobs, maintenance_logs, quotes, invoices, incidents, activity_log
 stock_items → stock_units → container_units → containers
-jobs → job_stock, job_crew, job_units, job_containers, pull_sheets, sub_rentals, quotes, invoices, incidents
-catalog: brands, categories, sub_categories, locations, container_types
+stock_items → item_accessories (goes-with links)
+jobs → job_stock, job_crew, job_units, job_containers, job_expenses, job_vehicles, pull_sheets, sub_rentals, quotes, invoices, incidents
+job_templates → job_template_items          (named item+qty lists → create a NEW job)
+equipment_sets → equipment_set_items         (reusable kits → add to ANY job, see below)
+catalog: brands, categories, sub_categories, locations, positions, container_types
 notifications, push_subscriptions
 ```
 
@@ -140,6 +143,8 @@ For per-item detail views also invalidate `["stock", stockItemId]`.
 | ScanModal scan (any mode) | `["job-units", jobId]`, `["stock"]`, `["stock", unit.stockItemId]` |
 | JobSubRentalsModal add/delete/return | `["job-subrentals", jobId]`, `["subrentals"]`, `["finance-costing"]` |
 | EditContainerModal / batch AddContainerModal | `["containers"]` |
+| SetBuilderModal create/update, StockPage deleteSet | `["equipment-sets"]` |
+| AddSetToJobModal apply-set / AddJobModal applySet | `["job-units", jobId]`, `["job-bulk-stock", jobId]`, `["stock"]`, `["stock-with-units"]` |
 
 ### Legacy data ⚠️ run this in Supabase SQL Editor
 
@@ -152,7 +157,7 @@ WHERE su.status = 'available'
   AND EXISTS (SELECT 1 FROM job_units ju WHERE ju.stock_unit_id = su.id);
 ```
 
-## Current State (as of 2026-07-09)
+## Current State (as of 2026-07-19)
 
 ### Data
 - **2,188 stock_units** and **793 stock_items** migrated from `tenyear_backup_2026-06-09.sql` via `scripts/migrate-tenyear.js`
@@ -253,6 +258,14 @@ ALTER TABLE "containers" ADD COLUMN IF NOT EXISTS "image_url" text;
 ```
 Until run, editing a container's photo will fail (column doesn't exist) — creating/listing containers
 still works since `imageUrl` is optional and simply omitted from the row.
+
+**Already applied (2026-07-19)** — `equipment_sets` + `equipment_set_items` tables for the
+Equipment Sets (ชุดอุปกรณ์ / Kits) feature. In `shared/schema.ts` and
+`migrations/0014_modern_impossible_man.sql` (the `.sql` was hand-trimmed to ONLY the two new
+tables — `db:generate` regenerated a polluted file full of drift because the journal is out of
+sync; do the same trim if you regenerate). Applied to Supabase via a direct-connection script,
+already created. `equipment_set_items.unit_id` is nullable — `null` = auto-pick line
+(quantity of a model), non-null = pinned specific unit. See "Equipment Sets" below.
 
 ### Migration script state
 `npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
@@ -586,6 +599,62 @@ and managed from inside the job that needs them, not from a standalone Stock-pag
 - Renamed the Thai label throughout (tab, buttons, modal titles, hints): **"เช่าช่วง" →
   "เช่าจากภายนอก"** — clearer that it's gear from an external company, not an internal sub-lease.
   English label unchanged ("Sub-Rentals").
+
+### Equipment Sets (ชุดอุปกรณ์ / Kits) — reusable bundles added to a job in one action
+A named, reusable kit (e.g. "ชุดกลอง Yamaha BG2" = drums + hardware, or "ชุดถ่าน+ชาร์จ") with an
+image + note, added to any job in one click. Distinct from the three older grouping concepts:
+**Containers** (specific physical units in a real case, one job at a time, no bulk), **Job
+Templates** (item+qty list that only *creates a new job*), **Item Accessories** (per-item goes-with).
+
+- **Data** (`shared/schema.ts`): `equipment_sets` (companyId, name, description, imageUrl) +
+  `equipment_set_items` (setId, stockItemId, quantity, `unitId` nullable). `unitId = null` →
+  **auto-pick** line (quantity of a model; for `trackingMode='bulk'` items this is a bulk qty);
+  `unitId` set → **pinned** specific serial unit (quantity forced to 1). A set stores both kinds.
+- **Backend** (`server/routes/equipmentSets.ts`, `/api/equipment-sets`): GET list (+`itemCount`/
+  `totalQty`), GET `/:id` (items + itemName/trackingMode + pinned unit serial), POST create,
+  PUT (edit meta + **replace-all** items), DELETE (Admin/Manager). Forked from
+  `jobTemplates.ts`.
+- **Add to an existing job** (`server/routes/jobs.ts`): `POST /api/jobs/:id/apply-set/:setId` —
+  **merge** (dedups against units already on the job), pinned units used exactly, auto lines pick
+  available units up to `quantity`, bulk lines upsert `job_stock`. **Does NOT touch
+  `stock_units.status`** (Sync Contract). Returns `{ shortfall: [{stockItemId, wanted, got}] }`
+  when stock is insufficient — mirror this pattern for any future "expand onto job" flow.
+- **Client** (`client/src/api/index.ts`): `equipmentSetsApi` (getAll/getById/create/update/delete)
+  + `jobsApi.applySet(jobId, setId)`. Query keys `["equipment-sets"]`, `["equipment-sets", id]`.
+  Invalidate `["equipment-sets"]` on any set mutation; on apply-set invalidate `["job-units",
+  jobId]`, `["job-bulk-stock", jobId]`, `["stock"]`, `["stock-with-units"]`.
+- **UI**: 5th Stock tab **"ชุดอุปกรณ์"** (`StockPage.tsx`, card grid + create/edit/delete);
+  `SetBuilderModal.tsx` (create/edit); `AddSetToJobModal.tsx` (one-click add + shortfall warning,
+  opened from the Jobs page "เพิ่มชุด" button next to "Add Rack"); a "จากชุดอุปกรณ์" `<select>` in
+  `AddJobModal.tsx` (creates the job then calls `applySet`). Image upload reuses `FileUploadField`
+  with the new `folder="sets"`.
+
+### Reusable two-pane equipment picker (`EquipmentPicker.tsx`)
+Any feature that lets the user "pick equipment by quantity-per-model + optional pinned units"
+should reuse this instead of building its own list. Exports `EquipmentCatalogPane` (left: search +
+category→brand→sub-category chip filters + grouped list with a per-model `[− N +]` stepper and
+expandable unit rows for pinning serials) and `EquipmentCartPane` (right: persistent "selected"
+summary, editable/removable), plus `maxAvailFor(item)` and the `PickerAutoMap`/`PickerPinMap`
+types. Selection model = `autoQty: Map<stockItemId, number>` + `pinned: Map<unitId, stockItemId>`.
+`SetBuilderModal.tsx` is the reference consumer. (This is a *different* selection model from
+`ManageJobStockModal`'s `cartUnits`/`cartBulkLines`+zones, which stays job-specific — don't try to
+merge them.)
+
+### Backup / Data Export (Admin-only, company-scoped)
+Per-company data export as a single downloadable JSON — the **multi-tenant-safe** way to let a
+customer keep their own backup (a full `pg_dump` would leak other tenants; Supabase already does
+server-level DB backups as a separate layer).
+
+- **Backend** (`server/routes/backup.ts`, `/api/backup`): `GET /export` — **Admin only**
+  (`req.userRole !== "admin"` → 403). Gathers all 24 company-scoped tables (filtered by
+  `companyId`) + 7 child tables (filtered via parent ids: container_units, job_stock/crew/units/
+  containers, job_template_items, equipment_set_items) into one JSON `{ meta, data }`
+  (`meta.rowCount` per table), sent as an `attachment` download. **Excludes `push_subscriptions`**
+  (transient device tokens / secrets). Every query is `company_id`-scoped — no cross-tenant leak.
+- **Client**: `backupApi.exportData()` → `fetchBlob("/backup/export")`. UI = an admin-only
+  "สำรองข้อมูล" card in **Settings → General** (`SettingsPage.tsx`); the click handler creates an
+  object URL and triggers a `stak-backup-{company}-{date}.json` download.
+- Export-only for now (no restore/import).
 
 ## Adding a New Feature
 
