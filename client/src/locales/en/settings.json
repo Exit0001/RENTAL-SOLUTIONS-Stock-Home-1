@@ -24,6 +24,11 @@
   "lineGroupIdLabel": "Group ID",
   "lineSaved": "LINE settings saved",
 
+  "backupTitle": "Data Backup",
+  "backupHelpText": "Download all of your company's data (inventory, jobs, equipment sets, quotes, etc.) as a single JSON file to keep your own backup copy — this file contains only your company's data (Supabase also keeps automated server-level database backups as an extra layer).",
+  "backupExportBtn": "Download backup (.json)",
+  "backupDone": "Backup downloaded",
+
   "inviteNewMember": "Invite New Member",
   "memberNamePlaceholder": "Member name (optional)",
   "memberEmailPlaceholder": "Member email",

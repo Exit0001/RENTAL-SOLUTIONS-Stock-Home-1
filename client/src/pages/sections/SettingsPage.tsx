@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2, Camera, Bell } from "lucide-react";
+import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2, Camera, Bell, Download, Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
-import { authApi, pushApi } from "@/api";
+import { authApi, pushApi, backupApi } from "@/api";
 import { uploadAttachment } from "@/components/FileUploadField";
 
 // แปลง VAPID public key (base64url) เป็น Uint8Array สำหรับ pushManager.subscribe()
@@ -62,6 +62,32 @@ export const SettingsPage = (): JSX.Element => {
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushLoading, setPushLoading]     = useState(false);
   const [pushMsg, setPushMsg]             = useState("");
+
+  // Backup / export data
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupMsg, setBackupMsg]         = useState("");
+
+  const handleExportBackup = async () => {
+    setBackupLoading(true);
+    setBackupMsg("");
+    try {
+      const blob = await backupApi.exportData();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.download = `stak-backup-${(companyName || "company").replace(/[^a-zA-Z0-9ก-๙_-]+/g, "_")}-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setBackupMsg("✓ " + t("backupDone"));
+    } catch (err: any) {
+      setBackupMsg(err?.message ?? "Export failed");
+    } finally {
+      setBackupLoading(false);
+    }
+  };
 
   const { data: team = [], isLoading: teamLoading } = useQuery({
     queryKey: ["team"], queryFn: authApi.getTeam, enabled: !!token,
@@ -293,6 +319,28 @@ export const SettingsPage = (): JSX.Element => {
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
                 {saveLine.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {tc("saveChanges")}
+              </button>
+            </div>
+          )}
+
+          {userRole === "admin" && (
+            <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-[#FFFF00]/70" />
+                <h3 className="text-sm font-semibold text-white/70">{t("backupTitle")}</h3>
+              </div>
+              <p className="text-xs text-white/50 leading-relaxed">{t("backupHelpText")}</p>
+
+              {backupMsg && (
+                <p className={`text-xs px-3 py-2 rounded-lg ${backupMsg.startsWith("✓") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+                  {backupMsg}
+                </p>
+              )}
+
+              <button onClick={handleExportBackup} disabled={backupLoading}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+                {backupLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                {t("backupExportBtn")}
               </button>
             </div>
           )}

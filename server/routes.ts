@@ -16,6 +16,7 @@ import { pushRouter } from "./routes/push";
 import { statsRouter } from "./routes/stats";
 import { analyticsRouter } from "./routes/analytics";
 import { catalogRouter } from "./routes/catalog";
+import { backupRouter } from "./routes/backup";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -43,6 +44,7 @@ export async function registerRoutes(
   app.use("/api/stats",       statsRouter);
   app.use("/api/analytics",   analyticsRouter);
   app.use("/api/catalog",     catalogRouter);
+  app.use("/api/backup",      backupRouter);
 
   return httpServer;
 }

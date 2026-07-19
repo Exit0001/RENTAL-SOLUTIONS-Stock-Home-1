@@ -443,6 +443,12 @@ export const equipmentSetsApi = {
   delete:  (id: string) => api.delete<{ message: string }>(`/equipment-sets/${id}`),
 };
 
+// ─── Backup / Export (Admin only, company-scoped) ─────────
+
+export const backupApi = {
+  exportData: () => fetchBlob("/backup/export"),
+};
+
 // ─── Web Push ─────────────────────────────────────────────
 
 export const pushApi = {
