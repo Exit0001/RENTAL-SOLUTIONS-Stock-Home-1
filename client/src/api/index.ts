@@ -250,7 +250,10 @@ export const jobsApi = {
                    }>(`/jobs/${jobId}/apply-set/${setId}`, {}),
   getJobCrew:    (jobId: string) => api.get<JobCrewMember[]>(`/jobs/${jobId}/crew`),
   assignCrew:    (jobId: string, crewMemberId: string, role?: string) => api.post<JobCrew>(`/jobs/${jobId}/crew`, { crewMemberId, role }),
+  updateCrewRole:(jobId: string, crewMemberId: string, role: string | null) => api.put<JobCrew>(`/jobs/${jobId}/crew/${crewMemberId}`, { role }),
   unassignCrew:  (jobId: string, crewMemberId: string) => api.delete<void>(`/jobs/${jobId}/crew/${crewMemberId}`),
+  getCrewCounts: (jobId: string) => api.get<{ type: CrewType; count: number }[]>(`/jobs/${jobId}/crew-counts`),
+  setCrewCount:  (jobId: string, type: CrewType, count: number) => api.put<{ type: CrewType; count: number }>(`/jobs/${jobId}/crew-counts`, { type, count }),
 };
 
 // ─── Job Expenses (ค่าเด็กโหลด / ค่าเดินทาง-ส่งของ พร้อมสลิป) ──────
@@ -270,6 +273,8 @@ export const jobVehiclesApi = {
   getForJob: (jobId: string) => api.get<JobVehicleRow[]>(`/jobs/${jobId}/vehicles`),
   create:    (jobId: string, data: { vehicleId?: string | null; driverCrewMemberId?: string | null; vehicleType?: string; note?: string | null }) =>
                api.post<JobVehicle>(`/jobs/${jobId}/vehicles`, data),
+  update:    (vehicleId: string, data: { driverCrewMemberId?: string | null; note?: string | null }) =>
+               api.put<JobVehicle>(`/jobs/vehicles/${vehicleId}`, data),
   delete:    (vehicleId: string) => api.delete<{ message: string }>(`/jobs/vehicles/${vehicleId}`),
 };
 

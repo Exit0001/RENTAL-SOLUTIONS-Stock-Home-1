@@ -324,6 +324,16 @@ export const jobCrewMembers = pgTable("job_crew_members", {
   index("job_crew_members_crew_member_id_idx").on(t.crewMemberId),
 ]);
 
+// job_crew_counts — จำนวนคนแบบเหมา (outsource / เด็กโหลด) ต่องาน — ไม่ระบุชื่อ นับเป็นจำนวน
+export const jobCrewCounts = pgTable("job_crew_counts", {
+  id:    uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  type:  crewTypeEnum("type").notNull(),   // outsource | loader (own_crew/freelancer ใช้รายชื่อแทน)
+  count: integer("count").notNull(),
+}, (t) => [
+  index("job_crew_counts_job_id_idx").on(t.jobId),
+]);
+
 // ─────────────────────────────────────────────
 // 10b. JOB UNITS — individual units ที่ assign ให้งาน (รู้ชัดว่า serial ไหนออกงานไหน)
 // ─────────────────────────────────────────────
@@ -714,6 +724,7 @@ export const insertJobCrewSchema      = createInsertSchema(jobCrew).omit({ id: t
 export const insertCrewMemberSchema   = createInsertSchema(crewMembers).omit({ id: true, createdAt: true });
 export const insertVehicleSchema      = createInsertSchema(vehicles).omit({ id: true, createdAt: true });
 export const insertJobCrewMemberSchema = createInsertSchema(jobCrewMembers).omit({ id: true });
+export const insertJobCrewCountSchema  = createInsertSchema(jobCrewCounts).omit({ id: true });
 export const insertPullSheetSchema    = createInsertSchema(pullSheets)
   .omit({ id: true, createdAt: true, companyId: true, createdById: true, status: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
@@ -771,6 +782,8 @@ export type Vehicle          = typeof vehicles.$inferSelect;
 export type InsertVehicle    = z.infer<typeof insertVehicleSchema>;
 export type JobCrewMember       = typeof jobCrewMembers.$inferSelect;
 export type InsertJobCrewMember = z.infer<typeof insertJobCrewMemberSchema>;
+export type JobCrewCount        = typeof jobCrewCounts.$inferSelect;
+export type InsertJobCrewCount  = z.infer<typeof insertJobCrewCountSchema>;
 
 export type PullSheet       = typeof pullSheets.$inferSelect;
 export type InsertPullSheet = z.infer<typeof insertPullSheetSchema>;

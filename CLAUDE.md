@@ -668,12 +668,48 @@ equipment) — assignment happens from `JobDetailModal.tsx`'s Crew & Vehicles se
   `CrewType` (note: the older `CrewMember` type = the `/jobs/crew` payload, kept separate). Query keys
   `["crew-members"]`, `["vehicles"]`, `["crew-matrix"]`, `["vehicle-matrix"]`, `["job-crew", jobId]`,
   `["job-vehicles", jobId]`.
-- **UI**: `CrewPage.tsx` = 3 tabs — **ทีมงาน** (roster grouped by 4 types), **รถ** (vehicle roster),
-  **ตารางงาน** (`ResourceScheduleView.tsx` — the old CrewScheduleView generalized to any resource;
-  rows = crew grouped by type + a vehicles section, bars from job dates, bar click → `JobDetailModal`).
-  Modals: `AddCrewMemberModal`, `AddVehicleRosterModal`, reworked `AssignCrewModal` (roster + type
-  filter, exports `CREW_TYPE_LABEL`), new `AssignVehicleModal` (roster vehicle + driver). The old Jobs
-  "crew" sub-tab and `CrewScheduleView.tsx` were removed.
+- **`own_crew` + `freelancer` = named people (roster); `outsource` + `loader` = per-job HEADCOUNT
+  (จำนวนคน, not names)**. Named types are added in the roster (`AddCrewMemberModal` only offers those
+  two; `CrewPage` `NAMED_TYPES` and `AssignCrewModal` filter to them). Outsource/loader counts live in
+  `job_crew_counts (jobId, type, count)` — endpoints `GET /jobs/:id/crew-counts` and
+  `PUT /jobs/:id/crew-counts {type,count}` (upsert; count 0 deletes). Client:
+  `jobsApi.getCrewCounts`/`setCrewCount`, query key `["job-crew-counts", jobId]`. Migration
+  `0016_job_crew_counts.sql` (applied).
+- **UI = `CrewPage.tsx` — ONE single-page, 3-column layout (no sub-tabs, no full-screen modal)**:
+  - LEFT column = roster of **named people (own/freelancer) + vehicles**; "+คน"/"+รถ" open small popup
+    forms (`AddCrewMemberModal`/`AddVehicleRosterModal`), pencil/trash per row edit/delete. When a job
+    is selected, clicking a roster row toggles assign/unassign to it (check mark).
+  - CENTER column = a "เลือกงาน" job-picker strip + the **`ResourceScheduleView.tsx` Gantt** (crew
+    grouped by type + vehicles rows, bars from job dates). Clicking a strip chip or a bar selects the
+    job (drives left + right).
+  - RIGHT column = the selected job's **call sheet**: named crew grouped with a **group toggle
+    ตามตำแหน่ง/ตามประเภท** + inline per-job **role** `<select>`, a **"แรงงานเหมา (จำนวนคน)"** block with
+    **steppers for outsource + loader**, and vehicle cards with an inline **driver** `<select>`. No
+    save button — every click is an immediate mutation.
+  Backend endpoints it relies on (in `jobs.ts`): `PUT /jobs/:id/crew/:crewMemberId {role}`
+  (`jobsApi.updateCrewRole`) + `PUT /jobs/vehicles/:vehicleId {driverCrewMemberId, note}`
+  (`jobVehiclesApi.update`). Removed during iteration: the Jobs "crew" sub-tab, `CrewScheduleView.tsx`,
+  `JobStaffingModal`, `CrewOpsModal`. `JobDetailModal`'s crew/vehicle sections remain as a compact
+  per-job view (uses `AssignCrewModal` + `AssignVehicleModal`).
+
+### Jobs page — full-screen master-detail single-page workspace (`JobsPage.tsx` + `JobDetailPanel.tsx`)
+The Jobs page is a **full-height left-right master-detail** — the old top sub-tabs (งาน/ใบเบิก/
+เหตุการณ์) and the jobs table were removed; a slim header (title + status counts + เพิ่มงาน) sits above
+a `flex-1` master-detail that fills the viewport. LEFT = compact job list
+(status dot + name + client/dates, click to select via `selectedJobId`; the selected job object is
+**derived from the live `["jobs"]` list** so status edits reflect instantly). RIGHT = when nothing
+is selected, the `JobScheduleView` Gantt overview; when a job is selected, `JobDetailPanel`.
+- **`JobDetailPanel.tsx`** = the whole per-job workspace inline (replaces opening `JobDetailModal`).
+  Header: name/client/dates + status `<select>` + quick actions (Operations, แก้อุปกรณ์, save-as-template,
+  duplicate, delete — each with its own dialog/mutation). Sub-tabs: **ภาพรวม** (summary + counts) /
+  **อุปกรณ์** (racks + phase checklist + ManageJobStock/Operations/RackBuild) / **ทีม & รถ** (crew +
+  vehicles, quick assign; full staffing still lives on the Crew page) / **ใบเบิก** (this job's pull
+  sheets, filtered from `["pull-sheets"]` by `jobId`) / **เหตุการณ์** (this job's incidents, filtered
+  from `["incidents"]` by `jobId`) / **การเงิน** (expenses + sub-rentals). Heavy tools stay full-screen
+  popups opened from the panel (`ManageJobStockModal`, `JobOperationsModal`, `RackBuildModal`,
+  `AssignCrewModal`, `AssignVehicleModal`, `JobExpensesModal`, `JobSubRentalsModal`,
+  `CreatePullSheetModal`, `AddIncidentModal`). The old jobs table + its row-action buttons, and the
+  row-click `JobDetailModal`, are no longer wired (the panel supersedes them).
 
 ### Backup / Data Export (Admin-only, company-scoped)
 Per-company data export as a single downloadable JSON — the **multi-tenant-safe** way to let a

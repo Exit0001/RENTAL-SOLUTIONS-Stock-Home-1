@@ -11,7 +11,8 @@ interface Props {
   onClose: () => void;
 }
 
-const TYPES: CrewType[] = ["own_crew", "freelancer", "outsource", "loader"];
+// outsource/loader เป็นจำนวนคนต่องาน (ไม่ใช่รายชื่อ) — roster เก็บเฉพาะคนที่มีชื่อ
+const TYPES: CrewType[] = ["own_crew", "freelancer"];
 
 export const AddCrewMemberModal = ({ member, onClose }: Props): JSX.Element => {
   const { token } = useAppStore();

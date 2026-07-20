@@ -8,7 +8,7 @@ import {
   jobExpenses, insertJobExpenseSchema, jobVehicles, insertJobVehicleSchema,
   subRentals, insertSubRentalSchema,
   equipmentSets, equipmentSetItems,
-  crewMembers, jobCrewMembers, vehicles,
+  crewMembers, jobCrewMembers, vehicles, jobCrewCounts,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
@@ -883,6 +883,53 @@ jobsRouter.delete("/:id/crew/:crewMemberId", async (req, res) => {
   }
 });
 
+// PUT /api/jobs/:id/crew/:crewMemberId — แก้ตำแหน่งเฉพาะงานนี้ (per-job role)
+jobsRouter.put("/:id/crew/:crewMemberId", async (req, res) => {
+  try {
+    const { role } = req.body ?? {};
+    const [row] = await db.update(jobCrewMembers)
+      .set({ role: role?.trim() || null })
+      .where(and(eq(jobCrewMembers.jobId, req.params.id), eq(jobCrewMembers.crewMemberId, req.params.crewMemberId)))
+      .returning();
+    if (!row) return res.status(404).json({ message: "ไม่พบการมอบหมาย" });
+    res.json(row);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/jobs/:id/crew-counts — จำนวนคนแบบเหมา (outsource/loader) ต่องาน
+jobsRouter.get("/:id/crew-counts", async (req, res) => {
+  try {
+    const rows = await db.select({ type: jobCrewCounts.type, count: jobCrewCounts.count })
+      .from(jobCrewCounts).where(eq(jobCrewCounts.jobId, req.params.id));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch crew counts" });
+  }
+});
+
+// PUT /api/jobs/:id/crew-counts — ตั้งจำนวนของประเภทหนึ่ง (upsert; count<=0 = ลบ)
+jobsRouter.put("/:id/crew-counts", async (req, res) => {
+  try {
+    const { type, count } = req.body ?? {};
+    if (!type) return res.status(400).json({ message: "type is required" });
+    const n = Math.max(0, Number(count) || 0);
+    const [existing] = await db.select().from(jobCrewCounts)
+      .where(and(eq(jobCrewCounts.jobId, req.params.id), eq(jobCrewCounts.type, type)));
+    if (n === 0) {
+      if (existing) await db.delete(jobCrewCounts).where(eq(jobCrewCounts.id, existing.id));
+    } else if (existing) {
+      await db.update(jobCrewCounts).set({ count: n }).where(eq(jobCrewCounts.id, existing.id));
+    } else {
+      await db.insert(jobCrewCounts).values({ jobId: req.params.id, type, count: n });
+    }
+    res.json({ type, count: n });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // GET /api/jobs/:id/stock — bulk item quantities assigned to this job
 jobsRouter.get("/:id/stock", async (req, res) => {
   try {
@@ -1322,6 +1369,24 @@ jobsRouter.post("/:id/vehicles", async (req, res) => {
 
     const [vehicle] = await db.insert(jobVehicles).values(data).returning();
     res.status(201).json(vehicle);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PUT /api/jobs/vehicles/:vehicleId — แก้คนขับ / หมายเหตุ ของรถในงาน
+jobsRouter.put("/vehicles/:vehicleId", async (req, res) => {
+  try {
+    const { driverCrewMemberId, note } = req.body ?? {};
+    const [row] = await db.update(jobVehicles)
+      .set({
+        ...(driverCrewMemberId !== undefined ? { driverCrewMemberId: driverCrewMemberId || null } : {}),
+        ...(note !== undefined ? { note: note || null } : {}),
+      })
+      .where(and(eq(jobVehicles.id, req.params.vehicleId), eq(jobVehicles.companyId, req.companyId)))
+      .returning();
+    if (!row) return res.status(404).json({ message: "Vehicle not found" });
+    res.json(row);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

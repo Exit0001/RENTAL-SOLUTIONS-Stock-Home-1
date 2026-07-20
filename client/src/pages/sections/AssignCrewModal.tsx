@@ -68,7 +68,7 @@ export const AssignCrewModal = ({ jobId, onClose }: Props): JSX.Element => {
     onError: (err: any) => setError(err?.message ?? "เพิ่มทีมงานไม่สำเร็จ"),
   });
 
-  const types: CrewType[] = ["own_crew", "freelancer", "outsource", "loader"];
+  const types: CrewType[] = ["own_crew", "freelancer"];   // outsource/loader = จำนวนคน (จัดที่หน้าจัดทีมเต็มจอ)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
