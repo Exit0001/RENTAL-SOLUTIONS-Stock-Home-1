@@ -26,7 +26,7 @@ export const StockFilterControlsSection = ({
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   return (
-    <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in" style={{ animationDelay: "150ms" }}>
+    <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in" style={{ animationDelay: "150ms" }}>
       <Button
         onClick={onToggleFilter}
         className={`h-9 px-4 rounded-lg font-semibold text-sm gap-2 transition-all border ${

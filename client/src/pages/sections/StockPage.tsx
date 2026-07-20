@@ -505,7 +505,7 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "containers" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => setRackBuildOpen(true)}
@@ -658,7 +658,7 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "sets" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
             <Boxes className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
             <span className="text-sm font-semibold text-white/50">{t("tabSets")}</span>
             <span className="text-xs text-white/60">{equipmentSets.length}</span>
@@ -742,7 +742,7 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "maintenance" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
             <Wrench className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
             <span className="text-sm font-semibold text-white/50">{t("maintenanceLog")}</span>
             <span className="text-xs text-white/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
@@ -1010,7 +1010,7 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "subrentals" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
             <ArrowRightLeft className="w-4 h-4 text-purple-400/70 flex-shrink-0" />
             <span className="text-sm font-semibold text-white/50">{t("tabSubRentals")}</span>
             <span className="text-xs text-white/60">{t("activeCount", { count: subRentals.length })}</span>

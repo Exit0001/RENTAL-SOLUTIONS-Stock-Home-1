@@ -75,8 +75,10 @@ style={{ backgroundColor: "#FFFF00" }}
 
 **Top action bar style** (tabs with action buttons):
 ```tsx
-className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/10 bg-[#0f0f0f] flex-shrink-0"
+className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0"
 ```
+**Divider opacity standard: `border-white/[0.06]`** everywhere (tab bars, action bars, section
+dividers, card borders). Older Stock action bars used `border-white/10` — normalized to `/[0.06]`.
 
 ## Database Schema (36 tables)
 
