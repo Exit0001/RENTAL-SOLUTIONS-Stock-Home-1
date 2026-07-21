@@ -120,6 +120,7 @@ stockRouter.get("/", async (req, res) => {
         .where(inArray(stockUnits.stockItemId, unitItemIds));
 
       for (const u of units) {
+        if (u.status === "sold" || u.status === "retired") continue;  // ตัดออกจากคลังแล้ว — ไม่นับใน total
         totalCounts.set(u.stockItemId, (totalCounts.get(u.stockItemId) ?? 0) + 1);
         if (u.status === "available") {
           availableCounts.set(u.stockItemId, (availableCounts.get(u.stockItemId) ?? 0) + 1);

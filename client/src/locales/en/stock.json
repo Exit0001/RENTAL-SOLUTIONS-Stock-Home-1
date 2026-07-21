@@ -4,6 +4,7 @@
   "tabMaintenance": "Maintenance",
   "tabSubRentals": "Sub-Rentals",
   "tabSets": "Equipment Sets",
+  "tabDisposals": "Sold / Disposed",
 
   "scanContainerHint": "Scan a container barcode to instantly view all contents",
   "addContainer": "Add Container",

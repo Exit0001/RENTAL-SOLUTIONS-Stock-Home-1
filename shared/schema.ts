@@ -25,7 +25,8 @@ import { z } from "zod";
 
 export const planEnum = pgEnum("plan", ["free", "pro", "enterprise"]);
 export const userRoleEnum = pgEnum("user_role", ["admin", "manager", "crew"]);
-export const stockUnitStatusEnum = pgEnum("stock_unit_status", ["available", "out", "maintenance", "retired"]);
+export const stockUnitStatusEnum = pgEnum("stock_unit_status", ["available", "out", "maintenance", "retired", "sold"]);
+export const disposalReasonEnum  = pgEnum("disposal_reason", ["sold", "damaged", "lost", "other"]);
 export const jobStatusEnum = pgEnum("job_status", ["draft", "scheduled", "active", "completed", "cancelled"]);
 export const pullSheetStatusEnum = pgEnum("pull_sheet_status", ["draft", "pending", "dispatched", "returned"]);
 export const maintenanceTypeEnum = pgEnum("maintenance_type", ["repair", "preventive", "inspection"]);
@@ -150,6 +151,27 @@ export const stockUnits = pgTable("stock_units", {
 }, (t) => [
   index("stock_units_company_id_idx").on(t.companyId),
   index("stock_units_stock_item_id_idx").on(t.stockItemId),
+]);
+
+// ─────────────────────────────────────────────
+// 4b. STOCK DISPOSALS — บันทึกการขาย/ตัดของออกจากสต็อก (ถาวร)
+// unit → มาร์ค status 'sold'; bulk → ลด quantity. เก็บ ราคา/วัน/เหตุผล เป็นประวัติ
+// ─────────────────────────────────────────────
+
+export const stockDisposals = pgTable("stock_disposals", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  companyId:    uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  stockItemId:  uuid("stock_item_id").references(() => stockItems.id, { onDelete: "set null" }),
+  stockUnitId:  uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "set null" }),  // เมื่อขาย unit เดี่ยว
+  itemName:     text("item_name").notNull(),        // snapshot ชื่อ (กันข้อมูลหายถ้า item ถูกลบ)
+  quantity:     integer("quantity").notNull(),      // จำนวนที่ตัดออก
+  reason:       disposalReasonEnum("reason").notNull(),
+  salePrice:    decimal("sale_price", { precision: 12, scale: 2 }),  // ราคาขายรวม (optional)
+  note:         text("note"),
+  disposedById: uuid("disposed_by").references(() => users.id, { onDelete: "set null" }),
+  disposedAt:   timestamp("disposed_at").defaultNow().notNull(),
+}, (t) => [
+  index("stock_disposals_company_id_idx").on(t.companyId),
 ]);
 
 // ─────────────────────────────────────────────
@@ -696,6 +718,7 @@ export const insertCompanySchema = createInsertSchema(companies).omit({ id: true
 export const insertUserSchema    = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertStockItemSchema = createInsertSchema(stockItems).omit({ id: true, createdAt: true });
 export const insertStockUnitSchema = createInsertSchema(stockUnits).omit({ id: true, createdAt: true });
+export const insertStockDisposalSchema = createInsertSchema(stockDisposals).omit({ id: true, disposedAt: true });
 export const insertContainerSchema = createInsertSchema(containers).omit({ id: true, createdAt: true });
 export const insertJobSchema       = createInsertSchema(jobs).omit({ id: true, createdAt: true });
 export const insertMaintenanceLogSchema = createInsertSchema(maintenanceLogs, {
@@ -750,6 +773,8 @@ export type InsertStockItem = z.infer<typeof insertStockItemSchema>;
 
 export type StockUnit       = typeof stockUnits.$inferSelect;
 export type InsertStockUnit = z.infer<typeof insertStockUnitSchema>;
+export type StockDisposal       = typeof stockDisposals.$inferSelect;
+export type InsertStockDisposal = z.infer<typeof insertStockDisposalSchema>;
 
 export type Container       = typeof containers.$inferSelect;
 export type InsertContainer = z.infer<typeof insertContainerSchema>;

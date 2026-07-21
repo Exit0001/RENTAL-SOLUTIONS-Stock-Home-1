@@ -20,6 +20,7 @@ import {
   Check,
   Loader2,
   Boxes,
+  PackageMinus,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -38,6 +39,7 @@ import { EditContainerModal } from "./EditContainerModal";
 import { RackBuildModal } from "./RackBuildModal";
 import { ManageContainerUnitsModal } from "./ManageContainerUnitsModal";
 import { SetBuilderModal } from "./SetBuilderModal";
+import { DisposeModal, REASON_LABEL } from "./DisposeModal";
 import { AddIndividualUnitModal } from "./AddIndividualUnitModal";
 import { AddLocationModal } from "./AddLocationModal";
 import { AddMaintenanceLogModal } from "./AddMaintenanceLogModal";
@@ -48,11 +50,11 @@ import { StockItemsTableSection } from "./StockItemsTableSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { containersApi, equipmentSetsApi, jobsApi, maintenanceApi, stockApi } from "@/api";
+import { containersApi, disposalsApi, equipmentSetsApi, jobsApi, maintenanceApi, stockApi } from "@/api";
 import { useToast } from "@/hooks/use-toast";
-import type { ContainerWithItems, CrewMember, EquipmentSetSummary, StockItemWithUnits, SubRentalWithJob } from "@/api";
+import type { ContainerWithItems, CrewMember, DisposalRow, EquipmentSetSummary, StockItemWithUnits, SubRentalWithJob } from "@/api";
 
-type StockTab = "inventory" | "containers" | "sets" | "maintenance" | "subrentals";
+type StockTab = "inventory" | "containers" | "sets" | "maintenance" | "subrentals" | "disposals";
 
 const stockTabs: { key: StockTab; labelKey: string; icon: typeof Package }[] = [
   { key: "inventory",  labelKey: "tabInventory",   icon: Package },
@@ -60,6 +62,7 @@ const stockTabs: { key: StockTab; labelKey: string; icon: typeof Package }[] = [
   { key: "sets",       labelKey: "tabSets",        icon: Boxes },
   { key: "maintenance",labelKey: "tabMaintenance", icon: Wrench },
   { key: "subrentals", labelKey: "tabSubRentals",  icon: ArrowRightLeft },
+  { key: "disposals",  labelKey: "tabDisposals",   icon: PackageMinus },
 ];
 
 // กลุ่มสำหรับบันทึกซ่อมบำรุงที่ไม่ได้ผูกกับอุปกรณ์ (general log)
@@ -70,6 +73,7 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   out:         { bg: "bg-blue-950/60",    text: "text-blue-400",    dot: "bg-blue-400" },
   maintenance: { bg: "bg-amber-950/60",   text: "text-amber-400",   dot: "bg-amber-400" },
   retired:     { bg: "bg-white/5",        text: "text-white/60",    dot: "bg-white/20" },
+  sold:        { bg: "bg-red-950/60",     text: "text-red-400",     dot: "bg-red-400" },
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -102,6 +106,7 @@ export const StockPage = (): JSX.Element => {
   const [setBuilderOpen, setSetBuilderOpen] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [deleteSetTarget, setDeleteSetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [disposeOpen, setDisposeOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
@@ -132,6 +137,13 @@ export const StockPage = (): JSX.Element => {
   const { data: equipmentSets = [] } = useQuery<EquipmentSetSummary[]>({
     queryKey: ["equipment-sets"],
     queryFn: equipmentSetsApi.getAll,
+    enabled: !!token,
+  });
+
+  // ประวัติการขาย/ตัดของออก
+  const { data: disposals = [] } = useQuery<DisposalRow[]>({
+    queryKey: ["disposals"],
+    queryFn: disposalsApi.getAll,
     enabled: !!token,
   });
 
@@ -443,6 +455,7 @@ export const StockPage = (): JSX.Element => {
           onClose={() => { setSetBuilderOpen(false); setEditingSetId(null); }}
         />
       )}
+      {disposeOpen && <DisposeModal onClose={() => setDisposeOpen(false)} />}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
         {stockTabs.map((tab) => (
@@ -1087,6 +1100,63 @@ export const StockPage = (): JSX.Element => {
               ))}
             </div>
           </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "disposals" && (
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Action bar */}
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+            <PackageMinus className="w-4 h-4 text-red-400/70 flex-shrink-0" />
+            <span className="text-sm font-semibold text-white/50">{t("tabDisposals")}</span>
+            <span className="text-xs text-white/60">{disposals.length}</span>
+            {canManage && (
+              <button onClick={() => setDisposeOpen(true)}
+                className="ml-auto flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors">
+                <PackageMinus className="w-4 h-4" /> ขาย / ตัดออก
+              </button>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-auto p-4">
+            {disposals.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-16 text-center text-white/40">
+                <PackageMinus className="w-10 h-10" />
+                <p className="text-sm">ยังไม่มีประวัติการขาย/ตัดออก</p>
+              </div>
+            ) : (
+              <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.06] text-[10px] text-white/40 uppercase tracking-wider">
+                      <th className="py-2.5 pl-4 text-left font-semibold">วันที่</th>
+                      <th className="py-2.5 text-left font-semibold">อุปกรณ์</th>
+                      <th className="py-2.5 text-center font-semibold">จำนวน</th>
+                      <th className="py-2.5 text-left font-semibold">เหตุผล</th>
+                      <th className="py-2.5 text-right font-semibold">ราคาขาย</th>
+                      <th className="py-2.5 text-left font-semibold">โดย</th>
+                      <th className="py-2.5 pr-4 text-left font-semibold">หมายเหตุ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {disposals.map((d) => (
+                      <tr key={d.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+                        <td className="py-2.5 pl-4 text-white/60 text-xs whitespace-nowrap">{new Date(d.disposedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}</td>
+                        <td className="py-2.5 text-white/85">{d.itemName}</td>
+                        <td className="py-2.5 text-center font-bold text-white/80">{d.quantity}</td>
+                        <td className="py-2.5">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${d.reason === "sold" ? "bg-emerald-500/15 text-emerald-400" : d.reason === "damaged" ? "bg-amber-500/15 text-amber-400" : d.reason === "lost" ? "bg-red-500/15 text-red-400" : "bg-white/10 text-white/50"}`}>{REASON_LABEL[d.reason]}</span>
+                        </td>
+                        <td className="py-2.5 text-right text-white/70 whitespace-nowrap">{d.salePrice ? `฿${Number(d.salePrice).toLocaleString()}` : "—"}</td>
+                        <td className="py-2.5 text-white/50 text-xs">{d.disposedByName ?? "—"}</td>
+                        <td className="py-2.5 pr-4 text-white/50 text-xs truncate max-w-[200px]">{d.note ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

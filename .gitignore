@@ -10,3 +10,5 @@ vite.config.ts.*
 .env
 .env.local
 .env.production
+# large data dumps
+tenyear_backup_*.sql

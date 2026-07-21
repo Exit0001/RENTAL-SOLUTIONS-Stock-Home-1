@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, count, sum } from "drizzle-orm";
+import { eq, and, count, sum, notInArray } from "drizzle-orm";
 import { db } from "../db";
 import { stockItems, stockUnits, jobs, maintenanceLogs, invoices, activityLog } from "@shared/schema";
 
@@ -18,8 +18,9 @@ statsRouter.get("/", async (req, res) => {
       [revenueRow],
       recentActivity,
     ] = await Promise.all([
-      // จำนวน stock units ทั้งหมด (ของมี serial รายตัว)
-      db.select({ total: count() }).from(stockUnits).where(eq(stockUnits.companyId, cid)),
+      // จำนวน stock units ทั้งหมด (ของมี serial รายตัว) — ไม่นับที่ขาย/ตัดออกแล้ว
+      db.select({ total: count() }).from(stockUnits)
+        .where(and(eq(stockUnits.companyId, cid), notInArray(stockUnits.status, ["sold", "retired"]))),
 
       // จำนวนรวมของ bulk items (ของนับจำนวน เช่น สาย) — นับ quantity ไม่ใช่ unit
       db.select({ total: sum(stockItems.quantity) }).from(stockItems)

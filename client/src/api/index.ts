@@ -108,6 +108,20 @@ export const stockApi = {
     api.delete<void>(`/stock/accessories/${linkId}`),
 };
 
+// ─── Disposals (ขาย/ตัดของออกจากสต็อก) ─────────────────────
+
+export type DisposalReason = "sold" | "damaged" | "lost" | "other";
+export type DisposalRow = {
+  id: string; stockItemId: string | null; stockUnitId: string | null;
+  itemName: string; quantity: number; reason: DisposalReason;
+  salePrice: string | null; note: string | null; disposedAt: string; disposedByName: string | null;
+};
+export const disposalsApi = {
+  getAll: () => api.get<DisposalRow[]>("/disposals"),
+  create: (data: { stockItemId: string; stockUnitIds?: string[]; quantity?: number; reason: DisposalReason; salePrice?: string | null; note?: string | null }) =>
+    api.post<{ id: string }>("/disposals", data),
+};
+
 // ─── Containers ───────────────────────────────────────────
 
 export type ContainerUnit     = StockUnit & { itemName: string; category: string };

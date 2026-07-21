@@ -729,6 +729,22 @@ server-level DB backups as a separate layer).
   object URL and triggers a `stak-backup-{company}-{date}.json` download.
 - Export-only for now (no restore/import).
 
+### Sell / Dispose stock (ตัดของออกจากสต็อกถาวร)
+Permanently remove sold/damaged/lost gear from inventory, with a full audit trail.
+- **Data**: `stock_disposals` (companyId, stockItemId/stockUnitId nullable + `itemName` snapshot,
+  quantity, `disposal_reason` enum `sold|damaged|lost|other`, salePrice, note, disposedById,
+  disposedAt). Migration `0017_stock_disposals.sql` (also `ALTER TYPE stock_unit_status ADD VALUE
+  'sold'`). Applied.
+- **On dispose**: unit items → set `stock_units.status` = `'sold'` (reason=sold) or `'retired'`
+  (else); bulk items → decrement `stock_items.quantity`. Always writes a `stock_disposals` record.
+- **Counts**: `GET /api/stock` unitCount now **excludes** `sold`/`retired` units; dashboard
+  `totalAssets` (stats.ts) excludes them too — sold gear leaves the fleet totals.
+- **Backend** `server/routes/disposals.ts` (`/api/disposals`): `GET /` (history + disposedByName),
+  `POST /` (Admin/Manager). **Client** `disposalsApi` (getAll/create), query key `["disposals"]`.
+- **UI**: 6th Stock tab **"ขายออก"** (`StockPage.tsx`) = history table + `DisposeModal.tsx` (pick item
+  → select units / enter bulk qty → reason/salePrice/note). `DisposeModal` exports `REASON_LABEL`.
+  `'sold'` added to `statusColors` + `statusEnum` i18n (th/en).
+
 ## Adding a New Feature
 
 1. Add table/columns to `shared/schema.ts`
