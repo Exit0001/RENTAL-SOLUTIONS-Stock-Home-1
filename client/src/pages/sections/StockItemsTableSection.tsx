@@ -615,6 +615,8 @@ export const StockItemsTableSection = ({
                           } ${
                             isSelected
                               ? "bg-[#FFFF00]/[0.05] border-l-2 border-l-[#FFFF00]/50 border-b-white/10"
+                              : isBulk
+                              ? "bg-amber-500/[0.05] hover:bg-amber-500/[0.09] border-l-2 border-l-amber-400/50 border-b-amber-400/[0.08]"
                               : "bg-[#1a1a1a] hover:bg-[#242424] border-b-white/[0.05]"
                           }`}
                           onClick={isBulk ? undefined : () => toggleRow(item.id)}
@@ -622,7 +624,9 @@ export const StockItemsTableSection = ({
                           <TableCell className="py-2.5 pl-10">
                             <div className="flex items-center gap-2">
                               {isBulk ? (
-                                <Layers className="w-3.5 h-3.5 flex-shrink-0 text-amber-400/70" />
+                                <span className="w-5 h-5 rounded-md bg-amber-400/15 flex items-center justify-center flex-shrink-0">
+                                  <Layers className="w-3 h-3 text-amber-400" />
+                                </span>
                               ) : (
                                 <ChevronRightIcon
                                   className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${
@@ -630,12 +634,12 @@ export const StockItemsTableSection = ({
                                   }`}
                                 />
                               )}
-                              <span className={`font-medium text-sm truncate ${isSelected ? "text-[#FFFF00]" : "text-white/90"}`}>
+                              <span className={`font-medium text-sm truncate ${isBulk ? "text-amber-100/90" : isSelected ? "text-[#FFFF00]" : "text-white/90"}`}>
                                 {item.name}
                               </span>
                               {isBulk && (
-                                <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 font-medium flex-shrink-0">
-                                  BULK
+                                <span className="ml-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 font-bold flex-shrink-0 uppercase tracking-wide">
+                                  นับจำนวน
                                 </span>
                               )}
                             </div>
@@ -647,7 +651,11 @@ export const StockItemsTableSection = ({
                             {item.subCategory || "—"}
                           </TableCell>
                           <TableCell className="py-2.5 text-sm align-middle">
-                            <span className="font-bold text-white/80">{totalForBadge}</span>
+                            {isBulk ? (
+                              <span className="font-bold text-amber-400">{totalForBadge}<span className="ml-0.5 text-[10px] font-normal text-amber-400/60">ชิ้น</span></span>
+                            ) : (
+                              <span className="font-bold text-white/80">{totalForBadge}</span>
+                            )}
                           </TableCell>
                           <TableCell className="py-2.5 align-middle">
                             <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} />
