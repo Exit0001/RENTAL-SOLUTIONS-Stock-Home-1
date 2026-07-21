@@ -475,8 +475,10 @@ export const StockItemsTableSection = ({
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredItems]);
 
+  // count pieces: bulk items count their quantity, unit items count their units
+  const pieceCount = (i: StockItemWithCount) => i.trackingMode === "bulk" ? (i.quantity ?? 0) : i.unitCount;
   const totalItems = filteredItems.length;
-  const totalUnits = filteredItems.reduce((s, i) => s + i.unitCount, 0);
+  const totalUnits = filteredItems.reduce((s, i) => s + pieceCount(i), 0);
 
   // When filtering/searching, treat all categories as expanded
   const isCategoryOpen = (cat: string) => isFiltering ? true : expandedCategories.has(cat);
@@ -564,7 +566,7 @@ export const StockItemsTableSection = ({
             {/* ─── Grouped rows ─── */}
             {!isLoading && grouped.map(([category, items]) => {
               const catOpen       = isCategoryOpen(category);
-              const catTotalUnits = items.reduce((s: number, i: StockItemWithCount) => s + i.unitCount, 0);
+              const catTotalUnits = items.reduce((s: number, i: StockItemWithCount) => s + pieceCount(i), 0);
               const catAvail      = items.reduce((s: number, i: StockItemWithCount) => s + i.availableCount, 0);
               const allAvail      = catAvail === catTotalUnits && catTotalUnits > 0;
               const noneAvail     = catAvail === 0;

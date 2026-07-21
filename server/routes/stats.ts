@@ -12,13 +12,18 @@ statsRouter.get("/", async (req, res) => {
 
     const [
       [assetRow],
+      [bulkRow],
       [activeJobRow],
       [maintRow],
       [revenueRow],
       recentActivity,
     ] = await Promise.all([
-      // จำนวน stock units ทั้งหมด
+      // จำนวน stock units ทั้งหมด (ของมี serial รายตัว)
       db.select({ total: count() }).from(stockUnits).where(eq(stockUnits.companyId, cid)),
+
+      // จำนวนรวมของ bulk items (ของนับจำนวน เช่น สาย) — นับ quantity ไม่ใช่ unit
+      db.select({ total: sum(stockItems.quantity) }).from(stockItems)
+        .where(and(eq(stockItems.companyId, cid), eq(stockItems.trackingMode, "bulk"))),
 
       // งานที่กำลัง active
       db.select({ total: count() }).from(jobs)
@@ -40,7 +45,7 @@ statsRouter.get("/", async (req, res) => {
     ]);
 
     res.json({
-      totalAssets:    assetRow?.total  ?? 0,
+      totalAssets:    (Number(assetRow?.total) || 0) + (Number(bulkRow?.total) || 0),
       activeJobs:     activeJobRow?.total ?? 0,
       inMaintenance:  maintRow?.total  ?? 0,
       monthlyRevenue: revenueRow?.total ?? "0",
