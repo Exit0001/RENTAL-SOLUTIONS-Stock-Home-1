@@ -148,5 +148,17 @@
   "invoiceDoc": "ใบเสร็จ",
   "openFile": "เปิดไฟล์",
   "editItem": "แก้ไขรายการ",
-  "archive": "เก็บถาวร"
+  "archive": "เก็บถาวร",
+
+  "drillHint": "แตะหมวด → หมวดย่อย → แบรนด์",
+  "drillHintBig": "แตะที่หมวดเพื่อดูหมวดย่อย → แบรนด์",
+  "selectAllCat": "เลือกทั้ง {{name}}",
+  "selectAllSub": "เลือกทั้ง {{name}}",
+  "deleteUnit": "ลบหน่วยนี้",
+  "deleteUnitConfirm": "ลบหน่วยที่เลือกถาวร — ย้อนกลับไม่ได้",
+  "deleteUnitsTitle": "ลบ {{count}} หน่วย?",
+  "selectedUnitsCount": "เลือก {{count}} หน่วย",
+  "bulkEditTitle": "แก้ไขหลายหน่วยพร้อมกัน",
+  "bulkEditHint": "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก",
+  "bulkEditDone": "แก้ไขแล้ว"
 }

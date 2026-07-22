@@ -566,6 +566,95 @@ stockRouter.post("/:id/units/batch", async (req, res) => {
   }
 });
 
+// PUT /api/stock/units/batch — แก้ไขหลาย unit พร้อมกัน (เฉพาะฟิลด์ที่ใช้ร่วมกันได้)
+// ต้องมาก่อน "/units/:unitId" ไม่งั้น Express จับ "batch" เป็น unitId
+stockRouter.put("/units/batch", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "ต้องเป็นผู้ดูแล/ผู้จัดการเท่านั้น" });
+  }
+  try {
+    const unitIds: string[] = Array.isArray(req.body?.unitIds) ? req.body.unitIds : [];
+    const patch = (req.body?.patch ?? {}) as Record<string, any>;
+    if (unitIds.length === 0) return res.status(400).json({ message: "ไม่มีหน่วยอุปกรณ์ที่เลือก" });
+
+    // อนุญาตเฉพาะฟิลด์ที่แชร์กันได้ (ไม่รวม serial/barcode/name ที่ต้อง unique ต่อ unit)
+    const toDate = (v: any): Date | null => {
+      if (!v || v === "") return null;
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    const payload: Record<string, any> = {};
+    if ("location" in patch)          payload.location = patch.location || null;
+    if ("status" in patch)            payload.status = patch.status;
+    if ("purchasedAt" in patch)       payload.purchasedAt = toDate(patch.purchasedAt);
+    if ("warrantyExpiresAt" in patch) payload.warrantyExpiresAt = toDate(patch.warrantyExpiresAt);
+    if (Object.keys(payload).length === 0) return res.status(400).json({ message: "ไม่มีฟิลด์ที่จะแก้ไข" });
+
+    const updated = await db
+      .update(stockUnits)
+      .set(payload)
+      .where(and(inArray(stockUnits.id, unitIds), eq(stockUnits.companyId, req.companyId)))
+      .returning();
+    res.json({ updated: updated.length });
+  } catch (err: any) {
+    res.status(400).json({ message: err?.message ?? "แก้ไขไม่สำเร็จ" });
+  }
+});
+
+// DELETE /api/stock/units/batch — ลบหลาย unit พร้อมกัน (บล็อกถ้ามีตัวที่อยู่ในงาน)
+stockRouter.delete("/units/batch", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "ต้องเป็นผู้ดูแล/ผู้จัดการเท่านั้น" });
+  }
+  try {
+    const unitIds: string[] = Array.isArray(req.body?.unitIds) ? req.body.unitIds : [];
+    if (unitIds.length === 0) return res.status(400).json({ message: "ไม่มีหน่วยอุปกรณ์ที่เลือก" });
+
+    const inJob = await db
+      .select({ id: jobUnits.stockUnitId })
+      .from(jobUnits)
+      .where(inArray(jobUnits.stockUnitId, unitIds))
+      .limit(1);
+    if (inJob.length > 0) {
+      return res.status(409).json({ message: "ไม่สามารถลบได้: มีหน่วยที่ยังอยู่ในงาน กรุณานำออกจากงานก่อน" });
+    }
+
+    const deleted = await db
+      .delete(stockUnits)
+      .where(and(inArray(stockUnits.id, unitIds), eq(stockUnits.companyId, req.companyId)))
+      .returning({ id: stockUnits.id });
+    res.json({ deleted: deleted.length });
+  } catch {
+    res.status(500).json({ message: "ลบไม่สำเร็จ" });
+  }
+});
+
+// DELETE /api/stock/units/:unitId — ลบ unit เดี่ยว (บล็อกถ้าอยู่ในงาน)
+stockRouter.delete("/units/:unitId", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "ต้องเป็นผู้ดูแล/ผู้จัดการเท่านั้น" });
+  }
+  try {
+    const inJob = await db
+      .select({ id: jobUnits.stockUnitId })
+      .from(jobUnits)
+      .where(eq(jobUnits.stockUnitId, req.params.unitId))
+      .limit(1);
+    if (inJob.length > 0) {
+      return res.status(409).json({ message: "ไม่สามารถลบได้: หน่วยนี้ยังอยู่ในงาน กรุณานำออกจากงานก่อน" });
+    }
+
+    const [unit] = await db
+      .delete(stockUnits)
+      .where(and(eq(stockUnits.id, req.params.unitId), eq(stockUnits.companyId, req.companyId)))
+      .returning({ id: stockUnits.id });
+    if (!unit) return res.status(404).json({ message: "Unit not found" });
+    res.json({ message: "Deleted" });
+  } catch {
+    res.status(500).json({ message: "ลบไม่สำเร็จ" });
+  }
+});
+
 // PUT /api/stock/units/:unitId — อัปเดต unit
 stockRouter.put("/units/:unitId", async (req, res) => {
   try {
@@ -577,7 +666,24 @@ stockRouter.put("/units/:unitId", async (req, res) => {
 
     const { id: _id, companyId: _cid, stockItemId: _sid, createdAt: _ca, ...rest } = req.body;
 
-    await checkUnitUnique(req.companyId, { serialNumber: rest.serialNumber, barcode: rest.barcode }, req.params.unitId);
+    // ตรวจซ้ำเฉพาะฟิลด์ที่ "เปลี่ยนจริง" — แก้แค่ชื่อ/สถานที่ ไม่ควรถูกบล็อกด้วย serial/barcode เดิม
+    const [current] = await db
+      .select({ serialNumber: stockUnits.serialNumber, barcode: stockUnits.barcode })
+      .from(stockUnits)
+      .where(and(eq(stockUnits.id, req.params.unitId), eq(stockUnits.companyId, req.companyId)));
+    if (!current) return res.status(404).json({ message: "Unit not found" });
+
+    const norm = (v: any) => (v ?? "").toString().trim().toLowerCase();
+    const serialChanged  = "serialNumber" in rest && norm(rest.serialNumber) !== norm(current.serialNumber);
+    const barcodeChanged  = "barcode" in rest && norm(rest.barcode) !== norm(current.barcode);
+    await checkUnitUnique(
+      req.companyId,
+      {
+        serialNumber: serialChanged ? rest.serialNumber : null,
+        barcode:      barcodeChanged ? rest.barcode : null,
+      },
+      req.params.unitId,
+    );
 
     const payload = {
       ...rest,

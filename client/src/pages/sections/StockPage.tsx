@@ -343,11 +343,12 @@ export const StockPage = (): JSX.Element => {
 
   // Mutation สำหรับแก้ไข stock item
   const updateStockItem = useMutation({
-    mutationFn: (data: Parameters<typeof stockApi.update>[1]) =>
-      stockApi.update(selectedItem!.id, data),
-    onSuccess: () => {
+    // id มาจาก variables (ไม่พึ่ง selectedItem ที่อาจเป็น null/คนละตัวกับที่กำลังแก้)
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof stockApi.update>[1] }) =>
+      stockApi.update(id, data),
+    onSuccess: (_res, { id }) => {
       qc.invalidateQueries({ queryKey: ["stock"] });
-      qc.invalidateQueries({ queryKey: ["stock", selectedItem?.id] });
+      qc.invalidateQueries({ queryKey: ["stock", id] });
     },
     onError: (err: any) => toast({ title: "ไม่สามารถแก้ไขอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
   });
@@ -414,7 +415,7 @@ export const StockPage = (): JSX.Element => {
         <AddNewItemModal
           initialItem={editingItem}
           onClose={() => { setEditItemOpen(false); setEditingItem(null); }}
-          onSubmit={(data) => { updateStockItem.mutate(data); setEditItemOpen(false); setEditingItem(null); }}
+          onSubmit={(data) => { if (editingItem) updateStockItem.mutate({ id: editingItem.id, data }); setEditItemOpen(false); setEditingItem(null); }}
         />
       )}
       {addContainerOpen && (

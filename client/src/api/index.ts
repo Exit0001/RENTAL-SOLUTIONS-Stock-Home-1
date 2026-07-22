@@ -93,6 +93,11 @@ export const stockApi = {
                     api.post<StockUnit[]>(`/stock/${itemId}/units/batch`, { units }),
   updateUnit:     (unitId: string, data: Partial<InsertStockUnit>) =>
                     api.put<StockUnit>(`/stock/units/${unitId}`, data),
+  deleteUnit:     (unitId: string) => api.delete<{ message: string }>(`/stock/units/${unitId}`),
+  updateUnitsBatch: (unitIds: string[], patch: Partial<Pick<InsertStockUnit, "location" | "status" | "purchasedAt" | "warrantyExpiresAt">>) =>
+                    api.put<{ updated: number }>(`/stock/units/batch`, { unitIds, patch }),
+  deleteUnitsBatch: (unitIds: string[]) =>
+                    api.delete<{ deleted: number }>(`/stock/units/batch`, { unitIds }),
   scanBarcode:    (barcode: string) =>
                     api.get<ScannedUnit>(`/stock/units/scan/${encodeURIComponent(barcode)}`),
   // accessories

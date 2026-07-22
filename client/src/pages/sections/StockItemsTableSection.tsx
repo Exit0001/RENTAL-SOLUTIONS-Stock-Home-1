@@ -105,20 +105,127 @@ const fmtDate = (d: string | Date | null | undefined) => {
 
 type SaveError = { message: string; duplicateItemId?: string; duplicateItemName?: string };
 
+// checkbox สีเหลืองสไตล์เดียวกับหน้า Maintenance
+const YellowCheck = ({ checked, indeterminate, onClick, title }: { checked: boolean; indeterminate?: boolean; onClick: (e: React.MouseEvent) => void; title?: string }) => (
+  <button onClick={onClick} title={title}
+    className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors
+      ${checked || indeterminate ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/25 hover:border-white/50"}`}>
+    {checked && <svg className="w-2.5 h-2.5 text-black" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+    {!checked && indeterminate && <span className="w-2 h-0.5 bg-black rounded" />}
+  </button>
+);
+
+// Modal แก้ไขหลาย unit พร้อมกัน — ติ๊กช่องที่จะแก้ (ช่องที่ไม่ติ๊ก = ไม่แตะ)
+const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; onClose: () => void; onSaved: () => void }) => {
+  const { t } = useTranslation("stock");
+  const { t: tc } = useTranslation("common");
+  const { toast } = useToast();
+  const [en, setEn] = useState({ location: false, status: false, purchasedAt: false, warrantyExpiresAt: false });
+  const [val, setVal] = useState({ location: "", status: "available", purchasedAt: "", warrantyExpiresAt: "" });
+
+  const save = useMutation({
+    mutationFn: () => {
+      const patch: Record<string, any> = {};
+      if (en.location)          patch.location = val.location || null;
+      if (en.status)            patch.status = val.status;
+      if (en.purchasedAt)       patch.purchasedAt = val.purchasedAt ? new Date(val.purchasedAt).toISOString() : null;
+      if (en.warrantyExpiresAt) patch.warrantyExpiresAt = val.warrantyExpiresAt ? new Date(val.warrantyExpiresAt).toISOString() : null;
+      return stockApi.updateUnitsBatch(unitIds, patch);
+    },
+    onSuccess: () => { toast({ title: t("bulkEditDone", { defaultValue: "แก้ไขแล้ว" }), description: `${unitIds.length} ${tc("units")}` }); onSaved(); },
+    onError: (err: any) => toast({ title: tc("error"), description: err?.message ?? "", variant: "destructive" }),
+  });
+
+  const anyEnabled = en.location || en.status || en.purchasedAt || en.warrantyExpiresAt;
+  const inputCls = "h-8 w-full bg-black/50 border border-white/10 rounded px-2 text-sm text-white focus:outline-none focus:border-[#FFFF00]/40";
+  const Row = ({ k, label, children }: { k: keyof typeof en; label: string; children: React.ReactNode }) => (
+    <div className="flex items-center gap-3">
+      <YellowCheck checked={en[k]} onClick={() => setEn((p) => ({ ...p, [k]: !p[k] }))} />
+      <span className="text-xs text-white/60 w-28 flex-shrink-0">{label}</span>
+      <div className={`flex-1 ${en[k] ? "" : "opacity-40 pointer-events-none"}`}>{children}</div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-[#0f0f0f] border border-white/10 rounded-xl shadow-2xl p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-bold text-white">{t("bulkEditTitle", { defaultValue: "แก้ไขหลายหน่วยพร้อมกัน" })}</h3>
+          <button onClick={onClose} className="text-white/50 hover:text-white"><XIcon className="w-4 h-4" /></button>
+        </div>
+        <p className="text-xs text-white/50 mb-4">{t("bulkEditHint", { defaultValue: "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก" })} · {unitIds.length} {tc("units")}</p>
+        <div className="flex flex-col gap-3">
+          <Row k="location" label={tc("location")}>
+            <input className={inputCls} value={val.location} onChange={(e) => setVal((p) => ({ ...p, location: e.target.value }))} placeholder={tc("location")} />
+          </Row>
+          <Row k="status" label={tc("status")}>
+            <select className={`${inputCls} appearance-none cursor-pointer`} value={val.status} onChange={(e) => setVal((p) => ({ ...p, status: e.target.value }))}>
+              <option value="available" className="bg-[#111]">{tc("statusEnum.available")}</option>
+              <option value="out" className="bg-[#111]">{tc("statusEnum.out")}</option>
+              <option value="maintenance" className="bg-[#111]">{tc("statusEnum.maintenance")}</option>
+              <option value="retired" className="bg-[#111]">{tc("statusEnum.retired")}</option>
+            </select>
+          </Row>
+          <Row k="purchasedAt" label={t("colPurchased")}>
+            <input type="date" className={`${inputCls} [color-scheme:dark]`} value={val.purchasedAt} onChange={(e) => setVal((p) => ({ ...p, purchasedAt: e.target.value }))} />
+          </Row>
+          <Row k="warrantyExpiresAt" label={t("colWarrantyExp")}>
+            <input type="date" className={`${inputCls} [color-scheme:dark]`} value={val.warrantyExpiresAt} onChange={(e) => setVal((p) => ({ ...p, warrantyExpiresAt: e.target.value }))} />
+          </Row>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} className="h-9 px-4 rounded text-sm text-white/60 hover:text-white border border-white/10">{tc("cancel")}</button>
+          <button onClick={() => save.mutate()} disabled={!anyEnabled || save.isPending}
+            className="h-9 px-4 rounded text-sm font-bold text-black flex items-center gap-2 disabled:opacity-40" style={{ backgroundColor: "#FFFF00" }}>
+            {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{tc("save")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: StockItem) => void }) => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { userRole } = useAppStore();
+  const canManage = userRole === "admin" || userRole === "manager";
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<SaveError | null>(null);
   const [jumpingToDuplicate, setJumpingToDuplicate] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [deleteUnitId, setDeleteUnitId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["stock", itemId],
     queryFn: () => stockApi.getById(itemId),
   });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["stock", itemId] });
+    qc.invalidateQueries({ queryKey: ["stock"] });
+  };
+
+  const deleteUnit = useMutation({
+    mutationFn: (id: string) => stockApi.deleteUnit(id),
+    onSuccess: () => { invalidate(); setDeleteUnitId(null); setDeleteErr(null); setSelected((p) => { const n = new Set(p); n.delete(deleteUnitId!); return n; }); },
+    onError: (err: any) => setDeleteErr(err?.message ?? "ลบไม่สำเร็จ"),
+  });
+
+  const deleteBatch = useMutation({
+    mutationFn: (ids: string[]) => stockApi.deleteUnitsBatch(ids),
+    onSuccess: (res: any) => { invalidate(); setBulkDeleteOpen(false); setDeleteErr(null); setSelected(new Set()); toast({ title: tc("done"), description: `${res?.deleted ?? 0} ${tc("units")}` }); },
+    onError: (err: any) => setDeleteErr(err?.message ?? "ลบไม่สำเร็จ"),
+  });
+
+  const toggleSel = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const updateUnit = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Record<string, any> }) =>
@@ -201,24 +308,50 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
   }
 
   const inputCls = "h-7 w-full bg-black/50 border border-white/10 rounded px-2 text-xs text-white focus:outline-none focus:border-[#FFFF00]/40 transition-colors";
+  const allSelected  = units.length > 0 && units.every((u) => selected.has(u.id));
+  const someSelected = selected.size > 0 && !allSelected;
+  const selectAllToggle = () => setSelected(allSelected ? new Set() : new Set(units.map((u) => u.id)));
 
   return (
     <>
       {/* Sub-header */}
       <TableRow className="bg-[#0b0b0b] hover:bg-[#0b0b0b] border-b-0">
         <TableCell colSpan={6} className="py-1.5 pl-16 pr-4">
-          <div className="grid gap-x-3 text-[10px] font-bold text-white/60 uppercase tracking-wider pr-[34px]"
-            style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
-            <span>{t("colUnitName")}</span>
-            <span>{t("colSerialNo")}</span>
-            <span>{tc("barcode")}</span>
-            <span>{tc("location")}</span>
-            <span>{t("colPurchased")}</span>
-            <span>{t("colWarrantyExp")}</span>
-            <span>{tc("status")}</span>
+          <div className="flex items-center gap-2">
+            {canManage && <YellowCheck checked={allSelected} indeterminate={someSelected} onClick={selectAllToggle} title={tc("selectAll")} />}
+            <div className="grid gap-x-3 flex-1 text-[10px] font-bold text-white/60 uppercase tracking-wider pr-[60px]"
+              style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
+              <span>{t("colUnitName")}</span>
+              <span>{t("colSerialNo")}</span>
+              <span>{tc("barcode")}</span>
+              <span>{tc("location")}</span>
+              <span>{t("colPurchased")}</span>
+              <span>{t("colWarrantyExp")}</span>
+              <span>{tc("status")}</span>
+            </div>
           </div>
         </TableCell>
       </TableRow>
+
+      {/* Bulk action bar */}
+      {canManage && selected.size > 0 && (
+        <TableRow className="bg-[#161600] hover:bg-[#161600] border-b border-[#FFFF00]/10">
+          <TableCell colSpan={6} className="py-2 pl-16 pr-4">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[#FFFF00] font-bold">{t("selectedUnitsCount", { count: selected.size, defaultValue: `เลือก ${selected.size}` })}</span>
+              <button onClick={() => setBulkEditOpen(true)}
+                className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 hover:opacity-80" style={{ backgroundColor: "#FFFF00" }}>
+                <Pencil className="w-3 h-3" />{tc("edit")}
+              </button>
+              <button onClick={() => { setDeleteErr(null); setBulkDeleteOpen(true); }}
+                className="h-7 px-3 rounded text-xs font-bold text-red-400 border border-red-500/30 hover:bg-red-500/10 flex items-center gap-1.5">
+                <Trash2 className="w-3 h-3" />{tc("delete")}
+              </button>
+              <button onClick={() => setSelected(new Set())} className="text-xs text-white/50 hover:text-white ml-auto">{tc("cancel")}</button>
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
 
       {units.map((unit, i) => {
         const isEditing = editingId === unit.id;
@@ -239,7 +372,9 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
               {isEditing ? (
                 /* ── Edit mode ── */
                 <div className="flex flex-col gap-2">
-                  <div className="grid gap-x-3 items-center"
+                  <div className="flex items-center gap-2">
+                  {canManage && <span className="w-4 flex-shrink-0" />}
+                  <div className="grid gap-x-3 items-center flex-1"
                     style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
                     <input className={inputCls} value={form.name}              onChange={f("name")}              placeholder={t("unitNamePlaceholder")} />
                     <input className={`${inputCls} font-mono`} value={form.serialNumber}   onChange={f("serialNumber")}   placeholder={t("serialNoPlaceholder")} />
@@ -253,6 +388,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                       <option value="maintenance" className="bg-[#111]">{tc("statusEnum.maintenance")}</option>
                       <option value="retired"     className="bg-[#111]">{tc("statusEnum.retired")}</option>
                     </select>
+                  </div>
                   </div>
                   <div className="flex items-center gap-2 justify-end flex-wrap">
                     {saveError && (
@@ -290,6 +426,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
               ) : (
                 /* ── View mode ── */
                 <div className="flex items-center gap-2">
+                  {canManage && <YellowCheck checked={selected.has(unit.id)} onClick={() => toggleSel(unit.id)} />}
                   <div className="grid gap-x-3 items-center flex-1"
                     style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
                     <span className="text-white/85 text-sm font-medium truncate">{unit.name}</span>
@@ -331,6 +468,15 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
+                  {canManage && (
+                    <button
+                      onClick={() => { setDeleteErr(null); setDeleteUnitId(unit.id); }}
+                      className="flex-shrink-0 p-1.5 rounded text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      title={t("deleteUnit", { defaultValue: "ลบหน่วยนี้" })}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               )}
               {!isEditing && (
@@ -356,6 +502,63 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
           </TableRow>
         );
       })}
+
+      {/* Modals/dialogs — wrapped in a tr/td for valid table DOM; Radix dialogs portal out anyway */}
+      {(bulkEditOpen || deleteUnitId || bulkDeleteOpen) && (
+        <TableRow className="border-0 hover:bg-transparent">
+          <TableCell colSpan={6} className="p-0 border-0">
+            {bulkEditOpen && (
+              <BulkEditUnitsModal
+                unitIds={Array.from(selected)}
+                onClose={() => setBulkEditOpen(false)}
+                onSaved={() => { setBulkEditOpen(false); invalidate(); setSelected(new Set()); }}
+              />
+            )}
+            <AlertDialog open={!!deleteUnitId} onOpenChange={(open) => { if (!open) { setDeleteUnitId(null); setDeleteErr(null); } }}>
+              <AlertDialogContent className="bg-[#0f0f0f] border border-white/[0.08]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-white">{tc("areYouSure")}</AlertDialogTitle>
+                  <AlertDialogDescription className="text-white/60">
+                    {t("deleteUnitConfirm", { defaultValue: "ลบหน่วยนี้ถาวร — ย้อนกลับไม่ได้" })}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {deleteErr && <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{deleteErr}</p>}
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">{tc("cancel")}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => { e.preventDefault(); if (deleteUnitId) deleteUnit.mutate(deleteUnitId); }}
+                    disabled={deleteUnit.isPending}
+                    className="bg-red-600 hover:bg-red-700 text-white border-0"
+                  >
+                    {deleteUnit.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : tc("delete")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => { if (!open) { setBulkDeleteOpen(false); setDeleteErr(null); } }}>
+              <AlertDialogContent className="bg-[#0f0f0f] border border-white/[0.08]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-white">{t("deleteUnitsTitle", { count: selected.size, defaultValue: `ลบ ${selected.size} หน่วย?` })}</AlertDialogTitle>
+                  <AlertDialogDescription className="text-white/60">
+                    {t("deleteUnitConfirm", { defaultValue: "ลบหน่วยที่เลือกถาวร — ย้อนกลับไม่ได้" })}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {deleteErr && <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{deleteErr}</p>}
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">{tc("cancel")}</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => { e.preventDefault(); deleteBatch.mutate(Array.from(selected)); }}
+                    disabled={deleteBatch.isPending}
+                    className="bg-red-600 hover:bg-red-700 text-white border-0"
+                  >
+                    {deleteBatch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : tc("delete")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </TableCell>
+        </TableRow>
+      )}
     </>
   );
 };

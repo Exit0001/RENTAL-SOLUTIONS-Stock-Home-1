@@ -148,5 +148,17 @@
   "invoiceDoc": "Invoice",
   "openFile": "Open file",
   "editItem": "Edit Item",
-  "archive": "Archive"
+  "archive": "Archive",
+
+  "drillHint": "Tap category → sub-category → brand",
+  "drillHintBig": "Tap a category to see sub-categories → brands",
+  "selectAllCat": "Select all {{name}}",
+  "selectAllSub": "Select all {{name}}",
+  "deleteUnit": "Delete unit",
+  "deleteUnitConfirm": "Permanently delete the selected unit(s) — cannot be undone",
+  "deleteUnitsTitle": "Delete {{count}} units?",
+  "selectedUnitsCount": "{{count}} selected",
+  "bulkEditTitle": "Edit multiple units",
+  "bulkEditHint": "Tick the fields to change — only ticked fields apply to all selected units",
+  "bulkEditDone": "Updated"
 }
