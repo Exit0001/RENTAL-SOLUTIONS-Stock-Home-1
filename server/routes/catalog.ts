@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db";
 import { asc } from "drizzle-orm";
 import {
@@ -23,8 +23,10 @@ catalogRouter.get("/brands", async (req, res) => {
 catalogRouter.post("/brands", async (req, res) => {
   try {
     const data = insertBrandSchema.parse({ ...req.body, companyId: req.companyId });
-    const [brand] = await db.insert(brands).values(data).returning();
-    res.status(201).json(brand);
+    const [brand] = await db.insert(brands).values(data).onConflictDoNothing().returning();
+    if (brand) return res.status(201).json(brand);
+    const [existing] = await db.select().from(brands).where(and(eq(brands.companyId, req.companyId), sql`lower(${brands.name}) = lower(${data.name})`));
+    res.status(200).json(existing);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -70,8 +72,10 @@ catalogRouter.get("/categories", async (req, res) => {
 catalogRouter.post("/categories", async (req, res) => {
   try {
     const data = insertCategorySchema.parse({ ...req.body, companyId: req.companyId });
-    const [category] = await db.insert(categories).values(data).returning();
-    res.status(201).json(category);
+    const [category] = await db.insert(categories).values(data).onConflictDoNothing().returning();
+    if (category) return res.status(201).json(category);
+    const [existing] = await db.select().from(categories).where(and(eq(categories.companyId, req.companyId), sql`lower(${categories.name}) = lower(${data.name})`));
+    res.status(200).json(existing);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -103,8 +107,14 @@ catalogRouter.get("/subcategories", async (req, res) => {
 catalogRouter.post("/subcategories", async (req, res) => {
   try {
     const data = insertSubCategorySchema.parse({ ...req.body, companyId: req.companyId });
-    const [subCategory] = await db.insert(subCategories).values(data).returning();
-    res.status(201).json(subCategory);
+    const [subCategory] = await db.insert(subCategories).values(data).onConflictDoNothing().returning();
+    if (subCategory) return res.status(201).json(subCategory);
+    const [existing] = await db.select().from(subCategories).where(and(
+      eq(subCategories.companyId, req.companyId),
+      sql`lower(${subCategories.name}) = lower(${data.name})`,
+      eq(subCategories.parentCategory, data.parentCategory),
+    ));
+    res.status(200).json(existing);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
