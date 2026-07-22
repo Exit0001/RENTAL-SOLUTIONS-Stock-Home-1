@@ -73,7 +73,11 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
   const [parentItemName, setParentItemName] = useState("");
   const [parentItemId, setParentItemId] = useState<string | null>(null);
   const [qty, setQty] = useState("1");
-  const [prefix, setPrefix] = useState("SN");
+  const [prefix, setPrefix] = useState("");          // คำนำหน้าบาร์โค้ด เช่น AMP-DC-300A
+  const [namePrefix, setNamePrefix] = useState("");  // คำนำหน้าชื่อ (ค่าเริ่มต้น = ชื่อสินค้า)
+  const [nameJoiner, setNameJoiner] = useState(" #"); // ตัวคั่นก่อนเลขในชื่อ
+  const [barcodeJoiner, setBarcodeJoiner] = useState("-"); // ตัวคั่นก่อนเลขในบาร์โค้ด
+  const [pad, setPad] = useState("3");               // จำนวนหลัก เช่น 3 → 001
   const [startNum, setStartNum] = useState("1");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [units, setUnits] = useState<DraftUnit[]>([]);
@@ -84,24 +88,35 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
 
   const defaultLocation = locations[0]?.name ?? "";
 
+  // เลือกสินค้าหลัก → เดาค่าเริ่มต้นของคำนำหน้าชื่อ/บาร์โค้ดให้อัตโนมัติ
+  const pickParent = (item: StockItem) => {
+    setParentItemName(item.name);
+    setParentItemId(item.id);
+    setShowSuggestions(false);
+    setNamePrefix(item.name);
+    const slug = item.name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+    setPrefix(slug);
+  };
+
+  const padNum = (n: number) => String(n).padStart(Math.max(1, parseInt(pad) || 1), "0");
+  const start = parseInt(startNum) || 1;
+  const nameFor    = (i: number) => `${namePrefix || parentItemName || t("addIndividualUnit.unitFallback")}${nameJoiner}${padNum(start + i)}`;
+  const barcodeFor = (i: number) => (prefix ? `${prefix}${barcodeJoiner}${padNum(start + i)}` : "");
+
   const generateUnits = () => {
-    const q = parseInt(qty) || 1;
-    const start = parseInt(startNum) || 1;
-    const baseName = parentItemName || t("addIndividualUnit.unitFallback");
-    const newUnits: DraftUnit[] = Array.from({ length: q }, (_, i) => {
-      const num = String(start + i).padStart(2, "0");
-      return {
-        id: Date.now() + i,
-        unitName: t("addIndividualUnit.generatedUnitName", { base: baseName, num }),
-        serialNumber: "",
-        barcodeNumber: `${prefix}-${num}`,
-        storageLocation: defaultLocation,
-        initialStatus: "available",
-        purchasedAt: "",
-        warrantyExpiresAt: "",
-      };
-    });
-    setUnits((prev) => [...prev, ...newUnits]);
+    const q = Math.max(1, parseInt(qty) || 1);
+    const stamp = Date.now();
+    const newUnits: DraftUnit[] = Array.from({ length: q }, (_, i) => ({
+      id: stamp + i,
+      unitName: nameFor(i),
+      serialNumber: "",
+      barcodeNumber: barcodeFor(i),
+      storageLocation: defaultLocation,
+      initialStatus: "available",
+      purchasedAt: "",
+      warrantyExpiresAt: "",
+    }));
+    setUnits(newUnits);   // แทนที่รายการเดิม (กันสร้างซ้ำเวลาปรับค่าแล้วกดใหม่)
   };
 
   const updateUnit = (id: number, key: keyof DraftUnit, val: string) =>
@@ -172,7 +187,7 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
                 {suggestions.map((item: StockItem) => (
                   <button
                     key={item.id}
-                    onMouseDown={() => { setParentItemName(item.name); setParentItemId(item.id); setShowSuggestions(false); }}
+                    onMouseDown={() => pickParent(item)}
                     className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00] transition-colors"
                   >
                     {item.name}
@@ -182,26 +197,41 @@ export const AddIndividualUnitModal = ({ onClose, onSubmit }: Props): JSX.Elemen
             )}
           </div>
 
-          {/* Generation controls */}
-          <div className="flex items-end gap-3">
-            <div className="w-24">
-              <InputField label={tc("quantity")} placeholder="1" value={qty} onChange={setQty} />
+          {/* Generation controls — รันชื่อ + บาร์โค้ดอัตโนมัติ */}
+          <div className="flex flex-col gap-3 border border-white/[0.06] rounded-xl p-4 bg-black/20">
+            {/* แถว 1: จำนวน / เริ่มที่ / จำนวนหลัก */}
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="w-24"><InputField label={tc("quantity")} placeholder="10" value={qty} onChange={setQty} /></div>
+              <div className="w-28"><InputField label={t("addIndividualUnit.startNumber")} placeholder="1" value={startNum} onChange={setStartNum} /></div>
+              <div className="w-28"><InputField label={t("addIndividualUnit.padDigits", { defaultValue: "จำนวนหลัก" })} placeholder="3" value={pad} onChange={setPad} /></div>
             </div>
-            <div className="w-36">
-              <InputField label={t("addIndividualUnit.barcodePrefix")} placeholder={t("addIndividualUnit.barcodePrefixPlaceholder")} value={prefix} onChange={setPrefix} />
+            {/* แถว 2: รูปแบบชื่อ */}
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex-1 min-w-[160px]"><InputField label={t("addIndividualUnit.namePrefix", { defaultValue: "คำนำหน้าชื่อ" })} placeholder={parentItemName} value={namePrefix} onChange={setNamePrefix} /></div>
+              <div className="w-24"><InputField label={t("addIndividualUnit.nameJoiner", { defaultValue: "ตัวคั่น" })} placeholder=" #" value={nameJoiner} onChange={setNameJoiner} /></div>
             </div>
-            <div className="w-32">
-              <InputField label={t("addIndividualUnit.startNumber")} placeholder="1" value={startNum} onChange={setStartNum} />
+            {/* แถว 3: รูปแบบบาร์โค้ด */}
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex-1 min-w-[160px]"><InputField label={t("addIndividualUnit.barcodePrefix")} placeholder={t("addIndividualUnit.barcodePrefixPlaceholder")} value={prefix} onChange={setPrefix} /></div>
+              <div className="w-24"><InputField label={t("addIndividualUnit.barcodeJoiner", { defaultValue: "ตัวคั่น" })} placeholder="-" value={barcodeJoiner} onChange={setBarcodeJoiner} /></div>
             </div>
-            <button
-              onClick={generateUnits}
-              disabled={!parentItemId}
-              className="h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 flex items-center gap-2 flex-shrink-0 disabled:opacity-30 disabled:pointer-events-none"
-              style={{ backgroundColor: "#FFFF00" }}
-            >
-              <Hash className="w-3.5 h-3.5" />
-              {t("addIndividualUnit.generate")}
-            </button>
+            {/* Preview + generate */}
+            <div className="flex items-end justify-between gap-3 flex-wrap pt-1">
+              <div className="text-[11px] text-white/50 flex flex-col gap-0.5 min-w-0">
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">{t("addIndividualUnit.preview", { defaultValue: "ตัวอย่าง" })}</span>
+                <span className="text-white/75 truncate"><span className="text-white/40">{tc("name")}:</span> <span className="font-medium text-white/90">{nameFor(0)}</span>{(parseInt(qty) || 1) > 1 && <> … {nameFor((parseInt(qty) || 1) - 1)}</>}</span>
+                <span className="text-white/75 truncate font-mono"><span className="text-white/40 font-sans">{tc("barcode")}:</span> {prefix ? <><span className="font-medium text-white/90">{barcodeFor(0)}</span>{(parseInt(qty) || 1) > 1 && <> … {barcodeFor((parseInt(qty) || 1) - 1)}</>}</> : <span className="text-white/30 font-sans italic">{t("addIndividualUnit.barcodeEmpty", { defaultValue: "ไม่ใส่บาร์โค้ด" })}</span>}</span>
+              </div>
+              <button
+                onClick={generateUnits}
+                disabled={!parentItemId}
+                className="h-9 px-5 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 flex items-center gap-2 flex-shrink-0 disabled:opacity-30 disabled:pointer-events-none"
+                style={{ backgroundColor: "#FFFF00" }}
+              >
+                <Hash className="w-3.5 h-3.5" />
+                {t("addIndividualUnit.generate")}
+              </button>
+            </div>
           </div>
           {!parentItemId && (
             <p className="text-[10px] text-white/60 -mt-3">{t("addIndividualUnit.selectParentHint")}</p>
