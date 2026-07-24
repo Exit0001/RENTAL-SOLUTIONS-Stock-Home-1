@@ -1,204 +1,110 @@
-import React, { useState } from "react";
-import { X, Pencil, Trash2, Plus, Tag, Layers, ChevronDown, Search } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { X, Pencil, Trash2, Plus, Tag, Layers, ChevronRight, ArrowLeft, Search, Package } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { catalogApi } from "@/api";
+import { catalogApi, stockApi } from "@/api";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { FileUploadField } from "@/components/FileUploadField";
-import type { Brand, Category, SubCategory } from "@shared/schema";
+import type { Brand, Category, SubCategory, StockItem } from "@shared/schema";
 
 const avatarColors = [
   "#FFFF00", "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
   "#FECA57", "#FF9FF3", "#54A0FF", "#5F27CD", "#00D2D3",
 ];
-const getBgColor = (name: string) =>
-  avatarColors[name.charCodeAt(0) % avatarColors.length];
+const getBgColor = (name: string) => avatarColors[(name.charCodeAt(0) || 0) % avatarColors.length];
 
-const BrandAvatar = ({ name, logoUrl }: { name: string; logoUrl?: string | null }) =>
+const BrandAvatar = ({ name, logoUrl, size = "w-8 h-8" }: { name: string; logoUrl?: string | null; size?: string }) =>
   logoUrl ? (
-    <img src={logoUrl} alt={name} className="w-8 h-8 rounded-lg object-cover border border-white/10 flex-shrink-0" />
+    <img src={logoUrl} alt={name} className={`${size} rounded-lg object-cover border border-white/10 flex-shrink-0`} />
   ) : (
-    <span
-      className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-black flex-shrink-0"
-      style={{ backgroundColor: getBgColor(name) }}
-    >
+    <span className={`${size} rounded-lg flex items-center justify-center text-xs font-bold text-black flex-shrink-0`} style={{ backgroundColor: getBgColor(name) }}>
       {name.charAt(0).toUpperCase()}
     </span>
   );
 
-interface BrandFormProps {
-  companyId: string;
-  initial?: { name: string; logoUrl: string | null };
-  onSave: (data: { name: string; logoUrl: string | null }) => void;
-  onCancel: () => void;
-}
-const BrandForm = ({ companyId, initial, onSave, onCancel }: BrandFormProps) => {
+// ฟอร์มแก้ไขแบรนด์ (ชื่อ + โลโก้)
+const BrandForm = ({ companyId, initial, onSave, onCancel }: {
+  companyId: string; initial?: { name: string; logoUrl: string | null };
+  onSave: (data: { name: string; logoUrl: string | null }) => void; onCancel: () => void;
+}) => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const [name, setName] = useState(initial?.name ?? "");
   const [logoUrl, setLogoUrl] = useState<string | null>(initial?.logoUrl ?? null);
   return (
-    <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
-      <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.brandName")}</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("brandCategory.brandNamePlaceholder")}
-          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
-        />
-      </div>
+    <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2">
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("brandCategory.brandNamePlaceholder")}
+        className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50" />
       <FileUploadField label="Brand Logo" folder="brands" companyId={companyId} value={logoUrl} onChange={setLogoUrl} />
       <div className="flex gap-2 mt-1">
-        <button
-          onClick={onCancel}
-          className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
-        >
-          {tc("cancel")}
-        </button>
-        <button
-          onClick={() => onSave({ name, logoUrl })}
-          className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
-          style={{ backgroundColor: "#FFFF00" }}
-        >
-          {tc("save")}
-        </button>
+        <button onClick={onCancel} className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white">{tc("cancel")}</button>
+        <button onClick={() => onSave({ name, logoUrl })} className="flex-1 h-8 rounded-lg text-xs font-bold text-black hover:opacity-80" style={{ backgroundColor: "#FFFF00" }}>{tc("save")}</button>
       </div>
     </div>
   );
 };
 
-// ช่องค้นหาเล็กสำหรับหัวคอลัมน์ (module scope — กัน remount/โฟกัสหลุดตอนพิมพ์)
-const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
-  <div className="relative mb-2">
-    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/50" />
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full h-8 bg-black/40 border border-white/10 rounded-lg pl-8 pr-7 text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
-    />
-    {value && <button onClick={() => onChange("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"><X className="w-3 h-3" /></button>}
-  </div>
-);
-
-interface AddFormProps {
-  fields: { key: string; label: string; placeholder: string }[];
-  initial?: Record<string, string>;
-  onSave: (data: Record<string, string>) => void;
-  onCancel: () => void;
-}
-const AddForm = ({ fields, initial, onSave, onCancel }: AddFormProps) => {
-  const { t: tc } = useTranslation("common");
-  const [vals, setVals] = useState<Record<string, string>>(
-    Object.fromEntries(fields.map((f) => [f.key, initial?.[f.key] ?? ""]))
-  );
-  return (
-    <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
-      {fields.map((f) => (
-        <div key={f.key} className="flex flex-col gap-1">
-          <label className="text-[10px] text-white/60 uppercase tracking-wider">{f.label}</label>
-          <input
-            value={vals[f.key]}
-            onChange={(e) => setVals((p) => ({ ...p, [f.key]: e.target.value }))}
-            placeholder={f.placeholder}
-            className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
-          />
-        </div>
-      ))}
-      <div className="flex gap-2 mt-1">
-        <button
-          onClick={onCancel}
-          className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
-        >
-          {tc("cancel")}
-        </button>
-        <button
-          onClick={() => { onSave(vals); }}
-          className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
-          style={{ backgroundColor: "#FFFF00" }}
-        >
-          {tc("save")}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-interface SubCategoryFormProps {
-  categoryOptions: string[];
-  initial?: { name: string; parentCategory: string };
-  onSave: (data: { name: string; parentCategory: string }) => void;
-  onCancel: () => void;
-}
-const SubCategoryForm = ({ categoryOptions, initial, onSave, onCancel }: SubCategoryFormProps) => {
+// ฟอร์มแก้ไขหมวดย่อย (ชื่อ + หมวดแม่)
+const SubCategoryForm = ({ categoryOptions, initial, onSave, onCancel }: {
+  categoryOptions: string[]; initial?: { name: string; parentCategory: string };
+  onSave: (data: { name: string; parentCategory: string }) => void; onCancel: () => void;
+}) => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const [name, setName] = useState(initial?.name ?? "");
   const [parentCategory, setParentCategory] = useState(initial?.parentCategory ?? "");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
-  const suggestions = parentCategory.trim()
-    ? categoryOptions.filter((c) => c.toLowerCase().includes(parentCategory.toLowerCase()))
-    : categoryOptions;
-
+  const [showSug, setShowSug] = useState(false);
+  const sug = parentCategory.trim() ? categoryOptions.filter((c) => c.toLowerCase().includes(parentCategory.toLowerCase())) : categoryOptions;
   return (
-    <div className="mt-3 p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2 animate-modal-up">
-      <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.subCategoryName")}</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("brandCategory.subCategoryNamePlaceholder")}
-          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
-        />
-      </div>
-      <div className="flex flex-col gap-1 relative">
-        <label className="text-[10px] text-white/60 uppercase tracking-wider">{t("brandCategory.parentCategory")}</label>
-        <input
-          value={parentCategory}
-          onChange={(e) => setParentCategory(e.target.value)}
-          onFocus={() => setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+    <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-2">
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("brandCategory.subCategoryNamePlaceholder")}
+        className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50" />
+      <div className="relative">
+        <input value={parentCategory} onChange={(e) => setParentCategory(e.target.value)} onFocus={() => setShowSug(true)} onBlur={() => setTimeout(() => setShowSug(false), 150)}
           placeholder={t("brandCategory.parentCategoryPlaceholder")}
-          className="h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50 transition-colors"
-        />
-        {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-36 overflow-y-auto">
-            {suggestions.map((c) => (
-              <button
-                key={c}
-                onMouseDown={() => { setParentCategory(c); setShowSuggestions(false); }}
-                className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00] transition-colors"
-              >
-                {c}
-              </button>
-            ))}
+          className="w-full h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/50" />
+        {showSug && sug.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-[#141414] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-36 overflow-y-auto">
+            {sug.map((c) => <button key={c} onMouseDown={() => { setParentCategory(c); setShowSug(false); }} className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00]">{c}</button>)}
           </div>
         )}
       </div>
       <div className="flex gap-2 mt-1">
-        <button
-          onClick={onCancel}
-          className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white hover:border-white/30 transition-colors"
-        >
-          {tc("cancel")}
-        </button>
-        <button
-          onClick={() => onSave({ name, parentCategory })}
-          className="flex-1 h-8 rounded-lg text-xs font-bold text-black transition-opacity hover:opacity-80"
-          style={{ backgroundColor: "#FFFF00" }}
-        >
-          {tc("save")}
-        </button>
+        <button onClick={onCancel} className="flex-1 h-8 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white">{tc("cancel")}</button>
+        <button onClick={() => onSave({ name, parentCategory })} className="flex-1 h-8 rounded-lg text-xs font-bold text-black hover:opacity-80" style={{ backgroundColor: "#FFFF00" }}>{tc("save")}</button>
       </div>
     </div>
   );
 };
 
-interface BrandCategoryModalProps {
-  onClose: () => void;
-}
+// ฟอร์มชื่อเดียว (แก้ไขหมวด)
+const NameForm = ({ initial, placeholder, onSave, onCancel }: { initial?: string; placeholder: string; onSave: (v: string) => void; onCancel: () => void }) => {
+  const { t: tc } = useTranslation("common");
+  const [name, setName] = useState(initial ?? "");
+  return (
+    <div className="flex items-center gap-2 p-2 bg-white/5 rounded-xl border border-[#FFFF00]/30">
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) onSave(name.trim()); if (e.key === "Escape") onCancel(); }}
+        placeholder={placeholder} className="flex-1 h-8 px-3 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-[#FFFF00]/50" />
+      <button onClick={() => name.trim() && onSave(name.trim())} className="h-8 px-3 rounded-lg text-xs font-bold text-black hover:opacity-80" style={{ backgroundColor: "#FFFF00" }}>{tc("save")}</button>
+      <button onClick={onCancel} className="h-8 px-3 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white">{tc("cancel")}</button>
+    </div>
+  );
+};
+
+const SearchInput = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => (
+  <div className="relative">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      className="w-full h-9 bg-black/40 border border-white/10 rounded-lg pl-9 pr-8 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40" />
+    {value && <button onClick={() => onChange("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"><X className="w-3.5 h-3.5" /></button>}
+  </div>
+);
+
+type Tab = "categories" | "brands";
+type ItemWithCount = StockItem & { unitCount?: number };
+
+interface BrandCategoryModalProps { onClose: () => void; }
 
 export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.Element => {
   const { t } = useTranslation("modals");
@@ -206,38 +112,11 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
   const { token, companyId } = useAppStore();
   const qc = useQueryClient();
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ["catalog", "brands"],
-    queryFn: catalogApi.getBrands,
-    enabled: !!token,
-  });
-  const { data: categories = [] } = useQuery({
-    queryKey: ["catalog", "categories"],
-    queryFn: catalogApi.getCategories,
-    enabled: !!token,
-  });
-  const { data: subCategories = [] } = useQuery({
-    queryKey: ["catalog", "subcategories"],
-    queryFn: catalogApi.getSubCategories,
-    enabled: !!token,
-  });
+  const { data: brands = [] } = useQuery({ queryKey: ["catalog", "brands"], queryFn: catalogApi.getBrands, enabled: !!token });
+  const { data: categories = [] } = useQuery({ queryKey: ["catalog", "categories"], queryFn: catalogApi.getCategories, enabled: !!token });
+  const { data: subCategories = [] } = useQuery({ queryKey: ["catalog", "subcategories"], queryFn: catalogApi.getSubCategories, enabled: !!token });
+  const { data: stockItems = [] } = useQuery({ queryKey: ["stock"], queryFn: stockApi.getAll, enabled: !!token });
 
-  const createBrand = useMutation({
-    mutationFn: catalogApi.createBrand,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "brands"] }),
-  });
-  const updateBrand = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof catalogApi.updateBrand>[1] }) =>
-      catalogApi.updateBrand(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "brands"] }),
-  });
-  const deleteBrand = useMutation({
-    mutationFn: catalogApi.deleteBrand,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["catalog", "brands"] }),
-  });
-
-  // rename หมวด/หมวดย่อย cascade ไปที่ stock_items + sub.parentCategory → ต้อง invalidate ครบทั้ง 2 สไตล์ key
-  // (modal ใช้ ["catalog","x"], filter sidebar ใช้ ["catalog-x"]) + ["stock"]
   const invalidateCatalog = () => {
     for (const k of ["brands", "categories", "subcategories"]) {
       qc.invalidateQueries({ queryKey: ["catalog", k] });
@@ -247,344 +126,257 @@ export const BrandCategoryModal = ({ onClose }: BrandCategoryModalProps): JSX.El
     qc.invalidateQueries({ queryKey: ["stock-with-units"] });
   };
 
-  const createCategory = useMutation({
-    mutationFn: catalogApi.createCategory,
-    onSuccess: invalidateCatalog,
-  });
-  const updateCategory = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => catalogApi.updateCategory(id, { name }),
-    onSuccess: invalidateCatalog,
-  });
-  const deleteCategory = useMutation({
-    mutationFn: catalogApi.deleteCategory,
+  // group สินค้าเข้าหมวด/แบรนด์ เพื่อโชว์จำนวน + รายการตอนกดเข้าไป
+  const { itemsByCat, itemsByBrand } = useMemo(() => {
+    const c = new Map<string, ItemWithCount[]>();
+    const b = new Map<string, ItemWithCount[]>();
+    for (const it of stockItems as ItemWithCount[]) {
+      if (!c.has(it.category)) c.set(it.category, []);
+      c.get(it.category)!.push(it);
+      if (!b.has(it.brand)) b.set(it.brand, []);
+      b.get(it.brand)!.push(it);
+    }
+    return { itemsByCat: c, itemsByBrand: b };
+  }, [stockItems]);
+
+  const unitsOf = (arr?: ItemWithCount[]) => (arr ?? []).reduce((s, i) => s + (i.unitCount ?? 0), 0);
+
+  // ── mutations ──
+  const createBrand = useMutation({ mutationFn: catalogApi.createBrand, onSuccess: invalidateCatalog });
+  const updateBrand = useMutation({ mutationFn: ({ id, data }: { id: string; data: Parameters<typeof catalogApi.updateBrand>[1] }) => catalogApi.updateBrand(id, data), onSuccess: invalidateCatalog });
+  const deleteBrand = useMutation({ mutationFn: catalogApi.deleteBrand, onSuccess: invalidateCatalog });
+  const createCategory = useMutation({ mutationFn: catalogApi.createCategory, onSuccess: invalidateCatalog });
+  const updateCategory = useMutation({ mutationFn: ({ id, name }: { id: string; name: string }) => catalogApi.updateCategory(id, { name }), onSuccess: invalidateCatalog });
+  const deleteCategory = useMutation({ mutationFn: catalogApi.deleteCategory, onSuccess: invalidateCatalog });
+  const createSubCategory = useMutation({ mutationFn: catalogApi.createSubCategory, onSuccess: invalidateCatalog });
+  const updateSubCategory = useMutation({ mutationFn: ({ id, data }: { id: string; data: { name?: string; parentCategory?: string } }) => catalogApi.updateSubCategory(id, data), onSuccess: invalidateCatalog });
+  const deleteSubCategory = useMutation({ mutationFn: catalogApi.deleteSubCategory, onSuccess: invalidateCatalog });
+
+  const batchAdd = useMutation({
+    mutationFn: async ({ tab, names }: { tab: Tab; names: string[] }) => {
+      for (const n of names) {
+        if (tab === "categories") await catalogApi.createCategory({ name: n });
+        else await catalogApi.createBrand({ name: n, logoUrl: null });
+      }
+    },
     onSuccess: invalidateCatalog,
   });
 
-  const createSubCategory = useMutation({
-    mutationFn: catalogApi.createSubCategory,
-    onSuccess: invalidateCatalog,
-  });
-  const updateSubCategory = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; parentCategory?: string } }) => catalogApi.updateSubCategory(id, data),
-    onSuccess: invalidateCatalog,
-  });
-  const deleteSubCategory = useMutation({
-    mutationFn: catalogApi.deleteSubCategory,
-    onSuccess: invalidateCatalog,
-  });
+  // ── state ──
+  const [activeTab, setActiveTab] = useState<Tab>("categories");
+  const [drill, setDrill] = useState<string | null>(null);   // ชื่อหมวด/แบรนด์ที่กดเข้าไป
+  const [search, setSearch] = useState("");
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batch, setBatch] = useState<{ id: number; name: string }[]>([{ id: 1, name: "" }, { id: 2, name: "" }, { id: 3, name: "" }]);
+  const [editBrandId, setEditBrandId] = useState<string | null>(null);
+  const [editCatId, setEditCatId] = useState<string | null>(null);
+  const [editSubId, setEditSubId] = useState<string | null>(null);
+  const [addSubOpen, setAddSubOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"categories" | "brands">("categories");
-  const [showAddBrand, setShowAddBrand] = useState(false);
-  const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [addingSubFor, setAddingSubFor] = useState<string | null>(null);  // ชื่อหมวดที่กำลังเพิ่มหมวดย่อยเข้าไป
-  const [editingSubId, setEditingSubId] = useState<string | null>(null);
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
-
-  const [brandSearch, setBrandSearch] = useState("");
-  const [catSearch, setCatSearch] = useState("");
+  const switchTab = (tabTo: Tab) => { setActiveTab(tabTo); setDrill(null); setSearch(""); setBatchOpen(false); };
 
   const inc = (a: string, b: string) => a.toLowerCase().includes(b.toLowerCase());
-  const filteredBrands = brandSearch ? brands.filter((b: Brand) => inc(b.name, brandSearch)) : brands;
+  const sortedCats = useMemo(() => [...categories].sort((a: Category, b: Category) => a.name.localeCompare(b.name)), [categories]);
+  const sortedBrands = useMemo(() => [...brands].sort((a: Brand, b: Brand) => a.name.localeCompare(b.name)), [brands]);
+  const visCats = search ? sortedCats.filter((c) => inc(c.name, search)) : sortedCats;
+  const visBrands = search ? sortedBrands.filter((b) => inc(b.name, search)) : sortedBrands;
 
-  // จัดกลุ่มหมวดย่อยใต้หมวดแม่ (ต้นไม้) + หา orphan ที่ parent ไม่ตรงหมวดไหน
-  const subsByCat = new Map<string, SubCategory[]>();
-  for (const s of subCategories as SubCategory[]) {
-    if (!subsByCat.has(s.parentCategory)) subsByCat.set(s.parentCategory, []);
-    subsByCat.get(s.parentCategory)!.push(s);
-  }
-  for (const arr of Array.from(subsByCat.values())) arr.sort((a, b) => a.name.localeCompare(b.name));
-  const categoryNames = new Set(categories.map((c: Category) => c.name));
-  const orphanSubs = (subCategories as SubCategory[]).filter((s) => !categoryNames.has(s.parentCategory));
-
-  const q = catSearch.trim().toLowerCase();
-  const catMatches = (c: Category) => !q || inc(c.name, q) || (subsByCat.get(c.name) ?? []).some((s) => inc(s.name, q));
-  const visibleCategories = categories.filter(catMatches);
-  const visibleSubs = (c: Category) => {
-    const subs = subsByCat.get(c.name) ?? [];
-    return q && !inc(c.name, q) ? subs.filter((s) => inc(s.name, q)) : subs;
-  };
-  const isExpanded = (name: string) => expandedCats.has(name) || !!q;
-  const toggleExpand = (name: string) =>
-    setExpandedCats((prev) => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
-
-  const addBrand = (data: { name: string; logoUrl: string | null }) => {
-    if (!data.name.trim()) return;
-    createBrand.mutate({ name: data.name.trim(), logoUrl: data.logoUrl });
-    setShowAddBrand(false);
+  const addBatchRow = () => setBatch((r) => [...r, { id: Date.now(), name: "" }]);
+  const saveBatch = () => {
+    const names = batch.map((b) => b.name.trim()).filter(Boolean);
+    if (!names.length) return;
+    batchAdd.mutate({ tab: activeTab, names }, { onSuccess: () => { setBatch([{ id: Date.now(), name: "" }]); setBatchOpen(false); } });
   };
 
-  const saveBrandEdit = (id: string, data: { name: string; logoUrl: string | null }) => {
-    if (!data.name.trim()) return;
-    updateBrand.mutate({ id, data: { name: data.name.trim(), logoUrl: data.logoUrl } });
-    setEditingBrandId(null);
-  };
+  const catOptions = sortedCats.map((c) => c.name);
 
-  const addCategory = (data: Record<string, string>) => {
-    if (!data.name.trim()) return;
-    createCategory.mutate({ name: data.name.trim() });
-    setShowAddCategory(false);
-  };
-
-  const saveCategoryEdit = (id: string, data: Record<string, string>) => {
-    if (!data.name.trim()) return;
-    updateCategory.mutate({ id, name: data.name.trim() });
-    setEditingCategoryId(null);
-  };
-
-  const addSub = (data: { name: string; parentCategory: string }) => {
-    if (!data.name.trim()) return;
-    createSubCategory.mutate({ name: data.name.trim(), parentCategory: data.parentCategory.trim() });
-    setAddingSubFor(null);
-  };
-
-  const saveSubEdit = (id: string, data: { name: string; parentCategory: string }) => {
-    if (!data.name.trim()) return;
-    updateSubCategory.mutate({ id, data: { name: data.name.trim(), parentCategory: data.parentCategory.trim() } });
-    setEditingSubId(null);
-  };
+  // รายการสินค้าใน drill ปัจจุบัน
+  const drillItems: ItemWithCount[] = drill ? (activeTab === "categories" ? itemsByCat.get(drill) : itemsByBrand.get(drill)) ?? [] : [];
+  const drillSubs = drill && activeTab === "categories" ? (subCategories as SubCategory[]).filter((s) => s.parentCategory === drill) : [];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.8)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+    <WorkspaceShell
+      icon={<Tag className="w-4 h-4 text-black" />}
+      title={t("brandCategory.title")}
+      onClose={onClose}
+      tabs={[
+        { key: "categories", label: t("brandCategory.categoryManagement"), Icon: Layers, count: categories.length },
+        { key: "brands", label: t("brandCategory.brandManagement"), Icon: Tag, count: brands.length },
+      ]}
+      activeTab={activeTab}
+      onTabChange={(k) => switchTab(k as Tab)}
     >
-      <div className="w-full max-w-2xl bg-[#111111] rounded-2xl border border-white/10 shadow-2xl animate-modal-up flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFFF00" }}>
-              <Tag className="w-4 h-4 text-black" />
-            </div>
-            <h2 className="text-lg font-bold text-white tracking-wide">{t("brandCategory.title")}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-1 px-4 pt-3 flex-shrink-0">
-          {([
-            { key: "categories" as const, label: t("brandCategory.categoryManagement"), Icon: Layers, count: categories.length },
-            { key: "brands" as const, label: t("brandCategory.brandManagement"), Icon: Tag, count: brands.length },
-          ]).map(({ key, label, Icon, count }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-bold transition-colors ${activeTab === key ? "bg-[#FFFF00] text-black" : "text-white/60 hover:text-white hover:bg-white/5"}`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
-              <span className={`text-[10px] ${activeTab === key ? "text-black/60" : "text-white/40"}`}>{count}</span>
+      {drill ? (
+        /* ─────────── DETAIL: กดการ์ดเข้ามาดูสินค้าข้างใน ─────────── */
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex items-center gap-3 px-6 py-3 border-b border-white/[0.06] flex-shrink-0">
+            <button onClick={() => setDrill(null)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors">
+              <ArrowLeft className="w-4 h-4" />{tc("back")}
             </button>
-          ))}
-        </div>
+            {activeTab === "brands"
+              ? <BrandAvatar name={drill} logoUrl={brands.find((b: Brand) => b.name === drill)?.logoUrl} />
+              : <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: getBgColor(drill) }}><Layers className="w-4 h-4 text-black" /></span>}
+            <h2 className="text-base font-bold text-white truncate">{drill}</h2>
+            <span className="text-xs text-white/40">{t("brandCategory.itemsCount", { count: drillItems.length, defaultValue: "{{count}} รุ่น" })} · {unitsOf(drillItems)} {tc("units")}</span>
+          </div>
 
-        {/* Tab content */}
-        <div className="flex-1 overflow-hidden flex flex-col p-4">
-          {activeTab === "categories" ? (
-            <>
-              <SearchInput value={catSearch} onChange={setCatSearch} placeholder={tc("search")} />
-
-              {showAddCategory ? (
-                <AddForm
-                  fields={[{ key: "name", label: t("brandCategory.categoryNameLabel"), placeholder: t("brandCategory.categoryNamePlaceholder") }]}
-                  onSave={addCategory}
-                  onCancel={() => setShowAddCategory(false)}
-                />
-              ) : (
-                <button
-                  onClick={() => setShowAddCategory(true)}
-                  className="mb-2 w-full h-9 rounded-xl border border-dashed border-[#FFFF00]/30 hover:border-[#FFFF00]/60 bg-[#FFFF00]/[0.04] hover:bg-[#FFFF00]/[0.08] text-[#FFFF00] text-sm font-bold flex items-center justify-center gap-2 transition-all"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {t("brandCategory.addNewCategory")}
-                </button>
-              )}
-
-              <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
-                {visibleCategories.map((c: Category, i: number) => {
-                  const subs = subsByCat.get(c.name) ?? [];
-                  const shownSubs = visibleSubs(c);
-                  const expanded = isExpanded(c.name);
-                  return (
-                    <div key={c.id}>
-                      {editingCategoryId === c.id ? (
-                        <AddForm
-                          fields={[{ key: "name", label: t("brandCategory.categoryNameLabel"), placeholder: t("brandCategory.categoryNamePlaceholder") }]}
-                          initial={{ name: c.name }}
-                          onSave={(data) => saveCategoryEdit(c.id, data)}
-                          onCancel={() => setEditingCategoryId(null)}
-                        />
-                      ) : (
-                        <div
-                          onClick={() => toggleExpand(c.name)}
-                          className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-white/8 group transition-colors cursor-pointer"
-                        >
-                          <ChevronDown className={`w-4 h-4 text-white/50 flex-shrink-0 transition-transform ${expanded ? "" : "-rotate-90"}`} />
-                          <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-black flex-shrink-0" style={{ backgroundColor: avatarColors[i % avatarColors.length] }}>
-                            {(i + 1).toString().padStart(2, "0")}
-                          </span>
-                          <span className="text-sm font-medium text-white flex-1 truncate">{c.name}</span>
-                          <span className="text-[10px] text-white/40 flex-shrink-0">{subs.length}</span>
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-1 rounded text-white/60 hover:text-[#FFFF00] transition-colors" onClick={(e) => { e.stopPropagation(); setEditingCategoryId(c.id); }}>
-                              <Pencil className="w-3 h-3" />
-                            </button>
-                            <button className="p-1 rounded text-white/60 hover:text-red-400 transition-colors" onClick={(e) => { e.stopPropagation(); deleteCategory.mutate(c.id); }}>
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {expanded && (
-                        <div className="ml-5 mt-1 mb-1 flex flex-col gap-1 border-l border-white/10 pl-3">
-                          {shownSubs.map((s: SubCategory) => (
-                            editingSubId === s.id ? (
-                              <SubCategoryForm
-                                key={s.id}
-                                categoryOptions={categories.map((cc: Category) => cc.name)}
-                                initial={{ name: s.name, parentCategory: s.parentCategory }}
-                                onSave={(data) => saveSubEdit(s.id, data)}
-                                onCancel={() => setEditingSubId(null)}
-                              />
-                            ) : (
-                              <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] group transition-colors">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#FFFF00]/60 flex-shrink-0" />
-                                <span className="text-sm text-white/85 flex-1 truncate">{s.name}</span>
-                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button className="p-1 rounded text-white/60 hover:text-[#FFFF00] transition-colors" onClick={() => { setEditingSubId(s.id); setAddingSubFor(null); }}>
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                  <button className="p-1 rounded text-white/60 hover:text-red-400 transition-colors" onClick={() => deleteSubCategory.mutate(s.id)}>
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            )
-                          ))}
-                          {shownSubs.length === 0 && addingSubFor !== c.name && (
-                            <p className="text-xs text-white/30 italic px-1 py-1">{t("brandCategory.noSubsYet", { defaultValue: "ยังไม่มีหมวดย่อย" })}</p>
-                          )}
-                          {addingSubFor === c.name ? (
-                            <SubCategoryForm
-                              categoryOptions={categories.map((cc: Category) => cc.name)}
-                              initial={{ name: "", parentCategory: c.name }}
-                              onSave={addSub}
-                              onCancel={() => setAddingSubFor(null)}
-                            />
-                          ) : (
-                            <button
-                              onClick={() => { setAddingSubFor(c.name); setEditingSubId(null); }}
-                              className="w-full h-7 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/40 text-white/50 hover:text-[#FFFF00] text-xs flex items-center justify-center gap-1.5 transition-all"
-                            >
-                              <Plus className="w-3 h-3" />
-                              {t("brandCategory.addNewSubCategory")}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {visibleCategories.length === 0 && (
-                  <p className="px-2.5 py-3 text-xs text-white/40 italic">{tc("noResults")}</p>
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+            {/* หมวดย่อย (เฉพาะแท็บหมวด) */}
+            {activeTab === "categories" && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white/50">{t("brandCategory.subCategoryManagement")}</span>
+                  <span className="text-[10px] text-white/40">{drillSubs.length}</span>
+                  <button onClick={() => setAddSubOpen(true)} className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 flex items-center gap-1.5">
+                    <Plus className="w-3 h-3" />{t("brandCategory.addNewSubCategory")}
+                  </button>
+                </div>
+                {addSubOpen && (
+                  <SubCategoryForm categoryOptions={catOptions} initial={{ name: "", parentCategory: drill }}
+                    onSave={(d) => { if (d.name.trim()) createSubCategory.mutate({ name: d.name.trim(), parentCategory: d.parentCategory.trim() || drill }); setAddSubOpen(false); }}
+                    onCancel={() => setAddSubOpen(false)} />
                 )}
-
-                {/* Orphan sub-categories (parent ไม่ตรงหมวดไหน) */}
-                {(() => {
-                  const shownOrphans = q ? orphanSubs.filter((s) => inc(s.name, q)) : orphanSubs;
-                  if (shownOrphans.length === 0) return null;
-                  return (
-                    <div className="mt-2 pt-2 border-t border-white/[0.06]">
-                      <p className="text-[10px] text-amber-400/70 uppercase tracking-wider px-1 mb-1">{t("brandCategory.orphanSubs", { defaultValue: "หมวดย่อยไม่มีหมวดแม่" })}</p>
-                      {shownOrphans.map((s: SubCategory) => (
-                        editingSubId === s.id ? (
-                          <SubCategoryForm
-                            key={s.id}
-                            categoryOptions={categories.map((cc: Category) => cc.name)}
-                            initial={{ name: s.name, parentCategory: s.parentCategory }}
-                            onSave={(data) => saveSubEdit(s.id, data)}
-                            onCancel={() => setEditingSubId(null)}
-                          />
-                        ) : (
-                          <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] group transition-colors">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400/60 flex-shrink-0" />
-                            <span className="text-sm text-white/85 flex-1 truncate">{s.name}<span className="text-[10px] text-white/40 ml-1.5">↳ {s.parentCategory || "—"}</span></span>
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button className="p-1 rounded text-white/60 hover:text-[#FFFF00] transition-colors" onClick={() => setEditingSubId(s.id)}>
-                                <Pencil className="w-3 h-3" />
-                              </button>
-                              <button className="p-1 rounded text-white/60 hover:text-red-400 transition-colors" onClick={() => deleteSubCategory.mutate(s.id)}>
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  );
-                })()}
-
-              </div>
-            </>
-          ) : (
-            <>
-              <SearchInput value={brandSearch} onChange={setBrandSearch} placeholder={tc("search")} />
-
-              {showAddBrand ? (
-                <BrandForm companyId={companyId ?? ""} onSave={addBrand} onCancel={() => setShowAddBrand(false)} />
-              ) : (
-                <button
-                  onClick={() => { setShowAddBrand(true); setEditingBrandId(null); }}
-                  className="mb-2 w-full h-9 rounded-xl border border-dashed border-[#FFFF00]/30 hover:border-[#FFFF00]/60 bg-[#FFFF00]/[0.04] hover:bg-[#FFFF00]/[0.08] text-[#FFFF00] text-sm font-bold flex items-center justify-center gap-2 transition-all"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {t("brandCategory.addNewBrand")}
-                </button>
-              )}
-
-              <div className="flex flex-col gap-1 flex-1 overflow-y-auto min-h-0 pr-1">
-                {filteredBrands.map((b: Brand) => (
-                  editingBrandId === b.id ? (
-                    <BrandForm
-                      key={b.id}
-                      companyId={companyId ?? ""}
-                      initial={{ name: b.name, logoUrl: b.logoUrl }}
-                      onSave={(data) => saveBrandEdit(b.id, data)}
-                      onCancel={() => setEditingBrandId(null)}
-                    />
-                  ) : (
-                    <div key={b.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/5 hover:bg-white/8 group transition-colors">
-                      <BrandAvatar name={b.name} logoUrl={b.logoUrl} />
-                      <span className="text-sm font-medium text-white truncate flex-1">{b.name}</span>
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-1 rounded text-white/60 hover:text-[#FFFF00] transition-colors" onClick={() => { setEditingBrandId(b.id); setShowAddBrand(false); }}>
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                        <button className="p-1 rounded text-white/60 hover:text-red-400 transition-colors" onClick={() => deleteBrand.mutate(b.id)}>
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                <div className="flex flex-wrap gap-2">
+                  {drillSubs.length === 0 && !addSubOpen && <span className="text-xs text-white/30 italic">{t("brandCategory.noSubsYet", { defaultValue: "ยังไม่มีหมวดย่อย" })}</span>}
+                  {drillSubs.map((s: SubCategory) => (
+                    editSubId === s.id ? (
+                      <div key={s.id} className="w-full max-w-sm">
+                        <SubCategoryForm categoryOptions={catOptions} initial={{ name: s.name, parentCategory: s.parentCategory }}
+                          onSave={(d) => { if (d.name.trim()) updateSubCategory.mutate({ id: s.id, data: { name: d.name.trim(), parentCategory: d.parentCategory.trim() } }); setEditSubId(null); }}
+                          onCancel={() => setEditSubId(null)} />
                       </div>
+                    ) : (
+                      <div key={s.id} className="group flex items-center gap-1.5 h-8 pl-3 pr-1.5 rounded-lg bg-white/[0.05] border border-white/10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FFFF00]/60" />
+                        <span className="text-sm text-white/85">{s.name}</span>
+                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => setEditSubId(s.id)} className="p-1 rounded text-white/50 hover:text-[#FFFF00]"><Pencil className="w-3 h-3" /></button>
+                          <button onClick={() => deleteSubCategory.mutate(s.id)} className="p-1 rounded text-white/50 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+                <div className="h-px bg-white/[0.06] mt-1" />
+              </div>
+            )}
+
+            {/* รายการสินค้า (รุ่น) ในหมวด/แบรนด์นี้ */}
+            <span className="text-xs font-bold text-white/50">{t("brandCategory.itemsInside", { defaultValue: "สินค้าในนี้" })}</span>
+            {drillItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-white/30">
+                <Package className="w-10 h-10 mb-2" />
+                <p className="text-sm">{t("brandCategory.noItems", { defaultValue: "ยังไม่มีสินค้าในนี้" })}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {[...drillItems].sort((a, b) => a.name.localeCompare(b.name)).map((it) => (
+                  <div key={it.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <Package className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-white/90 truncate">{it.name}</p>
+                      <p className="text-[10px] text-white/40 truncate">{activeTab === "categories" ? it.brand : it.category}{it.subCategory ? ` · ${it.subCategory}` : ""}</p>
                     </div>
+                    {typeof it.unitCount === "number" && <span className="text-[11px] text-white/40 flex-shrink-0">{it.unitCount}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ─────────── GRID: การ์ดหมวด/แบรนด์ + เพิ่มทีละหลายอัน ─────────── */
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex items-center gap-3 px-6 py-3 border-b border-white/[0.06] flex-shrink-0">
+            <div className="flex-1 max-w-md"><SearchInput value={search} onChange={setSearch} placeholder={tc("search")} /></div>
+            <button onClick={() => setBatchOpen((v) => !v)}
+              className="h-9 px-4 rounded-lg text-sm font-bold text-black flex items-center gap-2 hover:opacity-90" style={{ backgroundColor: "#FFFF00" }}>
+              <Plus className="w-4 h-4" />{t("brandCategory.addMany", { defaultValue: "เพิ่มทีละหลายอัน" })}
+            </button>
+          </div>
+
+          {/* แผงเพิ่มทีละหลายอัน */}
+          {batchOpen && (
+            <div className="px-6 py-4 border-b border-white/[0.06] bg-[#0d0d0d] flex-shrink-0">
+              <p className="text-xs text-white/50 mb-2">{t("brandCategory.addManyHint", { defaultValue: "พิมพ์หลายชื่อ แล้วบันทึกทีเดียว" })}</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {batch.map((row, i) => (
+                  <div key={row.id} className="flex items-center gap-1">
+                    <input value={row.name}
+                      onChange={(e) => setBatch((r) => r.map((x) => x.id === row.id ? { ...x, name: e.target.value } : x))}
+                      onKeyDown={(e) => { if (e.key === "Enter" && i === batch.length - 1 && row.name.trim()) addBatchRow(); }}
+                      placeholder={activeTab === "categories" ? t("brandCategory.categoryNamePlaceholder") : t("brandCategory.brandNamePlaceholder")}
+                      className="flex-1 h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40" />
+                    {batch.length > 1 && <button onClick={() => setBatch((r) => r.filter((x) => x.id !== row.id))} className="w-7 h-7 flex items-center justify-center rounded text-white/40 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <button onClick={addBatchRow} className="h-8 px-3 rounded-lg border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/60 hover:text-[#FFFF00] text-xs font-medium flex items-center gap-1.5">
+                  <Plus className="w-3 h-3" />{t("brandCategory.addRow", { defaultValue: "เพิ่มแถว" })}
+                </button>
+                <span className="text-xs text-white/40">{batch.filter((b) => b.name.trim()).length} {tc("items")}</span>
+                <button onClick={() => setBatchOpen(false)} className="ml-auto h-8 px-3 rounded-lg border border-white/10 text-xs text-white/60 hover:text-white">{tc("cancel")}</button>
+                <button onClick={saveBatch} disabled={batchAdd.isPending || batch.every((b) => !b.name.trim())}
+                  className="h-8 px-4 rounded-lg text-xs font-bold text-black hover:opacity-80 disabled:opacity-40" style={{ backgroundColor: "#FFFF00" }}>
+                  {t("quickAdd.saveAll", { defaultValue: "บันทึกทั้งหมด" })}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* การ์ดกริด */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {activeTab === "categories" ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {visCats.map((c: Category, i: number) => (
+                  editCatId === c.id ? (
+                    <div key={c.id} className="col-span-full max-w-md"><NameForm initial={c.name} placeholder={t("brandCategory.categoryNamePlaceholder")} onSave={(v) => { updateCategory.mutate({ id: c.id, name: v }); setEditCatId(null); }} onCancel={() => setEditCatId(null)} /></div>
+                  ) : (
+                    <button key={c.id} onClick={() => setDrill(c.name)}
+                      className="group relative flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-[#FFFF00]/40 hover:bg-white/[0.05] transition-colors text-left">
+                      <span className="w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-bold text-black flex-shrink-0" style={{ backgroundColor: avatarColors[i % avatarColors.length] }}>{(i + 1).toString().padStart(2, "0")}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white truncate">{c.name}</p>
+                        <p className="text-[11px] text-white/40">{(itemsByCat.get(c.name)?.length ?? 0)} {t("brandCategory.modelsShort", { defaultValue: "รุ่น" })} · {unitsOf(itemsByCat.get(c.name))} {tc("units")}</p>
+                      </div>
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); setEditCatId(c.id); }} className="p-1.5 rounded text-white/50 hover:text-[#FFFF00]"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteCategory.mutate(c.id); }} className="p-1.5 rounded text-white/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    </button>
                   )
                 ))}
-                {filteredBrands.length === 0 && (
-                  <p className="px-2.5 py-3 text-xs text-white/40 italic">{tc("noResults")}</p>
-                )}
+                {visCats.length === 0 && <p className="col-span-full text-center text-sm text-white/40 py-10 italic">{tc("noResults")}</p>}
               </div>
-            </>
-          )}
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {visBrands.map((b: Brand) => (
+                  editBrandId === b.id ? (
+                    <div key={b.id} className="col-span-full max-w-md"><BrandForm companyId={companyId ?? ""} initial={{ name: b.name, logoUrl: b.logoUrl }} onSave={(d) => { if (d.name.trim()) updateBrand.mutate({ id: b.id, data: { name: d.name.trim(), logoUrl: d.logoUrl } }); setEditBrandId(null); }} onCancel={() => setEditBrandId(null)} /></div>
+                  ) : (
+                    <button key={b.id} onClick={() => setDrill(b.name)}
+                      className="group relative flex items-center gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-[#FFFF00]/40 hover:bg-white/[0.05] transition-colors text-left">
+                      <BrandAvatar name={b.name} logoUrl={b.logoUrl} size="w-9 h-9" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white truncate">{b.name}</p>
+                        <p className="text-[11px] text-white/40">{(itemsByBrand.get(b.name)?.length ?? 0)} {t("brandCategory.modelsShort", { defaultValue: "รุ่น" })} · {unitsOf(itemsByBrand.get(b.name))} {tc("units")}</p>
+                      </div>
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); setEditBrandId(b.id); }} className="p-1.5 rounded text-white/50 hover:text-[#FFFF00]"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteBrand.mutate(b.id); }} className="p-1.5 rounded text-white/50 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    </button>
+                  )
+                ))}
+                {visBrands.length === 0 && <p className="col-span-full text-center text-sm text-white/40 py-10 italic">{tc("noResults")}</p>}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </WorkspaceShell>
   );
 };

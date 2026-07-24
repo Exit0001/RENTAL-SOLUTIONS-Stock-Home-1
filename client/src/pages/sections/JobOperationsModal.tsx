@@ -7,6 +7,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi, stockApi, containersApi } from "@/api";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import type { AssignedUnit, ContainerWithItems } from "@/api";
 import type { Job } from "@shared/schema";
 
@@ -438,42 +439,28 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
   const dispatchDone = totalUnits > 0 && dispatchedAndReturnedCount === totalUnits;
   const returnDone   = returnTotal > 0 && returnedCount === returnTotal;
 
+  const opsIcons  = { pack: Package, dispatch: Truck, return: RotateCcw };
+  const opsLabels = { pack: "Pack", dispatch: "Dispatch", return: "Return" };
+  const opsFractions = { pack: packFraction, dispatch: dispatchFraction, return: returnFraction };
+  const opsDones     = { pack: packDone, dispatch: dispatchDone, return: returnDone };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch bg-black/80 backdrop-blur-sm">
-      <div className="relative flex flex-col w-full h-full bg-[#0d0d0d] text-white">
-
-        {/* ── Header ───────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
-            {(["pack", "dispatch", "return"] as OpsTab[]).map((t) => {
-              const icons  = { pack: Package, dispatch: Truck, return: RotateCcw };
-              const labels = { pack: "Pack", dispatch: "Dispatch", return: "Return" };
-              const fractions = { pack: packFraction, dispatch: dispatchFraction, return: returnFraction };
-              const dones     = { pack: packDone, dispatch: dispatchDone, return: returnDone };
-              const Icon = icons[t];
-              return (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-colors
-                    ${tab === t ? "bg-[#FFFF00] text-black" : "text-white/60 hover:text-white"}`}>
-                  <Icon className="w-4 h-4" />
-                  {labels[t]}
-                  {dones[t]
-                    ? <CheckCircle2 className={`w-3.5 h-3.5 ${tab === t ? "text-green-700" : "text-green-500"}`} />
-                    : <span className={`text-[10px] ml-0.5 ${tab === t ? "opacity-50" : "opacity-40"}`}>{fractions[t]}</span>}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="text-center flex-1 px-4">
-            <p className="text-sm font-bold text-white truncate">{job.name}</p>
-            <p className="text-[11px] text-white/40">{job.client}</p>
-          </div>
-
-          <button onClick={onClose} className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06]">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <WorkspaceShell
+      icon={<Truck className="w-4 h-4 text-black" />}
+      title={job.name}
+      subtitle={job.client ?? undefined}
+      onClose={onClose}
+      tabs={(["pack", "dispatch", "return"] as OpsTab[]).map((tk) => ({
+        key: tk,
+        label: opsLabels[tk],
+        Icon: opsIcons[tk],
+        badge: opsDones[tk]
+          ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+          : <span className="text-[10px] ml-0.5 opacity-50">{opsFractions[tk]}</span>,
+      }))}
+      activeTab={tab}
+      onTabChange={(k) => setTab(k as OpsTab)}
+    >
 
         {isLoading && (
           <div className="flex items-center justify-center flex-1">
@@ -1035,7 +1022,6 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
           </div>
         )}
 
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 };

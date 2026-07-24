@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { X, Package, Layers, Boxes, Loader2, Save } from "lucide-react";
+import { Package, Layers, Boxes, Save } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, jobsApi, catalogApi } from "@/api";
@@ -413,48 +414,30 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-full max-w-6xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[90vh]">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center">
-              <Package className="w-4 h-4 text-[#FFFF00]" />
-            </div>
-            <div>
-              <h2 className="font-bold text-white text-sm">{t("manageJobStock.title")}</h2>
-              <p className="text-[10px] text-white/60 truncate max-w-[220px]">{jobName}</p>
-            </div>
+    <WorkspaceShell
+      icon={<Package className="w-4 h-4 text-black" />}
+      title={t("manageJobStock.title")}
+      subtitle={jobName}
+      onClose={onClose}
+      tabs={[
+        { key: "items", label: t("manageJobStock.modeItems"), Icon: Package },
+        { key: "racks", label: t("manageJobStock.modeRacks"), Icon: Layers },
+        { key: "sets", label: t("manageJobStock.modeSets"), Icon: Boxes },
+      ]}
+      activeTab={pickerMode}
+      onTabChange={(k) => setPickerMode(k as typeof pickerMode)}
+      footer={
+        <>
+          <div className="text-xs text-red-400">{error}</div>
+          <div className="flex items-center gap-2">
+            <WSButton variant="ghost" onClick={onClose}>{tc("cancel")}</WSButton>
+            <WSButton variant="primary" onClick={handleSave} disabled={saving} pending={saving} icon={<Save className="w-4 h-4" />}>
+              {saving ? tc("saving") : cartCount > 0 ? t("manageContainerUnits.saveWithCount", { count: cartCount }) : tc("save")}
+            </WSButton>
           </div>
-          <button onClick={onClose}
-            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Mode tabs: items / racks / sets — เพิ่มอุปกรณ์เดี่ยว/แร็คที่มีอยู่/ชุดอุปกรณ์ ในหน้าเดียวกัน */}
-        <div className="flex items-center gap-2 px-6 py-2 border-b border-white/[0.06] flex-shrink-0">
-          {([
-            ["items", Package, t("manageJobStock.modeItems")],
-            ["racks", Layers,  t("manageJobStock.modeRacks")],
-            ["sets",  Boxes,   t("manageJobStock.modeSets")],
-          ] as const).map(([mode, Icon, label]) => (
-            <button
-              key={mode}
-              onClick={() => setPickerMode(mode)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-colors border
-                ${pickerMode === mode ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}
-            >
-              <Icon className="w-3.5 h-3.5" /> {label}
-            </button>
-          ))}
-        </div>
-
+        </>
+      }
+    >
         <ManageJobStockZoneBar
           zones={zones}
           activeZone={activeZone}
@@ -502,30 +485,6 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
             onBulkLineAdd={onBulkLineAdd}
           />
         </div>
-
-        {error && (
-          <div className="mx-5 mb-2 text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2 flex-shrink-0">
-            {error}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] flex-shrink-0 gap-3">
-          <button onClick={onClose}
-            className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
-            {tc("cancel")}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 h-9 px-5 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-40"
-            style={{ backgroundColor: "#FFFF00" }}
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {saving ? tc("saving") : cartCount > 0 ? t("manageContainerUnits.saveWithCount", { count: cartCount }) : tc("save")}
-          </button>
-        </div>
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 };

@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import {
-  X, ScanLine, CheckCircle2, AlertCircle, Loader2, Download,
+  ScanLine, CheckCircle2, AlertCircle, Loader2, Download,
   Boxes, Search, Package, Trash2,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, containersApi, jobsApi } from "@/api";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import type { ContainerWithItems } from "@/api";
 
 interface ScanFeedback {
@@ -160,27 +161,12 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
     : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch bg-black/80 backdrop-blur-sm">
-      <div className="relative flex flex-col w-full h-full bg-[#0d0d0d] text-white">
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <Boxes className="w-5 h-5 text-[#FFFF00]" />
-            <span className="text-base font-bold">
-              Rack Build Mode
-              {jobName && (
-                <span className="ml-2 text-white/50 font-normal text-sm">— {jobName}</span>
-              )}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06]"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+    <WorkspaceShell
+      icon={<Boxes className="w-4 h-4 text-black" />}
+      title="Rack Build Mode"
+      subtitle={jobName || undefined}
+      onClose={onClose}
+    >
         {/* ── Body ── */}
         <div className="flex flex-1 min-h-0">
           {/* LEFT — Rack List */}
@@ -402,7 +388,6 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 };

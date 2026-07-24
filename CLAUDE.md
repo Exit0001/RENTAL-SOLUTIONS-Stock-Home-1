@@ -745,6 +745,61 @@ Permanently remove sold/damaged/lost gear from inventory, with a full audit trai
   → select units / enter bulk qty → reason/salePrice/note). `DisposeModal` exports `REASON_LABEL`.
   `'sold'` added to `statusColors` + `statusEnum` i18n (th/en).
 
+### `WorkspaceShell` — shared full-screen layout template (design system)
+`client/src/components/WorkspaceShell.tsx` is the **standard shell every large full-screen
+workspace modal must use** so header/tabs/close/footer are in the same place everywhere (users
+don't relearn each window). Structure: **header** (`[yellow icon + title + subtitle]` left ·
+`tabs` middle · `headerActions + X` far right — X is ALWAYS top-right) / **body**
+(`sidebar?` + `main` + `rightPanel?`, each scrolls independently) / **footer** (info left ·
+buttons right). Props: `icon, title, subtitle, tabs (WSTab[]), activeTab, onTabChange,
+headerActions, onClose, sidebar, sidebarTitle, rightPanel, rightPanelTitle, footer, children`.
+`WSTab` supports `count` or a custom `badge` node (e.g. Job Ops' "3/5" / done-check). Also exports
+**`WSButton`** (`variant="primary"` yellow / `"ghost"` / `"danger"`, with `pending` spinner) — use
+it for all footer actions. **When building a new big workspace modal, wrap it in `WorkspaceShell`
+instead of a bespoke `fixed inset-0` card.** Already migrated: `QuickAddItemsModal`,
+`BrandCategoryModal`, `SetBuilderModal`, `ManageJobStockModal`, `ScanModal`, `JobOperationsModal`,
+`RackBuildModal`. Small centered form dialogs (add location/quote/crew, dispose, confirm) stay
+centered — not every modal is a workspace.
+
+### Add stock — one full-screen "เพิ่มสินค้า" (`QuickAddItemsModal.tsx`)
+Replaced the old two buttons ("เพิ่มสินค้าใหม่" detailed 4-tab + "เพิ่มยูนิตแต่ละชิ้น") with a **single
+yellow "เพิ่มสินค้า" button** opening one full-screen `WorkspaceShell` workspace:
+- **Left sidebar = defaults** (brand/category/sub prefill new cards + follow rows not yet
+  customized) + tracking mode + shared manufacturer/country/location.
+- **Right = one card per model**, each with its **own** brand/category/sub (mix brands &
+  categories in one save) + name + qty + **per-item purchase cost / daily rate**. Expand a card →
+  **per-unit** serial / barcode / purchase-date / warranty (blank = auto: name `#NN`, barcode
+  `SLUG-NNN`).
+- Save loops `stockApi.create` (per row) then `stockApi.addUnitsBatch` (per row's units) — existing
+  endpoints, no new routes. `StockPage.tsx` `quickAddItems` mutation.
+- `AddNewItemModal.tsx` (the detailed 4-tab form) is now **edit-only** (pencil on an item).
+  `AddIndividualUnitModal.tsx` was **deleted** — add units to an existing item via the inline
+  **"+ เพิ่มหน่วย"** in the expanded unit table (`StockItemsTableSection.tsx` `UnitRows`, continues
+  the existing number/barcode series).
+
+### Catalog manager — full-screen cards + drill-to-items + batch (`BrandCategoryModal.tsx`)
+Rebuilt as a `WorkspaceShell` with tabs **หมวดหมู่ / แบรนด์**:
+- **Card grid** — each category/brand card shows name + "N รุ่น · M หน่วย" (from a `["stock"]`
+  join) + rename(pencil)/delete(trash). Click a card → **drill into its stock items** (models
+  inside); category drill also manages its **sub-categories** (chips: add/edit/delete).
+- **"เพิ่มทีละหลายอัน"** — batch panel: type many names, save all at once (idempotent create).
+- **Rename cascades** (catalog is referenced by TEXT name, not FK): `PUT /api/catalog/categories/:id`
+  updates `stock_items.category` + `sub_categories.parent_category`; `PUT /api/catalog/subcategories/:id`
+  updates `stock_items.sub_category` (scoped by parent); `PUT /brands/:id` updates `stock_items.brand`.
+  All transactional; unique-name collision → 409. Client: `catalogApi.updateCategory` /
+  `updateSubCategory`. Invalidate BOTH key styles (`["catalog","x"]` modal + `["catalog-x"]` filter
+  sidebar) + `["stock"]`.
+
+### Add-item sub-category scoped to category
+In `AddNewItemModal` / `QuickAddItemsModal`, the sub-category field only lists sub-categories whose
+`parentCategory` === the chosen category (searchable combobox), instead of all ~92. Disabled until a
+category is picked; changing category clears an out-of-scope sub; edit keeps the item's current sub
+even if out of scope.
+
+### Inventory table dividers
+Row dividers use `border-white/10` (item/model rows) and `border-white/[0.06]` (unit sub-rows) — the
+older `white/[0.05]` / `white/[0.03]` were effectively invisible on the dark rows.
+
 ## Adding a New Feature
 
 1. Add table/columns to `shared/schema.ts`

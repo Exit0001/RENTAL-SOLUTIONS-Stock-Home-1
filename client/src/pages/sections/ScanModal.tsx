@@ -1,12 +1,13 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import {
-  X, ScanLine, CheckCircle2, AlertCircle, Package,
+  ScanLine, CheckCircle2, AlertCircle, Package,
   LogIn, LogOut, Loader2, Check,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, jobsApi } from "@/api";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import type { AssignedUnit } from "@/api";
 
 interface ScanEntry {
@@ -134,34 +135,19 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
   const modeCheckout = mode === "checkout";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.88)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-full max-w-4xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[92vh]">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${modeCheckout ? "bg-blue-500/10" : "bg-emerald-500/10"}`}>
-              <ScanLine className={`w-5 h-5 ${modeCheckout ? "text-blue-400" : "text-emerald-400"}`} />
-            </div>
-            <div>
-              <h2 className="font-bold text-white text-sm">{t("scan.title")}</h2>
-              <p className="text-[10px] text-white/60 truncate max-w-[220px]">{jobName}</p>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
-              <span className="text-lg font-bold text-[#FFFF00]">{scannedCount}</span>
-              <span className="text-sm text-white/60">/ {totalCount}</span>
-              <span className="text-[10px] text-white/60 ml-0.5">{t("scan.scannedSuffix")}</span>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
-            <X className="w-4 h-4" />
-          </button>
+    <WorkspaceShell
+      icon={<ScanLine className="w-4 h-4 text-black" />}
+      title={t("scan.title")}
+      subtitle={jobName}
+      onClose={onClose}
+      headerActions={
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+          <span className="text-lg font-bold text-[#FFFF00]">{scannedCount}</span>
+          <span className="text-sm text-white/60">/ {totalCount}</span>
+          <span className="text-[10px] text-white/60 ml-0.5">{t("scan.scannedSuffix")}</span>
         </div>
-
+      }
+    >
         {/* Body — two columns */}
         <div className="flex flex-1 overflow-hidden">
 
@@ -354,7 +340,6 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 };

@@ -409,7 +409,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
         return (
           <TableRow
             key={unit.id}
-            className={`border-b border-white/[0.03] transition-colors ${
+            className={`border-b border-white/[0.06] transition-colors ${
               isEditing ? "bg-[#161616]" : "bg-[#0f0f0f] hover:bg-[#141414]"
             }`}
             style={{ animationDelay: `${i * 20}ms` }}
@@ -899,8 +899,8 @@ export const StockItemsTableSection = ({
                             isSelected
                               ? "bg-[#FFFF00]/[0.05] border-l-2 border-l-[#FFFF00]/50 border-b-white/10"
                               : isBulk
-                              ? "bg-amber-500/[0.05] hover:bg-amber-500/[0.09] border-l-2 border-l-amber-400/50 border-b-amber-400/[0.08]"
-                              : "bg-[#1a1a1a] hover:bg-[#242424] border-b-white/[0.05]"
+                              ? "bg-amber-500/[0.05] hover:bg-amber-500/[0.09] border-l-2 border-l-amber-400/50 border-b-amber-400/20"
+                              : "bg-[#1a1a1a] hover:bg-[#242424] border-b-white/10"
                           }`}
                           onClick={isBulk ? undefined : () => toggleRow(item.id)}
                         >

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { X, Boxes, Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { Boxes, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, equipmentSetsApi } from "@/api";
 import type { StockItemWithUnits } from "@/api";
 import type { StockUnit } from "@shared/schema";
 import { FileUploadField } from "@/components/FileUploadField";
+import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
 import {
   EquipmentCatalogPane, EquipmentCartPane,
   type PickerAutoMap, type PickerPinMap,
@@ -116,27 +117,22 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
   const isLoading = stockLoading || (!!setId && existingLoading);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="w-full max-w-5xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[92vh]">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center">
-              <Boxes className="w-4 h-4 text-[#FFFF00]" />
-            </div>
-            <h2 className="font-bold text-white text-sm">{setId ? "แก้ไขชุดอุปกรณ์" : "สร้างชุดอุปกรณ์"}</h2>
+    <WorkspaceShell
+      icon={<Boxes className="w-4 h-4 text-black" />}
+      title={setId ? "แก้ไขชุดอุปกรณ์" : "สร้างชุดอุปกรณ์"}
+      onClose={onClose}
+      footer={
+        <>
+          <div className="text-xs text-red-400">{error}</div>
+          <div className="flex items-center gap-2">
+            <WSButton variant="ghost" onClick={onClose}>ยกเลิก</WSButton>
+            <WSButton variant="primary" onClick={handleSave} disabled={saving} pending={saving} icon={<Save className="w-4 h-4" />}>
+              {saving ? "กำลังบันทึก…" : totalPieces > 0 ? `บันทึกชุด (${totalPieces})` : "บันทึกชุด"}
+            </WSButton>
           </div>
-          <button onClick={onClose}
-            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
+        </>
+      }
+    >
         {/* Meta: name always visible (compact); note/image tucked behind a toggle */}
         <div className="px-6 py-2.5 border-b border-white/[0.06] flex-shrink-0 flex items-center gap-2.5">
           <input value={name} onChange={(e) => setName(e.target.value)}
@@ -189,25 +185,6 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
             onClearItem={clearItem}
           />
         </div>
-
-        {error && (
-          <div className="mx-5 mb-2 text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2 flex-shrink-0">{error}</div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] flex-shrink-0 gap-3">
-          <button onClick={onClose}
-            className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
-            ยกเลิก
-          </button>
-          <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 h-9 px-5 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-40"
-            style={{ backgroundColor: "#FFFF00" }}>
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {saving ? "กำลังบันทึก…" : totalPieces > 0 ? `บันทึกชุด (${totalPieces})` : "บันทึกชุด"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 };
