@@ -3,7 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db";
 import { asc } from "drizzle-orm";
 import {
-  brands, categories, subCategories, locations, containerTypes, positions,
+  brands, categories, subCategories, locations, containerTypes, positions, stockItems,
   insertBrandSchema, insertCategorySchema, insertSubCategorySchema, insertLocationSchema, insertContainerTypeSchema, insertPositionSchema,
 } from "@shared/schema";
 
@@ -35,13 +35,24 @@ catalogRouter.post("/brands", async (req, res) => {
 catalogRouter.put("/brands/:id", async (req, res) => {
   try {
     const data = insertBrandSchema.partial().parse(req.body);
-    const [brand] = await db.update(brands)
-      .set(data)
-      .where(and(eq(brands.id, req.params.id), eq(brands.companyId, req.companyId)))
-      .returning();
-    if (!brand) return res.status(404).json({ message: "Brand not found" });
+    const [current] = await db.select().from(brands)
+      .where(and(eq(brands.id, req.params.id), eq(brands.companyId, req.companyId)));
+    if (!current) return res.status(404).json({ message: "Brand not found" });
+
+    const brand = await db.transaction(async (tx) => {
+      const [updated] = await tx.update(brands).set(data)
+        .where(and(eq(brands.id, req.params.id), eq(brands.companyId, req.companyId)))
+        .returning();
+      // brand ถูกอ้างใน stock_items ด้วยชื่อ (TEXT) — rename ต้อง cascade กันชื่อหลุด
+      if (data.name && data.name !== current.name) {
+        await tx.update(stockItems).set({ brand: data.name })
+          .where(and(eq(stockItems.brand, current.name), eq(stockItems.companyId, req.companyId)));
+      }
+      return updated;
+    });
     res.json(brand);
   } catch (err: any) {
+    if (err?.code === "23505") return res.status(409).json({ message: `แบรนด์ "${req.body?.name}" มีอยู่แล้ว` });
     res.status(400).json({ message: err.message });
   }
 });
@@ -81,6 +92,33 @@ catalogRouter.post("/categories", async (req, res) => {
   }
 });
 
+catalogRouter.put("/categories/:id", async (req, res) => {
+  try {
+    const name = (req.body?.name ?? "").toString().trim();
+    if (!name) return res.status(400).json({ message: "ต้องระบุชื่อหมวดหมู่" });
+    const [current] = await db.select().from(categories)
+      .where(and(eq(categories.id, req.params.id), eq(categories.companyId, req.companyId)));
+    if (!current) return res.status(404).json({ message: "Category not found" });
+    if (current.name === name) return res.json(current);
+
+    // category ถูกอ้างใน stock_items.category และ sub_categories.parent_category ด้วยชื่อ → cascade
+    const updated = await db.transaction(async (tx) => {
+      const [cat] = await tx.update(categories).set({ name })
+        .where(and(eq(categories.id, req.params.id), eq(categories.companyId, req.companyId)))
+        .returning();
+      await tx.update(stockItems).set({ category: name })
+        .where(and(eq(stockItems.category, current.name), eq(stockItems.companyId, req.companyId)));
+      await tx.update(subCategories).set({ parentCategory: name })
+        .where(and(eq(subCategories.parentCategory, current.name), eq(subCategories.companyId, req.companyId)));
+      return cat;
+    });
+    res.json(updated);
+  } catch (err: any) {
+    if (err?.code === "23505") return res.status(409).json({ message: `หมวดหมู่ "${req.body?.name}" มีอยู่แล้ว` });
+    res.status(400).json({ message: err?.message ?? "แก้ไขหมวดหมู่ไม่สำเร็จ" });
+  }
+});
+
 catalogRouter.delete("/categories/:id", async (req, res) => {
   try {
     const [category] = await db.delete(categories)
@@ -117,6 +155,39 @@ catalogRouter.post("/subcategories", async (req, res) => {
     res.status(200).json(existing);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+catalogRouter.put("/subcategories/:id", async (req, res) => {
+  try {
+    const [current] = await db.select().from(subCategories)
+      .where(and(eq(subCategories.id, req.params.id), eq(subCategories.companyId, req.companyId)));
+    if (!current) return res.status(404).json({ message: "Sub-category not found" });
+
+    const name = req.body?.name != null ? req.body.name.toString().trim() : current.name;
+    const parentCategory = req.body?.parentCategory != null ? req.body.parentCategory.toString().trim() : current.parentCategory;
+    if (!name) return res.status(400).json({ message: "ต้องระบุชื่อหมวดหมู่ย่อย" });
+    if (name === current.name && parentCategory === current.parentCategory) return res.json(current);
+
+    const updated = await db.transaction(async (tx) => {
+      const [sub] = await tx.update(subCategories).set({ name, parentCategory })
+        .where(and(eq(subCategories.id, req.params.id), eq(subCategories.companyId, req.companyId)))
+        .returning();
+      // ชื่อหมวดย่อยถูกอ้างใน stock_items.sub_category — rename ต้อง cascade (สโคปด้วยหมวดแม่เดิม กันชนชื่อซ้ำข้ามหมวด)
+      if (name !== current.name) {
+        await tx.update(stockItems).set({ subCategory: name })
+          .where(and(
+            eq(stockItems.subCategory, current.name),
+            eq(stockItems.category, current.parentCategory),
+            eq(stockItems.companyId, req.companyId),
+          ));
+      }
+      return sub;
+    });
+    res.json(updated);
+  } catch (err: any) {
+    if (err?.code === "23505") return res.status(409).json({ message: `หมวดหมู่ย่อย "${req.body?.name}" มีอยู่แล้วในหมวดนี้` });
+    res.status(400).json({ message: err?.message ?? "แก้ไขหมวดหมู่ย่อยไม่สำเร็จ" });
   }
 });
 

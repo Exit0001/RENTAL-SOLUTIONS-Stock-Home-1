@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Search, SlidersHorizontal, Plus, Tag, Layers, MapPin, X } from "lucide-react";
+import { Search, SlidersHorizontal, Plus, Tag, MapPin, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface StockFilterControlsProps {
@@ -7,8 +7,7 @@ interface StockFilterControlsProps {
   onToggleFilter: () => void;
   onOpenBrandCategory: () => void;
   onOpenAddLocation: () => void;
-  onOpenAddNewItem: () => void;
-  onOpenAddIndividualUnit: () => void;
+  onOpenQuickAdd: () => void;
   searchQuery: string;
   onSearchChange: (val: string) => void;
 }
@@ -18,8 +17,7 @@ export const StockFilterControlsSection = ({
   onToggleFilter,
   onOpenBrandCategory,
   onOpenAddLocation,
-  onOpenAddNewItem,
-  onOpenAddIndividualUnit,
+  onOpenQuickAdd,
   searchQuery,
   onSearchChange,
 }: StockFilterControlsProps): JSX.Element => {
@@ -80,22 +78,13 @@ export const StockFilterControlsSection = ({
         </Button>
 
         <Button
-          onClick={onOpenAddNewItem}
+          onClick={onOpenQuickAdd}
           className="h-9 px-4 hover:opacity-90 text-black rounded-lg font-bold text-sm gap-2 transition-opacity"
           style={{ backgroundColor: "#FFFF00" }}
           variant="ghost"
         >
           <Plus className="w-4 h-4" />
           {t("addNewItem")}
-        </Button>
-
-        <Button
-          onClick={onOpenAddIndividualUnit}
-          className="h-9 px-4 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg font-semibold text-sm gap-2 transition-colors"
-          variant="ghost"
-        >
-          <Layers className="w-4 h-4" />
-          {t("addIndividualUnit")}
         </Button>
       </div>
     </div>

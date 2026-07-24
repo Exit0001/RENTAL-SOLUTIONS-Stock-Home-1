@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon, Layers } from "lucide-react";
+import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon, Layers, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
@@ -138,7 +138,8 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
 
   const anyEnabled = en.location || en.status || en.purchasedAt || en.warrantyExpiresAt;
   const inputCls = "h-8 w-full bg-black/50 border border-white/10 rounded px-2 text-sm text-white focus:outline-none focus:border-[#FFFF00]/40";
-  const Row = ({ k, label, children }: { k: keyof typeof en; label: string; children: React.ReactNode }) => (
+  // เรียกเป็นฟังก์ชัน (ไม่ใช่ <Row/>) — กัน React remount ทำให้ช่องพิมพ์โฟกัสหลุดทุกตัวอักษร
+  const row = (k: keyof typeof en, label: string, children: React.ReactNode) => (
     <div className="flex items-center gap-3">
       <YellowCheck checked={en[k]} onClick={() => setEn((p) => ({ ...p, [k]: !p[k] }))} />
       <span className="text-xs text-white/60 w-28 flex-shrink-0">{label}</span>
@@ -156,23 +157,23 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
         </div>
         <p className="text-xs text-white/50 mb-4">{t("bulkEditHint", { defaultValue: "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก" })} · {unitIds.length} {tc("units")}</p>
         <div className="flex flex-col gap-3">
-          <Row k="location" label={tc("location")}>
+          {row("location", tc("location"),
             <input className={inputCls} value={val.location} onChange={(e) => setVal((p) => ({ ...p, location: e.target.value }))} placeholder={tc("location")} />
-          </Row>
-          <Row k="status" label={tc("status")}>
+          )}
+          {row("status", tc("status"),
             <select className={`${inputCls} appearance-none cursor-pointer`} value={val.status} onChange={(e) => setVal((p) => ({ ...p, status: e.target.value }))}>
               <option value="available" className="bg-[#111]">{tc("statusEnum.available")}</option>
               <option value="out" className="bg-[#111]">{tc("statusEnum.out")}</option>
               <option value="maintenance" className="bg-[#111]">{tc("statusEnum.maintenance")}</option>
               <option value="retired" className="bg-[#111]">{tc("statusEnum.retired")}</option>
             </select>
-          </Row>
-          <Row k="purchasedAt" label={t("colPurchased")}>
+          )}
+          {row("purchasedAt", t("colPurchased"),
             <input type="date" className={`${inputCls} [color-scheme:dark]`} value={val.purchasedAt} onChange={(e) => setVal((p) => ({ ...p, purchasedAt: e.target.value }))} />
-          </Row>
-          <Row k="warrantyExpiresAt" label={t("colWarrantyExp")}>
+          )}
+          {row("warrantyExpiresAt", t("colWarrantyExp"),
             <input type="date" className={`${inputCls} [color-scheme:dark]`} value={val.warrantyExpiresAt} onChange={(e) => setVal((p) => ({ ...p, warrantyExpiresAt: e.target.value }))} />
-          </Row>
+          )}
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="h-9 px-4 rounded text-sm text-white/60 hover:text-white border border-white/10">{tc("cancel")}</button>
@@ -202,6 +203,8 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
   const [deleteUnitId, setDeleteUnitId] = useState<string | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [deleteErr, setDeleteErr] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addQty, setAddQty] = useState("1");
 
   const { data, isLoading } = useQuery({
     queryKey: ["stock", itemId],
@@ -226,6 +229,31 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
   });
 
   const toggleSel = (id: string) => setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // เพิ่มหน่วยให้ของเดิม — รันเลขต่อจากที่มีอยู่ (ชื่อ #NN + บาร์โค้ดต่อชุดเดิม/slug)
+  const addUnits = useMutation({
+    mutationFn: (n: number) => {
+      const cur = (data?.units ?? []) as StockUnitWithPlan[];
+      const itemName = data?.name ?? "Unit";
+      const nums = cur.map((u) => { const m = (u.name || "").match(/(\d+)\s*$/); return m ? parseInt(m[1]) : 0; });
+      const start = (nums.length ? Math.max(...nums) : 0) + 1;
+      const withBc = cur.find((u) => u.barcode);
+      const slug = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "ITEM";
+      const pre = withBc?.barcode ? withBc.barcode.replace(/[-_ ]?\d+\s*$/, "") : slug(itemName);
+      const newUnits = Array.from({ length: n }, (_, i) => ({
+        name: `${itemName} #${String(start + i).padStart(2, "0")}`,
+        serialNumber: null,
+        barcode: `${pre}-${String(start + i).padStart(3, "0")}`,
+        location: null,
+        status: "available",
+        purchasedAt: null,
+        warrantyExpiresAt: null,
+      }));
+      return stockApi.addUnitsBatch(itemId, newUnits as Parameters<typeof stockApi.addUnitsBatch>[1]);
+    },
+    onSuccess: () => { invalidate(); setShowAdd(false); setAddQty("1"); },
+    onError: (err: any) => toast({ title: "เพิ่มหน่วยไม่สำเร็จ", description: err?.message ?? "", variant: "destructive" }),
+  });
 
   const updateUnit = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Record<string, any> }) =>
@@ -300,8 +328,26 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
   if (units.length === 0) {
     return (
       <TableRow className="bg-[#0e0e0e] hover:bg-[#0e0e0e]">
-        <TableCell colSpan={6} className="py-2.5 pl-16 text-xs text-white/60 italic">
-          {t("noUnitsRow")}
+        <TableCell colSpan={6} className="py-2.5 pl-16 pr-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs text-white/60 italic">{t("noUnitsRow")}</span>
+            {canManage && (showAdd ? (
+              <div className="flex items-center gap-2">
+                <input type="number" min={1} value={addQty} onChange={(e) => setAddQty(e.target.value)}
+                  className="h-7 w-20 bg-black/50 border border-white/10 rounded px-2 text-sm text-white text-center focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]" />
+                <button onClick={() => addUnits.mutate(Math.max(1, parseInt(addQty) || 1))} disabled={addUnits.isPending}
+                  className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: "#FFFF00" }}>
+                  {addUnits.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}{tc("add")}
+                </button>
+                <button onClick={() => setShowAdd(false)} className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10">{tc("cancel")}</button>
+              </div>
+            ) : (
+              <button onClick={() => setShowAdd(true)}
+                className="h-7 px-3 rounded-lg border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/50 hover:text-[#FFFF00] text-xs font-medium flex items-center gap-1.5 transition-all">
+                <Plus className="w-3.5 h-3.5" />{t("addUnitsToItem", { defaultValue: "เพิ่มหน่วย" })}
+              </button>
+            ))}
+          </div>
         </TableCell>
       </TableRow>
     );
@@ -502,6 +548,40 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
           </TableRow>
         );
       })}
+
+      {/* + เพิ่มหน่วยให้ของเดิม (Admin/Manager) */}
+      {canManage && (
+        <TableRow className="bg-[#0d0d0d] hover:bg-[#0d0d0d] border-b border-white/[0.03]">
+          <TableCell colSpan={6} className="py-2 pl-16 pr-4">
+            {showAdd ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-white/60">{t("addUnitsQtyLabel", { defaultValue: "เพิ่มกี่หน่วย" })}</span>
+                <input
+                  type="number" min={1} value={addQty}
+                  onChange={(e) => setAddQty(e.target.value)}
+                  className="h-7 w-20 bg-black/50 border border-white/10 rounded px-2 text-sm text-white text-center focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]"
+                />
+                <button
+                  onClick={() => addUnits.mutate(Math.max(1, parseInt(addQty) || 1))}
+                  disabled={addUnits.isPending}
+                  className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: "#FFFF00" }}
+                >
+                  {addUnits.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}{tc("add")}
+                </button>
+                <button onClick={() => setShowAdd(false)} className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10">{tc("cancel")}</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="w-full h-8 rounded-lg border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/50 hover:text-[#FFFF00] text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t("addUnitsToItem", { defaultValue: "เพิ่มหน่วย" })}
+              </button>
+            )}
+          </TableCell>
+        </TableRow>
+      )}
 
       {/* Modals/dialogs — wrapped in a tr/td for valid table DOM; Radix dialogs portal out anyway */}
       {(bulkEditOpen || deleteUnitId || bulkDeleteOpen) && (

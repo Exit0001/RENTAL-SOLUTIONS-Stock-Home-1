@@ -56,6 +56,9 @@
   "addLocation": "เพิ่มสถานที่",
   "addNewItem": "เพิ่มรายการใหม่",
   "addIndividualUnit": "เพิ่มยูนิตแต่ละชิ้น",
+  "quickAdd": "เพิ่มเร็ว",
+  "addUnitsToItem": "เพิ่มหน่วย",
+  "addUnitsQtyLabel": "เพิ่มกี่หน่วย",
 
   "brandAndCategory": "แบรนด์และหมวดหมู่",
   "clearAllCount": "ล้างทั้งหมด ({{count}})",

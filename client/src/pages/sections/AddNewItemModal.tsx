@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import {
-  X, ChevronRight, Plus, FileText, Pencil,
+  X, ChevronRight, ChevronDown, Plus, FileText, Pencil,
   Calendar, Banknote, Package, Cpu, Lightbulb,
-  Monitor, Settings,
+  Monitor, Settings, Search,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -155,6 +155,54 @@ const SelectField = ({
   );
 };
 
+// select ที่พิมพ์ค้นหาได้ (ใช้กับหมวดหมู่ย่อยที่สโคปตามหมวด)
+const SearchableSelectField = ({
+  label, value, onChange, options, disabled, disabledHint,
+}: {
+  label: string; value: string; onChange: (v: string) => void; options: string[];
+  disabled?: boolean; disabledHint?: string;
+}) => {
+  const { t: tc } = useTranslation("common");
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const filtered = query.trim() ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase())) : options;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
+      <div className="relative">
+        {open && !disabled && <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60 pointer-events-none" />}
+        <input
+          value={open ? query : value}
+          onChange={(e) => { setQuery(e.target.value); if (!open) setOpen(true); }}
+          onFocus={() => { if (!disabled) { setOpen(true); setQuery(""); } }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          disabled={disabled}
+          placeholder={disabled ? disabledHint : (value || tc("selectPlaceholder"))}
+          className={`w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white
+            placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 transition-colors
+            disabled:opacity-50 disabled:cursor-not-allowed ${open && !disabled ? "pl-9 pr-8" : "px-3 pr-8"}`}
+        />
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40 pointer-events-none" />
+        {open && !disabled && (
+          <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-white/50 italic">{tc("noResults")}</div>
+            ) : filtered.map((o) => (
+              <button
+                key={o}
+                onMouseDown={() => { onChange(o); setQuery(""); setOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-sm transition-colors ${o === value ? "text-[#FFFF00] bg-[#FFFF00]/10" : "text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00]"}`}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
     <h4 className="text-xs font-bold text-[#FFFF00]/80 uppercase tracking-widest mb-4">{title}</h4>
@@ -171,13 +219,21 @@ interface GeneralData {
   trackingMode: "unit" | "bulk";
   bulkQuantity: string;
 }
-const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, subCategoryOptions }: {
+const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, allSubCategories }: {
   data: GeneralData; onChange: (d: GeneralData) => void; companyId: string;
-  brandOptions: string[]; categoryOptions: string[]; subCategoryOptions: string[];
+  brandOptions: string[]; categoryOptions: string[]; allSubCategories: { name: string; parentCategory: string }[];
 }) => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const set = (key: keyof GeneralData) => (v: string) => onChange({ ...data, [key]: v });
+  // เปลี่ยนหมวด → ถ้าหมวดย่อยเดิมไม่อยู่ในหมวดใหม่ ให้ล้างค่า
+  const setCategory = (v: string) => {
+    const keepSub = allSubCategories.some((s) => s.parentCategory === v && s.name === data.subCategory);
+    onChange({ ...data, category: v, subCategory: keepSub ? data.subCategory : "" });
+  };
+  // หมวดย่อยโชว์เฉพาะของหมวดที่เลือก (+ รวมค่าเดิมตอน edit ถ้าไม่ตรงหมวด กันค่าหาย)
+  const scopedSubs = data.category ? allSubCategories.filter((s) => s.parentCategory === data.category).map((s) => s.name) : [];
+  const subOptions = data.subCategory && !scopedSubs.includes(data.subCategory) ? [data.subCategory, ...scopedSubs] : scopedSubs;
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-3 gap-4">
@@ -187,8 +243,15 @@ const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, 
       </div>
       <div className="grid grid-cols-3 gap-4">
         <SelectField label={tc("brand")} value={data.brand} onChange={set("brand")} options={brandOptions} />
-        <SelectField label={tc("category")} value={data.category} onChange={set("category")} options={categoryOptions} />
-        <SelectField label={t("addNewItem.subCategoryLabel")} value={data.subCategory} onChange={set("subCategory")} options={subCategoryOptions} />
+        <SelectField label={tc("category")} value={data.category} onChange={setCategory} options={categoryOptions} />
+        <SearchableSelectField
+          label={t("addNewItem.subCategoryLabel")}
+          value={data.subCategory}
+          onChange={set("subCategory")}
+          options={subOptions}
+          disabled={!data.category}
+          disabledHint={t("addNewItem.selectCategoryFirst", { defaultValue: "เลือกหมวดหมู่ก่อน" })}
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{tc("description")}</label>
@@ -596,7 +659,7 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
             <GeneralTab data={general} onChange={setGeneral} companyId={companyId ?? ""}
               brandOptions={brands.map((b) => b.name)}
               categoryOptions={categories.map((c) => c.name)}
-              subCategoryOptions={subCategories.map((s) => s.name)} />
+              allSubCategories={subCategories.map((s) => ({ name: s.name, parentCategory: s.parentCategory }))} />
           )}
           {activeTab === "pricing"   && <PricingTab data={pricing} onChange={setPricing} />}
           {activeTab === "specs"     && <SpecsTab data={specs} onChange={setSpecs} />}

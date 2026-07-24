@@ -434,10 +434,12 @@ export const catalogApi = {
 
   getCategories:    () => api.get<Category[]>("/catalog/categories"),
   createCategory:   (data: Omit<InsertCategory, "companyId">) => api.post<Category>("/catalog/categories", data),
+  updateCategory:   (id: string, data: { name: string }) => api.put<Category>(`/catalog/categories/${id}`, data),
   deleteCategory:   (id: string) => api.delete<void>(`/catalog/categories/${id}`),
 
   getSubCategories: () => api.get<SubCategory[]>("/catalog/subcategories"),
   createSubCategory:(data: Omit<InsertSubCategory, "companyId">) => api.post<SubCategory>("/catalog/subcategories", data),
+  updateSubCategory:(id: string, data: { name?: string; parentCategory?: string }) => api.put<SubCategory>(`/catalog/subcategories/${id}`, data),
   deleteSubCategory:(id: string) => api.delete<void>(`/catalog/subcategories/${id}`),
 
   getLocations:     () => api.get<Location[]>("/catalog/locations"),

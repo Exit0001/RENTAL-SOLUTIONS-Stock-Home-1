@@ -40,7 +40,7 @@ import { RackBuildModal } from "./RackBuildModal";
 import { ManageContainerUnitsModal } from "./ManageContainerUnitsModal";
 import { SetBuilderModal } from "./SetBuilderModal";
 import { DisposeModal, REASON_LABEL } from "./DisposeModal";
-import { AddIndividualUnitModal } from "./AddIndividualUnitModal";
+import { QuickAddItemsModal, type QuickAddPayload } from "./QuickAddItemsModal";
 import { AddLocationModal } from "./AddLocationModal";
 import { AddMaintenanceLogModal } from "./AddMaintenanceLogModal";
 import { ItemDetailPanel } from "./ItemDetailPanel";
@@ -94,10 +94,9 @@ export const StockPage = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState<StockTab>("inventory");
   const [filterOpen, setFilterOpen] = useState(false);
   const [brandCategoryOpen, setBrandCategoryOpen] = useState(false);
-  const [addNewItemOpen, setAddNewItemOpen] = useState(false);
   const [addContainerOpen, setAddContainerOpen] = useState(false);
   const [rackBuildOpen, setRackBuildOpen] = useState(false);
-  const [addIndividualUnitOpen, setAddIndividualUnitOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [addLocationOpen, setAddLocationOpen] = useState(false);
   const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
   const [editItemOpen, setEditItemOpen] = useState(false);
@@ -334,12 +333,6 @@ export const StockPage = (): JSX.Element => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["subrentals"] }),
   });
 
-  // Mutation สำหรับสร้าง stock item ใหม่
-  const createStockItem = useMutation({
-    mutationFn: (data: Parameters<typeof stockApi.create>[0]) => stockApi.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["stock"] }),
-    onError:   (err: any) => toast({ title: "ไม่สามารถเพิ่มอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
-  });
 
   // Mutation สำหรับแก้ไข stock item
   const updateStockItem = useMutation({
@@ -353,18 +346,49 @@ export const StockPage = (): JSX.Element => {
     onError: (err: any) => toast({ title: "ไม่สามารถแก้ไขอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
   });
 
-  // Mutation สำหรับเพิ่ม unit ให้กับ stock item ที่มีอยู่ (batch — insert ครั้งเดียว)
-  const addStockUnits = useMutation({
-    mutationFn: async ({ stockItemId, units }: { stockItemId: string; units: Parameters<typeof stockApi.addUnit>[1][] }) => {
-      await stockApi.addUnitsBatch(stockItemId, units);
-      return stockItemId;
+  // เพิ่มสินค้า: สร้างหลายรุ่น (คนละแบรนด์/หมวดได้) — ราคาต่อรุ่น, วันซื้อ/ประกันต่อ unit; เว้นว่าง = auto
+  const quickAddItems = useMutation({
+    mutationFn: async (p: QuickAddPayload) => {
+      const slug = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "ITEM";
+      const toIso = (d: string | null) => (d ? new Date(d).toISOString() : null);
+      for (const row of p.rows) {
+        const item = await stockApi.create({
+          name: row.name,
+          brand: row.brand,
+          category: row.category,
+          subCategory: row.subCategory,
+          trackingMode: p.trackingMode,
+          quantity: p.trackingMode === "bulk" ? row.qty : 0,
+          manufacturer: p.manufacturer || null,
+          manufacturerCountry: p.manufacturerCountry || null,
+          purchaseCost: row.purchaseCost || null,
+          dailyRate: row.dailyRate || null,
+        } as Parameters<typeof stockApi.create>[0]);
+        if (p.trackingMode === "unit" && row.qty > 0) {
+          const pre = slug(row.name);
+          const units = Array.from({ length: row.qty }, (_, i) => {
+            const d = row.units?.[i];
+            return {
+              name: `${row.name} #${String(i + 1).padStart(2, "0")}`,
+              serialNumber: d?.serial ?? null,
+              barcode: d?.barcode ?? `${pre}-${String(i + 1).padStart(3, "0")}`,
+              location: p.location || null,
+              status: "available",
+              purchasedAt: toIso(d?.purchasedAt ?? null),
+              warrantyExpiresAt: toIso(d?.warrantyExpiresAt ?? null),
+            };
+          });
+          await stockApi.addUnitsBatch(item.id, units as Parameters<typeof stockApi.addUnitsBatch>[1]);
+        }
+      }
     },
-    onSuccess: (stockItemId) => {
-      // invalidate list (เพื่อ refresh unitCount) และ detail (เพื่อ refresh expanded units)
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock"] });
-      qc.invalidateQueries({ queryKey: ["stock", stockItemId] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      setQuickAddOpen(false);
+      toast({ title: "เพิ่มสำเร็จ" });
     },
-    onError: (err: any) => toast({ title: "ไม่สามารถเพิ่มหน่วยอุปกรณ์ได้", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "เพิ่มไม่สำเร็จ", description: err?.message ?? "เกิดข้อผิดพลาด", variant: "destructive" }),
   });
 
   const toggleBrand = (brand: string) =>
@@ -405,12 +429,6 @@ export const StockPage = (): JSX.Element => {
       {brandCategoryOpen && (
         <BrandCategoryModal onClose={() => setBrandCategoryOpen(false)} />
       )}
-      {addNewItemOpen && (
-        <AddNewItemModal
-          onClose={() => setAddNewItemOpen(false)}
-          onSubmit={(data) => createStockItem.mutate(data)}
-        />
-      )}
       {editItemOpen && editingItem && (
         <AddNewItemModal
           initialItem={editingItem}
@@ -429,10 +447,11 @@ export const StockPage = (): JSX.Element => {
         />
       )}
       <RackBuildModal open={rackBuildOpen} onClose={() => setRackBuildOpen(false)} />
-      {addIndividualUnitOpen && (
-        <AddIndividualUnitModal
-          onClose={() => setAddIndividualUnitOpen(false)}
-          onSubmit={(stockItemId, units) => addStockUnits.mutate({ stockItemId, units })}
+      {quickAddOpen && (
+        <QuickAddItemsModal
+          onClose={() => setQuickAddOpen(false)}
+          onSubmit={(payload) => quickAddItems.mutate(payload)}
+          isPending={quickAddItems.isPending}
         />
       )}
       {addLocationOpen && (
@@ -487,8 +506,7 @@ export const StockPage = (): JSX.Element => {
               onToggleFilter={() => setFilterOpen((v) => !v)}
               onOpenBrandCategory={() => setBrandCategoryOpen(true)}
               onOpenAddLocation={() => setAddLocationOpen(true)}
-              onOpenAddNewItem={() => setAddNewItemOpen(true)}
-              onOpenAddIndividualUnit={() => setAddIndividualUnitOpen(true)}
+              onOpenQuickAdd={() => setQuickAddOpen(true)}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
