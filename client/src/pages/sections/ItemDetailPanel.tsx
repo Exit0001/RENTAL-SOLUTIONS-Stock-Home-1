@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   X, Package, MapPin, Hash, Barcode,
   Boxes, Info, DollarSign, Wrench, FileText, Loader2,
-  ExternalLink, Calendar, Link2, Plus, Trash2, Search,
+  ExternalLink, Calendar, Link2, Plus, Trash2, Search, ImagePlus,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
+import { uploadAttachment } from "@/components/FileUploadField";
 import type { ItemAccessoryWithInfo, StockItemWithUnits, StockUnitWithPlan } from "@/api";
 import type { StockItem } from "@shared/schema";
 import { getSpecTemplates } from "./AddNewItemModal";
@@ -73,12 +74,34 @@ export const ItemDetailPanel = ({ item, onClose }: Props): JSX.Element => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   const { t: tm } = useTranslation("modals");
-  const { token, userRole } = useAppStore();
+  const { token, userRole, companyId } = useAppStore();
   const qc = useQueryClient();
   const canManage = userRole === "admin" || userRole === "manager";
   const [activeTab, setActiveTab] = useState<"units" | "schedule" | "accessories" | "details">("units");
   const [accSearch, setAccSearch] = useState("");
   const [selectedUnit, setSelectedUnit] = useState<StockUnitWithPlan | null>(null);
+
+  // รูปสินค้า (ระดับรุ่น) — โชว์ในหน้านี้ + อัปโหลด/เปลี่ยน/ลบได้ (ผู้จัดการ)
+  const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl ?? null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const imgInputRef = useRef<HTMLInputElement>(null);
+  const saveImg = useMutation({
+    mutationFn: (url: string | null) => stockApi.update(item.id, { imageUrl: url }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["stock"] }); qc.invalidateQueries({ queryKey: ["stock", item.id] }); },
+  });
+  const handleImgFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadingImg(true);
+    try {
+      const url = await uploadAttachment(file, "stock-items", companyId ?? "");
+      setImageUrl(url);
+      saveImg.mutate(url);
+    } finally {
+      setUploadingImg(false);
+      if (imgInputRef.current) imgInputRef.current.value = "";
+    }
+  };
+  const removeImg = () => { setImageUrl(null); saveImg.mutate(null); };
 
   // Fetch full item with units
   const { data, isLoading } = useQuery({
@@ -168,6 +191,42 @@ export const ItemDetailPanel = ({ item, onClose }: Props): JSX.Element => {
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* รูปสินค้า */}
+      {(imageUrl || canManage) && (
+        <div className="px-4 py-3 border-b border-white/[0.06] flex-shrink-0">
+          <input ref={imgInputRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => handleImgFile(e.target.files?.[0])} />
+          {imageUrl ? (
+            <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black/40">
+              <img src={imageUrl} alt={item.name} className="w-full max-h-52 object-contain mx-auto" />
+              {uploadingImg && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#FFFF00]" />
+                </div>
+              )}
+              {canManage && (
+                <div className="absolute top-2 right-2 flex gap-1.5">
+                  <button onClick={() => imgInputRef.current?.click()}
+                    className="h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-black/60 text-white/80 hover:text-white backdrop-blur-sm transition-colors">
+                    {t("changePhoto", { defaultValue: "เปลี่ยนรูป" })}
+                  </button>
+                  <button onClick={removeImg}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center bg-black/60 text-white/70 hover:text-red-400 backdrop-blur-sm transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : canManage ? (
+            <button onClick={() => imgInputRef.current?.click()} disabled={uploadingImg}
+              className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/40 bg-white/[0.02] hover:bg-white/[0.04] text-white/50 hover:text-[#FFFF00] text-xs font-medium transition-all disabled:cursor-wait">
+              {uploadingImg ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+              {t("addProductPhoto", { defaultValue: "เพิ่มรูปสินค้า" })}
+            </button>
+          ) : null}
+        </div>
+      )}
 
       {/* Stats bar */}
       <div className="grid grid-cols-4 flex-shrink-0">

@@ -39,6 +39,7 @@ import { EditContainerModal } from "./EditContainerModal";
 import { RackBuildModal } from "./RackBuildModal";
 import { ManageContainerUnitsModal } from "./ManageContainerUnitsModal";
 import { SetBuilderModal } from "./SetBuilderModal";
+import { AddSetsModal } from "./AddSetsModal";
 import { DisposeModal, REASON_LABEL } from "./DisposeModal";
 import { QuickAddItemsModal, type QuickAddPayload } from "./QuickAddItemsModal";
 import { AddLocationModal } from "./AddLocationModal";
@@ -104,6 +105,7 @@ export const StockPage = (): JSX.Element => {
   const [assignContainer, setAssignContainer] = useState<ContainerWithItems | null>(null);
   const [setBuilderOpen, setSetBuilderOpen] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [addSetsOpen, setAddSetsOpen] = useState(false);
   const [deleteSetTarget, setDeleteSetTarget] = useState<{ id: string; name: string } | null>(null);
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -465,7 +467,8 @@ export const StockPage = (): JSX.Element => {
       )}
       {assignContainer && (
         <ManageContainerUnitsModal
-          container={assignContainer}
+          containers={containers}
+          initialContainerId={assignContainer.id}
           onClose={() => setAssignContainer(null)}
         />
       )}
@@ -475,6 +478,7 @@ export const StockPage = (): JSX.Element => {
           onClose={() => { setSetBuilderOpen(false); setEditingSetId(null); }}
         />
       )}
+      {addSetsOpen && <AddSetsModal onClose={() => setAddSetsOpen(false)} />}
       {disposeOpen && <DisposeModal onClose={() => setDisposeOpen(false)} />}
 
       <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
@@ -696,7 +700,7 @@ export const StockPage = (): JSX.Element => {
             <span className="text-xs text-white/60">{equipmentSets.length}</span>
             <div className="ml-auto">
               <button
-                onClick={() => { setEditingSetId(null); setSetBuilderOpen(true); }}
+                onClick={() => setAddSetsOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "#FFFF00" }}
               >

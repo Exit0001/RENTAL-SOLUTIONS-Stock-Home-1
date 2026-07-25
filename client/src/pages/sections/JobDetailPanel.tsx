@@ -13,6 +13,7 @@ import {
 import { useAppStore } from "@/store/appStore";
 import { useToast } from "@/hooks/use-toast";
 import { jobsApi, jobVehiclesApi, jobSubRentalsApi, stockApi, jobTemplatesApi } from "@/api";
+import { FileUploadField } from "@/components/FileUploadField";
 import { ManageJobStockModal } from "./ManageJobStockModal";
 import { JobOperationsModal } from "./JobOperationsModal";
 import { RackBuildModal } from "./RackBuildModal";
@@ -39,7 +40,7 @@ const statusStyles: Record<string, string> = {
 export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
   const { t } = useTranslation("jobs");
   const { t: tc } = useTranslation("common");
-  const { token, userRole } = useAppStore();
+  const { token, userRole, companyId } = useAppStore();
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -84,6 +85,7 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["job-units", job.id] }); qc.invalidateQueries({ queryKey: ["stock"] }); },
   });
   const updateStatus = useMutation({ mutationFn: (status: string) => jobsApi.update(job.id, { status: status as any }), onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }) });
+  const updateImage = useMutation({ mutationFn: (url: string | null) => jobsApi.update(job.id, { imageUrl: url } as any), onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }) });
   const duplicateJob = useMutation({ mutationFn: () => jobsApi.duplicate(job.id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["stock"] }); toast({ title: t("jobDuplicated") }); }, onError: (e: any) => toast({ title: t("jobDuplicateFailed"), description: e?.message, variant: "destructive" }) });
   const deleteJob = useMutation({ mutationFn: () => jobsApi.delete(job.id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["pull-sheets"] }); qc.invalidateQueries({ queryKey: ["stock"] }); setDeleteOpen(false); onDeleted(); } });
   const saveTemplate = useMutation({ mutationFn: (name: string) => jobTemplatesApi.saveFromJob(job.id, { name }), onSuccess: (res) => { qc.invalidateQueries({ queryKey: ["job-templates"] }); setTplOpen(false); setTplName(""); toast({ title: t("templateSaved"), description: t("templateSavedDesc", { count: res.itemCount }) }); } });
@@ -187,6 +189,12 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
                 </div>
               ))}
             </div>
+            {canManage && (
+              <div className="max-w-xs">
+                <FileUploadField label="รูปงาน / หน้างาน" folder="jobs" companyId={companyId ?? ""}
+                  value={(job as any).imageUrl ?? null} onChange={(url) => updateImage.mutate(url)} />
+              </div>
+            )}
           </div>
         )}
 

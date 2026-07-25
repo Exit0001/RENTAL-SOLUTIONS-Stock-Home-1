@@ -12,6 +12,7 @@ import { crewApi, vehiclesApi, jobsApi, jobVehiclesApi } from "@/api";
 import type { CrewMemberRow, VehicleRow, JobCrewMember, JobVehicleRow, CrewType } from "@/api";
 import { AddCrewMemberModal } from "./AddCrewMemberModal";
 import { AddVehicleRosterModal } from "./AddVehicleRosterModal";
+import { AddResourcesModal } from "./AddResourcesModal";
 import { ResourceScheduleView, type ResourceRow } from "./ResourceScheduleView";
 import { CREW_TYPE_LABEL } from "./AssignCrewModal";
 
@@ -43,6 +44,8 @@ export const CrewPage = (): JSX.Element => {
   const [vehicleModalOpen, setVehicleModalOpen] = useState(false);
   const [editVehicle, setEditVehicle] = useState<VehicleRow | null>(null);
   const [deleteVehicleTarget, setDeleteVehicleTarget] = useState<VehicleRow | null>(null);
+  // เพิ่มหลายรายการทีเดียว (workspace เต็มจอ) — null=ปิด
+  const [addResourceTab, setAddResourceTab] = useState<"crew" | "vehicle" | null>(null);
 
   // ── shared data ────────────────────────────────────────
   const { data: roster = [] } = useQuery<CrewMemberRow[]>({ queryKey: ["crew-members"], queryFn: () => crewApi.getRoster(), enabled: !!token });
@@ -128,7 +131,9 @@ export const CrewPage = (): JSX.Element => {
     return (
       <div className={`group/row flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${on ? "bg-[#FFFF00]/[0.08]" : "hover:bg-white/[0.03]"}`}>
         <button onClick={() => toggleCrew(m.id)} disabled={!sid} className="flex items-center gap-2 flex-1 min-w-0 text-left disabled:cursor-default">
-          <div className="w-6 h-6 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-[9px] font-bold text-[#FFFF00]/70 flex-shrink-0">{initialsOf(m.name)}</div>
+          {m.imageUrl
+            ? <img src={m.imageUrl} alt={m.name} className="w-6 h-6 rounded-full object-cover border border-white/10 flex-shrink-0" />
+            : <div className="w-6 h-6 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-[9px] font-bold text-[#FFFF00]/70 flex-shrink-0">{initialsOf(m.name)}</div>}
           <div className="flex-1 min-w-0">
             <p className="text-xs text-white/85 truncate flex items-center gap-1">{m.name}{m.userId && <BadgeCheck className="w-3 h-3 text-emerald-400/70 flex-shrink-0" />}</p>
             {m.role && <p className="text-[9px] text-white/40 truncate">{m.role}</p>}
@@ -162,8 +167,8 @@ export const CrewPage = (): JSX.Element => {
             <span className="text-xs font-bold text-white/50">คลังคน/รถ</span>
             {canManage && (
               <div className="ml-auto flex items-center gap-1">
-                <button onClick={() => { setEditCrew(null); setCrewModalOpen(true); }} className="flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-bold text-black hover:opacity-90" style={{ backgroundColor: "#FFFF00" }}><Plus className="w-3 h-3" />คน</button>
-                <button onClick={() => { setEditVehicle(null); setVehicleModalOpen(true); }} className="flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10"><Plus className="w-3 h-3" />รถ</button>
+                <button onClick={() => setAddResourceTab("crew")} className="flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-bold text-black hover:opacity-90" style={{ backgroundColor: "#FFFF00" }}><Plus className="w-3 h-3" />คน</button>
+                <button onClick={() => setAddResourceTab("vehicle")} className="flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10"><Plus className="w-3 h-3" />รถ</button>
               </div>
             )}
           </div>
@@ -189,7 +194,9 @@ export const CrewPage = (): JSX.Element => {
                 return (
                   <div key={v.id} className={`group/row flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${on ? "bg-[#FFFF00]/[0.08]" : "hover:bg-white/[0.03]"}`}>
                     <button onClick={() => toggleVeh(v)} disabled={!sid} className="flex items-center gap-2 flex-1 min-w-0 text-left disabled:cursor-default">
-                      <div className="w-6 h-6 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center flex-shrink-0"><Truck className="w-3 h-3 text-[#FFFF00]/60" /></div>
+                      {v.imageUrl
+                        ? <img src={v.imageUrl} alt={v.name} className="w-6 h-6 rounded-lg object-cover border border-white/10 flex-shrink-0" />
+                        : <div className="w-6 h-6 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center flex-shrink-0"><Truck className="w-3 h-3 text-[#FFFF00]/60" /></div>}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-white/85 truncate">{v.name}</p>
                         {(v.plate || v.type) && <p className="text-[9px] text-white/40 truncate">{[v.type, v.plate].filter(Boolean).join(" · ")}</p>}
@@ -324,6 +331,7 @@ export const CrewPage = (): JSX.Element => {
       {/* Popups */}
       {crewModalOpen && <AddCrewMemberModal member={editCrew} onClose={() => { setCrewModalOpen(false); setEditCrew(null); }} />}
       {vehicleModalOpen && <AddVehicleRosterModal vehicle={editVehicle} onClose={() => { setVehicleModalOpen(false); setEditVehicle(null); }} />}
+      {addResourceTab && <AddResourcesModal initialTab={addResourceTab} onClose={() => setAddResourceTab(null)} />}
 
       <AlertDialog open={!!deleteCrewTarget} onOpenChange={(o) => !o && setDeleteCrewTarget(null)}>
         <AlertDialogContent>

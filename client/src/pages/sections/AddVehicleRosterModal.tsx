@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { X, Truck, Loader2, Save } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAppStore } from "@/store/appStore";
 import { vehiclesApi } from "@/api";
 import type { VehicleRow } from "@/api";
+import { FileUploadField } from "@/components/FileUploadField";
 
 interface Props {
   vehicle?: VehicleRow | null;   // มี → แก้ไข
@@ -13,16 +15,18 @@ const QUICK_TYPES = ["รถ 6 ล้อ", "รถ 10 ล้อ", "กระบ�
 
 export const AddVehicleRosterModal = ({ vehicle, onClose }: Props): JSX.Element => {
   const qc = useQueryClient();
+  const { companyId } = useAppStore();
   const [name, setName]         = useState(vehicle?.name ?? "");
   const [type, setType]         = useState(vehicle?.type ?? "");
   const [plate, setPlate]       = useState(vehicle?.plate ?? "");
   const [capacity, setCapacity] = useState(vehicle?.capacity ?? "");
   const [note, setNote]         = useState(vehicle?.note ?? "");
+  const [imageUrl, setImageUrl] = useState<string | null>(vehicle?.imageUrl ?? null);
   const [error, setError]       = useState<string | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const data = { name: name.trim(), type: type.trim() || null, plate: plate.trim() || null, capacity: capacity.trim() || null, note: note.trim() || null };
+      const data = { name: name.trim(), type: type.trim() || null, plate: plate.trim() || null, capacity: capacity.trim() || null, note: note.trim() || null, imageUrl };
       return vehicle ? vehiclesApi.update(vehicle.id, data) : vehiclesApi.create(data);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["vehicles"] }); onClose(); },
@@ -44,6 +48,7 @@ export const AddVehicleRosterModal = ({ vehicle, onClose }: Props): JSX.Element 
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          <FileUploadField label="รูปรถ" folder="vehicles" companyId={companyId ?? ""} value={imageUrl} onChange={setImageUrl} />
           <div>
             <label className="block text-[11px] font-bold text-white/70 mb-1">ชื่อรถ *</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น รถ 6 ล้อ คันที่ 1"

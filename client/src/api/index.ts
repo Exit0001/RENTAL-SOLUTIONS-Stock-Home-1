@@ -214,11 +214,11 @@ export type JobCrewMember   = { crewMemberId: string; name: string; type: CrewTy
 export type CrewMemberRow = {
   id: string; companyId: string; name: string; type: CrewType;
   phone: string | null; role: string | null; note: string | null;
-  dayRate: string | null; userId: string | null; active: boolean; createdAt: string;
+  dayRate: string | null; userId: string | null; imageUrl: string | null; active: boolean; createdAt: string;
 };
 export type VehicleRow = {
   id: string; companyId: string; name: string; type: string | null;
-  plate: string | null; capacity: string | null; note: string | null; active: boolean; createdAt: string;
+  plate: string | null; capacity: string | null; note: string | null; imageUrl: string | null; active: boolean; createdAt: string;
 };
 export type JobBulkEntry    = { id: string; jobId: string; stockItemId: string; quantity: number; position: string | null };
 
@@ -301,9 +301,9 @@ export const jobVehiclesApi = {
 
 export const crewApi = {
   getRoster: (type?: CrewType) => api.get<CrewMemberRow[]>(`/crew${type ? `?type=${type}` : ""}`),
-  create:    (data: { name: string; type: CrewType; phone?: string | null; role?: string | null; note?: string | null; dayRate?: string | null; userId?: string | null }) =>
+  create:    (data: { name: string; type: CrewType; phone?: string | null; role?: string | null; note?: string | null; dayRate?: string | null; userId?: string | null; imageUrl?: string | null }) =>
                api.post<CrewMemberRow>("/crew", data),
-  update:    (id: string, data: Partial<{ name: string; type: CrewType; phone: string | null; role: string | null; note: string | null; dayRate: string | null; userId: string | null; active: boolean }>) =>
+  update:    (id: string, data: Partial<{ name: string; type: CrewType; phone: string | null; role: string | null; note: string | null; dayRate: string | null; userId: string | null; imageUrl: string | null; active: boolean }>) =>
                api.put<CrewMemberRow>(`/crew/${id}`, data),
   delete:    (id: string) => api.delete<{ message: string }>(`/crew/${id}`),
   getMatrix: () => api.get<{ jobId: string; crewMemberId: string }[]>("/crew/matrix"),
@@ -311,9 +311,9 @@ export const crewApi = {
 
 export const vehiclesApi = {
   getRoster: () => api.get<VehicleRow[]>("/crew/vehicles"),
-  create:    (data: { name: string; type?: string | null; plate?: string | null; capacity?: string | null; note?: string | null }) =>
+  create:    (data: { name: string; type?: string | null; plate?: string | null; capacity?: string | null; note?: string | null; imageUrl?: string | null }) =>
                api.post<VehicleRow>("/crew/vehicles", data),
-  update:    (id: string, data: Partial<{ name: string; type: string | null; plate: string | null; capacity: string | null; note: string | null; active: boolean }>) =>
+  update:    (id: string, data: Partial<{ name: string; type: string | null; plate: string | null; capacity: string | null; note: string | null; imageUrl: string | null; active: boolean }>) =>
                api.put<VehicleRow>(`/crew/vehicles/${id}`, data),
   delete:    (id: string) => api.delete<{ message: string }>(`/crew/vehicles/${id}`),
   getMatrix: () => api.get<{ jobId: string; vehicleId: string }[]>("/crew/vehicles/matrix"),

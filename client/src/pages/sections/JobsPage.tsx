@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { JobScheduleView } from "./JobScheduleView";
 import { AddIncidentModal } from "./AddIncidentModal";
-import { AddJobModal } from "./AddJobModal";
+import { AddJobsModal } from "./AddJobsModal";
 import { ManageJobStockModal } from "./ManageJobStockModal";
 import { AssignCrewModal } from "./AssignCrewModal";
 import { CreatePullSheetModal } from "./CreatePullSheetModal";
@@ -220,7 +220,7 @@ export const JobsPage = (): JSX.Element => {
   return (
     <div className="flex flex-col h-full overflow-hidden p-4 gap-3" data-testid="page-jobs">
       {addJobOpen && (
-        <AddJobModal
+        <AddJobsModal
           onClose={() => setAddJobOpen(false)}
           onCreated={() => {
             qc.invalidateQueries({ queryKey: ["jobs"] });

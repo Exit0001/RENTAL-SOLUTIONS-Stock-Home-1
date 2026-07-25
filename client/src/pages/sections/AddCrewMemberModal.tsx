@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { crewApi, authApi } from "@/api";
 import type { CrewMemberRow, CrewType, TeamMember } from "@/api";
+import { FileUploadField } from "@/components/FileUploadField";
 import { CREW_TYPE_LABEL } from "./AssignCrewModal";
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 const TYPES: CrewType[] = ["own_crew", "freelancer"];
 
 export const AddCrewMemberModal = ({ member, onClose }: Props): JSX.Element => {
-  const { token } = useAppStore();
+  const { token, companyId } = useAppStore();
   const qc = useQueryClient();
 
   const [name, setName]       = useState(member?.name ?? "");
@@ -25,6 +26,7 @@ export const AddCrewMemberModal = ({ member, onClose }: Props): JSX.Element => {
   const [dayRate, setDayRate] = useState(member?.dayRate ?? "");
   const [note, setNote]       = useState(member?.note ?? "");
   const [userId, setUserId]   = useState<string>(member?.userId ?? "");
+  const [imageUrl, setImageUrl] = useState<string | null>(member?.imageUrl ?? null);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState<string | null>(null);
 
@@ -42,6 +44,7 @@ export const AddCrewMemberModal = ({ member, onClose }: Props): JSX.Element => {
         role: role.trim() || null,
         note: note.trim() || null,
         dayRate: dayRate.toString().trim() || null,
+        imageUrl,
         userId: type === "own_crew" && userId ? userId : null,
       };
       if (member) await crewApi.update(member.id, payload);
@@ -77,6 +80,8 @@ export const AddCrewMemberModal = ({ member, onClose }: Props): JSX.Element => {
               ))}
             </div>
           </div>
+
+          <FileUploadField label="รูปโปรไฟล์" folder="crew" companyId={companyId ?? ""} value={imageUrl} onChange={setImageUrl} />
 
           <div>
             <label className="block text-[11px] font-bold text-white/70 mb-1">ชื่อ *</label>

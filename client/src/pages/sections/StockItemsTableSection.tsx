@@ -26,7 +26,7 @@ import { stockApi } from "@/api";
 import type { StockUnitWithPlan, StockItemWithUnits } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
 
-type StockItemWithCount = StockItem & { unitCount: number; availableCount: number; plannedCount?: number };
+type StockItemWithCount = StockItem & { unitCount: number; availableCount: number; plannedCount?: number; sets?: { id: string; name: string }[] };
 
 const AvailabilityBadge = ({ available, total, planned }: { available: number; total: number; planned?: number }) => {
   const { t } = useTranslation("stock");
@@ -923,6 +923,15 @@ export const StockItemsTableSection = ({
                               {isBulk && (
                                 <span className="ml-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-300 font-bold flex-shrink-0 uppercase tracking-wide">
                                   นับจำนวน
+                                </span>
+                              )}
+                              {item.sets && item.sets.length > 0 && (
+                                <span
+                                  className="ml-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[#FFFF00]/10 text-[#FFFF00]/90 font-semibold flex-shrink-0 max-w-[220px]"
+                                  title={`อยู่ในชุด: ${item.sets.map((s) => s.name).join(", ")}`}
+                                >
+                                  <Boxes className="w-2.5 h-2.5 flex-shrink-0" />
+                                  <span className="truncate">{item.sets[0].name}{item.sets.length > 1 ? ` +${item.sets.length - 1}` : ""}</span>
                                 </span>
                               )}
                             </div>

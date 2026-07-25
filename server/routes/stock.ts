@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, and, inArray, sql, ne, isNotNull, desc } from "drizzle-orm";
 import { db } from "../db";
-import { stockItems, stockUnits, containers, containerUnits, users, itemAccessories, jobUnits, jobStock, jobs, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
+import { stockItems, stockUnits, containers, containerUnits, users, itemAccessories, jobUnits, jobStock, jobs, equipmentSets, equipmentSetItems, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
 import { notifyCompany } from "../lib/notify";
 
 // ─── Uniqueness helpers ───────────────────────────────────────────────────────
@@ -169,11 +169,25 @@ stockRouter.get("/", async (req, res) => {
       }
     }
 
+    // ชุดอุปกรณ์ที่อ้างถึงแต่ละ item (ทั้ง auto-pick และ pinned unit) → บอกในหน้าสต็อกว่าอยู่ชุดไหน
+    const setsByItem = new Map<string, { id: string; name: string }[]>();
+    const setRows = await db
+      .select({ stockItemId: equipmentSetItems.stockItemId, setId: equipmentSets.id, setName: equipmentSets.name })
+      .from(equipmentSetItems)
+      .innerJoin(equipmentSets, eq(equipmentSets.id, equipmentSetItems.setId))
+      .where(and(eq(equipmentSets.companyId, req.companyId), inArray(equipmentSetItems.stockItemId, itemIds)));
+    for (const r of setRows) {
+      const arr = setsByItem.get(r.stockItemId) ?? [];
+      if (!arr.some((s) => s.id === r.setId)) arr.push({ id: r.setId, name: r.setName });
+      setsByItem.set(r.stockItemId, arr);
+    }
+
     res.json(items.map((i) => ({
       ...i,
       unitCount:      totalCounts.get(i.id)     ?? 0,
       availableCount: availableCounts.get(i.id) ?? 0,
       plannedCount:   plannedCounts.get(i.id)   ?? 0,
+      sets:           setsByItem.get(i.id)      ?? [],
     })));
   } catch {
     res.status(500).json({ message: "Failed to fetch stock items" });

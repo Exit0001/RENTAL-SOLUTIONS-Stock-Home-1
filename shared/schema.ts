@@ -232,6 +232,7 @@ export const jobs = pgTable("jobs", {
   startDate:     timestamp("start_date").notNull(),
   endDate:       timestamp("end_date").notNull(),
   status:        jobStatusEnum("status").default("draft").notNull(),
+  imageUrl:      text("image_url"),   // รูปงาน/หน้างาน (Supabase Storage)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("jobs_company_id_idx").on(t.companyId),
@@ -270,6 +271,7 @@ export const crewMembers = pgTable("crew_members", {
   role:      text("role"),                       // ตำแหน่ง เช่น "Sound Engineer" (free text)
   note:      text("note"),
   dayRate:   decimal("day_rate", { precision: 10, scale: 2 }),   // ค่าตัว/วัน (optional)
+  imageUrl:  text("image_url"),   // รูปโปรไฟล์ทีมงาน (Supabase Storage)
   userId:    uuid("user_id").references(() => users.id, { onDelete: "set null" }),  // own-crew ↔ account
   active:    boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -289,6 +291,7 @@ export const vehicles = pgTable("vehicles", {
   plate:     text("plate"),                       // ทะเบียน
   capacity:  text("capacity"),                    // เช่น "5 ตัน"
   note:      text("note"),
+  imageUrl:  text("image_url"),   // รูปรถ (Supabase Storage)
   active:    boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
