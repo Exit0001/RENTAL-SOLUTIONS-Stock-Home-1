@@ -593,6 +593,19 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                   ))
                 )}
               </div>
+
+              {/* Download packing sheet */}
+              <div className="border-t border-white/10 p-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="w-full flex items-center justify-center gap-2 h-9 px-4 text-sm font-bold rounded-lg disabled:opacity-40 hover:opacity-90"
+                  style={{ backgroundColor: "#FFFF00", color: "#000" }}
+                >
+                  {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  ดาวน์โหลด Packing Sheet
+                </button>
+              </div>
             </div>
 
             {/* ── Right: Inventory + Rack List ───────────────── */}
@@ -613,11 +626,6 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-bold border border-white/10 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-40 transition-colors flex-shrink-0">
                     {markAllPrepared.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                     All Prepared
-                  </button>
-                  <button onClick={handleDownload} disabled={downloading}
-                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-bold border border-white/10 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-40 transition-colors flex-shrink-0">
-                    {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                    PDF
                   </button>
                 </div>
 

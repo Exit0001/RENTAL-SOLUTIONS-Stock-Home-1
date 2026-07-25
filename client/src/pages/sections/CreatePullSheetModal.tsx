@@ -27,20 +27,24 @@ const SelectField = ({ label, value, onChange, options }: {
 interface CreatePullSheetModalProps {
   onClose: () => void;
   onSubmit: (jobId: string, data: { assigneeId: string | null }) => void;
+  // ถ้าเปิดจากในหน้างานที่ระบุอยู่แล้ว ไม่ต้องให้เลือกงานซ้ำ — ใช้ค่านี้ตรงๆ แทน dropdown
+  fixedJobId?: string;
+  fixedJobName?: string;
 }
 
-export const CreatePullSheetModal = ({ onClose, onSubmit }: CreatePullSheetModalProps): JSX.Element => {
+export const CreatePullSheetModal = ({ onClose, onSubmit, fixedJobId, fixedJobName }: CreatePullSheetModalProps): JSX.Element => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
 
   const [jobId, setJobId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const effectiveJobId = fixedJobId ?? jobId;
 
   const { data: jobs = [] } = useQuery({
     queryKey: ["jobs"],
     queryFn: jobsApi.getAll,
-    enabled: !!token,
+    enabled: !!token && !fixedJobId,
   });
 
   const { data: crewData } = useQuery({
@@ -50,8 +54,8 @@ export const CreatePullSheetModal = ({ onClose, onSubmit }: CreatePullSheetModal
   });
 
   const handleSave = () => {
-    if (!jobId) return;
-    onSubmit(jobId, { assigneeId: assigneeId || null });
+    if (!effectiveJobId) return;
+    onSubmit(effectiveJobId, { assigneeId: assigneeId || null });
     onClose();
   };
 
@@ -76,8 +80,17 @@ export const CreatePullSheetModal = ({ onClose, onSubmit }: CreatePullSheetModal
         </div>
 
         <div className="p-5 flex flex-col gap-4">
-          <SelectField label={t("createPullSheet.jobLabel")} value={jobId} onChange={setJobId}
-            options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.title ?? j.id }))} />
+          {fixedJobId ? (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("createPullSheet.jobLabel")}</label>
+              <div className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white/70 px-3 flex items-center truncate">
+                {fixedJobName ?? "—"}
+              </div>
+            </div>
+          ) : (
+            <SelectField label={t("createPullSheet.jobLabel")} value={jobId} onChange={setJobId}
+              options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.title ?? j.id }))} />
+          )}
 
           <SelectField label={t("createPullSheet.assigneeLabel")} value={assigneeId} onChange={setAssigneeId}
             options={(crewData?.crew ?? []).map((c) => ({ value: c.id, label: c.name }))} />
@@ -88,7 +101,7 @@ export const CreatePullSheetModal = ({ onClose, onSubmit }: CreatePullSheetModal
             className="flex-1 h-9 rounded-lg border border-white/10 text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors">
             {tc("cancel")}
           </button>
-          <button onClick={handleSave} disabled={!jobId}
+          <button onClick={handleSave} disabled={!effectiveJobId}
             className="flex-1 h-9 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ backgroundColor: "#FFFF00" }}>
             {t("createPullSheet.createButton")}

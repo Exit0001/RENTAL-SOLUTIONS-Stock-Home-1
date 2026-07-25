@@ -264,6 +264,41 @@ ALTER TABLE "containers" ADD COLUMN IF NOT EXISTS "image_url" text;
 Until run, editing a container's photo will fail (column doesn't exist) — creating/listing containers
 still works since `imageUrl` is optional and simply omitted from the row.
 
+**Pending (2026-07-26)** — `job_day_schedules` + `job_day_crew` tables for the per-day job
+schedule (JobDetailPanel → "รายวัน" tab): departure/arrival/wrap times shared by the whole crew
+per day, and a per-day crew subset + duty (people working can differ day-to-day on a multi-day
+job — not the same fixed team every day). Already in `shared/schema.ts` and
+`migrations/0024_job_day_schedules.sql`. Run in Supabase SQL Editor:
+```sql
+CREATE TABLE IF NOT EXISTS "job_day_schedules" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"job_id" uuid NOT NULL,
+	"date" timestamp NOT NULL,
+	"departure_time" text,
+	"arrival_time" text,
+	"end_time" text,
+	"note" text
+);
+
+CREATE TABLE IF NOT EXISTS "job_day_crew" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"job_id" uuid NOT NULL,
+	"date" timestamp NOT NULL,
+	"crew_member_id" uuid NOT NULL,
+	"role" text
+);
+
+ALTER TABLE "job_day_schedules" ADD CONSTRAINT "job_day_schedules_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "job_day_crew" ADD CONSTRAINT "job_day_crew_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "job_day_crew" ADD CONSTRAINT "job_day_crew_crew_member_id_crew_members_id_fk" FOREIGN KEY ("crew_member_id") REFERENCES "public"."crew_members"("id") ON DELETE cascade ON UPDATE no action;
+
+CREATE INDEX IF NOT EXISTS "job_day_schedules_job_id_idx" ON "job_day_schedules" USING btree ("job_id");
+CREATE INDEX IF NOT EXISTS "job_day_crew_job_id_idx" ON "job_day_crew" USING btree ("job_id");
+CREATE INDEX IF NOT EXISTS "job_day_crew_crew_member_id_idx" ON "job_day_crew" USING btree ("crew_member_id");
+```
+Until run, the "รายวัน" tab's `GET/PUT /api/jobs/:id/day-schedules` and `/day-crew` endpoints
+will fail (tables don't exist) — the rest of the app is unaffected.
+
 **Already applied (2026-07-19)** — `equipment_sets` + `equipment_set_items` tables for the
 Equipment Sets (ชุดอุปกรณ์ / Kits) feature. In `shared/schema.ts` and
 `migrations/0014_modern_impossible_man.sql` (the `.sql` was hand-trimmed to ONLY the two new

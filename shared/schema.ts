@@ -359,6 +359,33 @@ export const jobCrewCounts = pgTable("job_crew_counts", {
   index("job_crew_counts_job_id_idx").on(t.jobId),
 ]);
 
+// job_day_schedules — รายละเอียดประจำวันของงานที่มีหลายวัน (เวลาออกจากบริษัท/ถึงหน้างาน/เลิกงาน)
+// ใช้ร่วมกันทั้งทีมในวันนั้น (ไม่แยกรายบุคคล) — 1 แถวต่อ (jobId, date)
+export const jobDaySchedules = pgTable("job_day_schedules", {
+  id:            uuid("id").primaryKey().defaultRandom(),
+  jobId:         uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  date:          timestamp("date").notNull(),
+  departureTime: text("departure_time"),  // เวลาออกจากบริษัท เช่น "08:00"
+  arrivalTime:   text("arrival_time"),    // เวลาถึงหน้างาน
+  endTime:       text("end_time"),        // เลิกงาน
+  note:          text("note"),
+}, (t) => [
+  index("job_day_schedules_job_id_idx").on(t.jobId),
+]);
+
+// job_day_crew — คนที่ทำงานในวันนั้นๆ ของงาน (เลือกแยกแต่ละวันได้ ไม่ต้องเป็นทีมเดิมทุกวัน) + หน้าที่ประจำวัน
+// เลือกจากคนที่ถูก assign เข้างานนี้แล้ว (job_crew_members) เท่านั้น
+export const jobDayCrew = pgTable("job_day_crew", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  jobId:        uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  date:         timestamp("date").notNull(),
+  crewMemberId: uuid("crew_member_id").references(() => crewMembers.id, { onDelete: "cascade" }).notNull(),
+  role:         text("role"),  // หน้าที่ของคนนี้ในวันนี้ (อาจต่างจาก role หลักของงาน)
+}, (t) => [
+  index("job_day_crew_job_id_idx").on(t.jobId),
+  index("job_day_crew_crew_member_id_idx").on(t.crewMemberId),
+]);
+
 // ─────────────────────────────────────────────
 // 10b. JOB UNITS — individual units ที่ assign ให้งาน (รู้ชัดว่า serial ไหนออกงานไหน)
 // ─────────────────────────────────────────────
@@ -751,6 +778,8 @@ export const insertCrewMemberSchema   = createInsertSchema(crewMembers).omit({ i
 export const insertVehicleSchema      = createInsertSchema(vehicles).omit({ id: true, createdAt: true });
 export const insertJobCrewMemberSchema = createInsertSchema(jobCrewMembers).omit({ id: true });
 export const insertJobCrewCountSchema  = createInsertSchema(jobCrewCounts).omit({ id: true });
+export const insertJobDayScheduleSchema = createInsertSchema(jobDaySchedules).omit({ id: true });
+export const insertJobDayCrewSchema     = createInsertSchema(jobDayCrew).omit({ id: true });
 export const insertPullSheetSchema    = createInsertSchema(pullSheets)
   .omit({ id: true, createdAt: true, companyId: true, createdById: true, status: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
@@ -812,6 +841,10 @@ export type JobCrewMember       = typeof jobCrewMembers.$inferSelect;
 export type InsertJobCrewMember = z.infer<typeof insertJobCrewMemberSchema>;
 export type JobCrewCount        = typeof jobCrewCounts.$inferSelect;
 export type InsertJobCrewCount  = z.infer<typeof insertJobCrewCountSchema>;
+export type JobDaySchedule       = typeof jobDaySchedules.$inferSelect;
+export type InsertJobDaySchedule = z.infer<typeof insertJobDayScheduleSchema>;
+export type JobDayCrew           = typeof jobDayCrew.$inferSelect;
+export type InsertJobDayCrew     = z.infer<typeof insertJobDayCrewSchema>;
 
 export type PullSheet       = typeof pullSheets.$inferSelect;
 export type InsertPullSheet = z.infer<typeof insertPullSheetSchema>;

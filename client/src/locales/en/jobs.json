@@ -50,6 +50,18 @@
   "noVehiclesAssigned": "No vehicles added to this job yet",
   "removeVehicle": "Remove vehicle",
 
+  "dailyScheduleLabel": "Daily Schedule",
+  "dayScheduleDeparture": "Depart from office",
+  "dayScheduleArrival": "Arrive on-site",
+  "dayScheduleEnd": "Wrap time",
+  "dayScheduleDepartureShort": "Depart {{time}}",
+  "dayScheduleArrivalShort": "Arrive {{time}}",
+  "dayScheduleEndShort": "Wrap {{time}}",
+  "dayScheduleCrewToday": "Crew working today",
+  "dayScheduleNoJobCrew": "No crew assigned to this job yet — add some in the \"Crew & Vehicles\" tab first",
+  "dayScheduleRolePlaceholder": "Duty today",
+  "dayScheduleNeedDates": "Enter start/end dates first to set up the daily schedule",
+
   "subRentalsLabel": "Sub-Rentals",
   "manageSubRentals": "Manage sub-rentals",
   "noSubRentalsAssigned": "No sub-rentals for this job yet",

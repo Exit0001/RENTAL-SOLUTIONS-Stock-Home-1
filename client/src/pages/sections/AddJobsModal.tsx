@@ -1,15 +1,26 @@
-import { useState } from "react";
-import { Briefcase, Plus, Trash2, LayoutTemplate, Boxes } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Briefcase, Plus, Trash2, LayoutTemplate, ChevronDown, ChevronUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { jobsApi, jobTemplatesApi, equipmentSetsApi } from "@/api";
+import { jobsApi, jobTemplatesApi, crewApi, vehiclesApi, jobVehiclesApi } from "@/api";
+import type { CrewMemberRow, VehicleRow } from "@/api";
 import { useAppStore } from "@/store/appStore";
 import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
+import { JobDailyScheduleDraftEditor, type DraftDaySchedule, type DraftDayCrewEntry } from "./JobDailyScheduleDraftEditor";
 import type { InsertJob } from "@shared/schema";
 
 // เพิ่มงานหลายงานในหน้าเดียว (เหมือนหน้า "เพิ่มสินค้า")
-// ค่าร่วม (ลูกค้า/สถานที่/สถานะ/เทมเพลต/ชุดอุปกรณ์) อยู่แถบซ้าย, แต่ละงานกรอกชื่อ+วันที่ทางขวา
+// ค่าร่วม (ลูกค้า/สถานที่/สถานะ/เทมเพลต) อยู่แถบซ้าย, แต่ละงานกรอกชื่อ+วันที่ทางขวา
+// เลือกชุดอุปกรณ์เข้างานทำทีหลังผ่านหน้า "แก้ไขอุปกรณ์" (ManageJobStockModal) แทน — ไม่ต้องเลือกตอนสร้างงาน
+// ทีมงาน/รถ/ตารางรายวัน ตั้งได้ตอนสร้างเลย (ไม่บังคับ) — เก็บเป็น draft ต่อแถว แล้วยิง API ตามหลังการสร้างงานจริง
 
-type JobRow = { id: number; name: string; client: string; startDate: string; endDate: string; rehearsalDate: string };
+type JobRow = {
+  id: number; name: string; client: string; startDate: string; endDate: string; rehearsalDate: string;
+  crewMemberIds: string[];
+  vehicleIds: string[];
+  daySchedules: Record<string, DraftDaySchedule>;
+  dayCrew: Record<string, DraftDayCrewEntry[]>;
+  detailsOpen: boolean;
+};
 
 const inputCls =
   "w-full h-9 px-3 rounded-lg bg-black/40 border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/40 transition-colors";
@@ -32,17 +43,40 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
   const [location, setLocation] = useState("");
   const [status, setStatus] = useState<"draft" | "scheduled">("draft");
   const [templateId, setTemplateId] = useState("");
-  const [setId, setSetId] = useState("");
 
   const { data: templates = [] } = useQuery({ queryKey: ["job-templates"], queryFn: jobTemplatesApi.getAll, enabled: !!token });
-  const { data: sets = [] } = useQuery({ queryKey: ["equipment-sets"], queryFn: equipmentSetsApi.getAll, enabled: !!token });
+  const { data: crewRoster = [] } = useQuery<CrewMemberRow[]>({ queryKey: ["crew-members"], queryFn: () => crewApi.getRoster(), enabled: !!token });
+  const { data: vehicleRoster = [] } = useQuery<VehicleRow[]>({ queryKey: ["vehicles"], queryFn: vehiclesApi.getRoster, enabled: !!token });
+  const namedCrew = useMemo(() => crewRoster.filter((c) => c.active && (c.type === "own_crew" || c.type === "freelancer")), [crewRoster]);
+  const activeVehicles = useMemo(() => vehicleRoster.filter((v) => v.active), [vehicleRoster]);
 
-  const mkRow = (id: number): JobRow => ({ id, name: "", client: "", startDate: "", endDate: "", rehearsalDate: "" });
+  const mkRow = (id: number): JobRow => ({
+    id, name: "", client: "", startDate: "", endDate: "", rehearsalDate: "",
+    crewMemberIds: [], vehicleIds: [], daySchedules: {}, dayCrew: {}, detailsOpen: false,
+  });
   const [rows, setRows] = useState<JobRow[]>([mkRow(1)]);
 
   const addRow = () => setRows((r) => [...r, mkRow(Date.now())]);
   const rmRow = (id: number) => setRows((r) => (r.length > 1 ? r.filter((x) => x.id !== id) : r));
   const setRow = (id: number, patch: Partial<JobRow>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+
+  const toggleRowCrew = (rowId: number, crewMemberId: string) => setRows((rs) => rs.map((r) => r.id !== rowId ? r : {
+    ...r,
+    crewMemberIds: r.crewMemberIds.includes(crewMemberId) ? r.crewMemberIds.filter((x) => x !== crewMemberId) : [...r.crewMemberIds, crewMemberId],
+  }));
+  const toggleRowVehicle = (rowId: number, vehicleId: string) => setRows((rs) => rs.map((r) => r.id !== rowId ? r : {
+    ...r,
+    vehicleIds: r.vehicleIds.includes(vehicleId) ? r.vehicleIds.filter((x) => x !== vehicleId) : [...r.vehicleIds, vehicleId],
+  }));
+  const emptyDaySchedule: DraftDaySchedule = { departureTime: null, arrivalTime: null, endTime: null, note: null };
+  const setRowSchedule = (rowId: number, date: string, patch: Partial<DraftDaySchedule>) => setRows((rs) => rs.map((r) => r.id !== rowId ? r : {
+    ...r,
+    daySchedules: { ...r.daySchedules, [date]: { ...(r.daySchedules[date] ?? emptyDaySchedule), ...patch } },
+  }));
+  const setRowDayCrew = (rowId: number, date: string, entries: DraftDayCrewEntry[]) => setRows((rs) => rs.map((r) => r.id !== rowId ? r : {
+    ...r,
+    dayCrew: { ...r.dayCrew, [date]: entries },
+  }));
 
   // งานถูกต้อง = มีชื่อ + ลูกค้า (ของแถวหรือค่าร่วม) + วันที่เริ่ม + วันที่สิ้นสุด
   const clientOf = (r: JobRow) => (r.client.trim() || defClient.trim());
@@ -68,19 +102,28 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
           status,
         };
         try {
-          let jobId: string;
+          let createdJob: { id: string };
           if (templateId) {
             const res = await jobTemplatesApi.createJob(templateId, data);
-            jobId = res.id;
             shortfall += res.shortfall?.length ?? 0;
+            createdJob = res;
           } else {
-            const job = await jobsApi.create(data);
-            jobId = job.id;
+            createdJob = await jobsApi.create(data);
           }
-          if (setId) {
-            const res = await jobsApi.applySet(jobId, setId);
-            shortfall += res.shortfall?.length ?? 0;
-          }
+
+          const jobId = createdJob.id;
+          await Promise.all(r.crewMemberIds.map((crewMemberId) => jobsApi.assignCrew(jobId, crewMemberId)));
+          await Promise.all(r.vehicleIds.map((vehicleId) => jobVehiclesApi.create(jobId, { vehicleId })));
+          await Promise.all(
+            Object.entries(r.daySchedules)
+              .filter(([, s]) => s.departureTime || s.arrivalTime || s.endTime || s.note)
+              .map(([date, s]) => jobsApi.setDaySchedule(jobId, { date, ...s }))
+          );
+          await Promise.all(
+            Object.entries(r.dayCrew)
+              .filter(([, entries]) => entries.length > 0)
+              .map(([date, entries]) => jobsApi.setDayCrew(jobId, date, entries.map((e) => ({ crewMemberId: e.crewMemberId, role: e.role }))))
+          );
         } catch {
           failed += 1;
         }
@@ -148,21 +191,8 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
               </select>
             </div>
           )}
-          {sets.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <label className={`${labelCls} flex items-center gap-1.5`}>
-                <Boxes className="w-3 h-3 text-[#FFFF00]/60" /> จากชุดอุปกรณ์
-              </label>
-              <select value={setId} onChange={(e) => setSetId(e.target.value)} className={`${inputCls} [color-scheme:dark]`}>
-                <option value="">ไม่ใช้ชุด</option>
-                {sets.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.totalQty})</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {(templateId || setId) && (
-            <p className="text-[10px] text-[#FFFF00]/70">อุปกรณ์จากเทมเพลต/ชุดจะถูกเพิ่มให้ทุกงานที่สร้าง</p>
+          {templateId && (
+            <p className="text-[10px] text-[#FFFF00]/70">อุปกรณ์จากเทมเพลตจะถูกเพิ่มให้ทุกงานที่สร้าง</p>
           )}
         </div>
       }
@@ -225,6 +255,63 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
                 <input type="date" value={r.endDate} onChange={(e) => setRow(r.id, { endDate: e.target.value })} className={dateCls} />
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setRow(r.id, { detailsOpen: !r.detailsOpen })}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#FFFF00]/70 hover:text-[#FFFF00] self-start mt-0.5"
+            >
+              {r.detailsOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              ทีมงาน / รถ / ตารางรายวัน
+              {!r.detailsOpen && (r.crewMemberIds.length + r.vehicleIds.length > 0) && (
+                <span className="text-white/40 font-normal">({r.crewMemberIds.length} คน · {r.vehicleIds.length} รถ)</span>
+              )}
+            </button>
+
+            {r.detailsOpen && (
+              <div className="mt-1 pt-2 border-t border-white/[0.06] flex flex-col gap-3">
+                <div>
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">ทีมงาน</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {namedCrew.length === 0 ? <span className="text-[11px] text-white/30">ไม่มีทีมงานในคลัง</span> : namedCrew.map((c) => {
+                      const on = r.crewMemberIds.includes(c.id);
+                      return (
+                        <button key={c.id} type="button" onClick={() => toggleRowCrew(r.id, c.id)}
+                          className={`h-6 px-2 rounded-full text-[11px] font-semibold border transition-colors ${on ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}>
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">รถ</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeVehicles.length === 0 ? <span className="text-[11px] text-white/30">ไม่มีรถในคลัง</span> : activeVehicles.map((v) => {
+                      const on = r.vehicleIds.includes(v.id);
+                      return (
+                        <button key={v.id} type="button" onClick={() => toggleRowVehicle(r.id, v.id)}
+                          className={`h-6 px-2 rounded-full text-[11px] font-semibold border transition-colors ${on ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}>
+                          {v.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">ตารางรายวัน</p>
+                  <JobDailyScheduleDraftEditor
+                    startDate={r.startDate}
+                    endDate={r.endDate}
+                    crew={r.crewMemberIds.map((id) => ({ crewMemberId: id, name: namedCrew.find((c) => c.id === id)?.name ?? "?" }))}
+                    schedules={r.daySchedules}
+                    dayCrew={r.dayCrew}
+                    onScheduleChange={(date, patch) => setRowSchedule(r.id, date, patch)}
+                    onDayCrewChange={(date, entries) => setRowDayCrew(r.id, date, entries)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         ))}
 

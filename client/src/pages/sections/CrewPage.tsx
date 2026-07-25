@@ -15,6 +15,7 @@ import { AddVehicleRosterModal } from "./AddVehicleRosterModal";
 import { AddResourcesModal } from "./AddResourcesModal";
 import { ResourceScheduleView, type ResourceRow } from "./ResourceScheduleView";
 import { CREW_TYPE_LABEL } from "./AssignCrewModal";
+import { JobDailyScheduleSection } from "./JobDailyScheduleSection";
 
 const NAMED_TYPES: CrewType[] = ["own_crew", "freelancer"];
 const COUNT_TYPES: CrewType[] = ["outsource", "loader"];
@@ -322,6 +323,12 @@ export const CrewPage = (): JSX.Element => {
                     </div>
                   </div>
                 )}
+
+                {/* daily schedule */}
+                <div>
+                  <div className="text-[10px] font-bold text-[#FFFF00]/70 uppercase tracking-wider mb-1.5">ตารางรายวัน</div>
+                  <JobDailyScheduleSection jobId={sid!} startDate={selectedJob.startDate} endDate={selectedJob.endDate} jobCrew={jobCrew} canManage={canManage} />
+                </div>
               </div>
             </>
           )}

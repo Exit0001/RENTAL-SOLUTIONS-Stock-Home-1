@@ -18,6 +18,7 @@
   "checkIn": "เช็คอิน",
   "checkOut": "เช็คเอาท์",
   "noItemsAssigned": "ยังไม่มีอุปกรณ์ — คลิก \"กำหนดอุปกรณ์\" เพื่อเพิ่มจากคลังสินค้า",
+  "equipmentLabel": "อุปกรณ์",
   "editContainer": "แก้ไขคอนเทนเนอร์",
   "deleteContainer": "ลบคอนเทนเนอร์",
   "confirmDeleteContainerTitle": "ลบคอนเทนเนอร์นี้?",

@@ -18,6 +18,7 @@
   "checkIn": "Check In",
   "checkOut": "Check Out",
   "noItemsAssigned": "No items assigned — click Assign to add items from inventory",
+  "equipmentLabel": "Equipment",
   "editContainer": "Edit container",
   "deleteContainer": "Delete container",
   "confirmDeleteContainerTitle": "Delete this container?",

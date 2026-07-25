@@ -221,6 +221,9 @@ export type VehicleRow = {
   plate: string | null; capacity: string | null; note: string | null; imageUrl: string | null; active: boolean; createdAt: string;
 };
 export type JobBulkEntry    = { id: string; jobId: string; stockItemId: string; quantity: number; position: string | null };
+export type JobEstimate     = { days: number; total: number; itemCount: number; ratedItemCount: number };
+export type JobDaySchedule  = { id: string; jobId: string; date: string; departureTime: string | null; arrivalTime: string | null; endTime: string | null; note: string | null };
+export type JobDayCrewEntry = { id: string; date: string; crewMemberId: string; role: string | null; name: string; initials: string; type: CrewType };
 
 export const jobsApi = {
   getAll:        () => api.get<Job[]>("/jobs"),
@@ -273,6 +276,13 @@ export const jobsApi = {
   unassignCrew:  (jobId: string, crewMemberId: string) => api.delete<void>(`/jobs/${jobId}/crew/${crewMemberId}`),
   getCrewCounts: (jobId: string) => api.get<{ type: CrewType; count: number }[]>(`/jobs/${jobId}/crew-counts`),
   setCrewCount:  (jobId: string, type: CrewType, count: number) => api.put<{ type: CrewType; count: number }>(`/jobs/${jobId}/crew-counts`, { type, count }),
+  getEstimate:   (jobId: string) => api.get<JobEstimate>(`/jobs/${jobId}/estimate`),
+  getDaySchedules: (jobId: string) => api.get<JobDaySchedule[]>(`/jobs/${jobId}/day-schedules`),
+  setDaySchedule:  (jobId: string, data: { date: string; departureTime?: string | null; arrivalTime?: string | null; endTime?: string | null; note?: string | null }) =>
+                   api.put<JobDaySchedule>(`/jobs/${jobId}/day-schedules`, data),
+  getDayCrew:      (jobId: string) => api.get<JobDayCrewEntry[]>(`/jobs/${jobId}/day-crew`),
+  setDayCrew:      (jobId: string, date: string, entries: { crewMemberId: string; role?: string | null }[]) =>
+                   api.put<{ message: string }>(`/jobs/${jobId}/day-crew`, { date, entries }),
 };
 
 // ─── Job Expenses (ค่าเด็กโหลด / ค่าเดินทาง-ส่งของ พร้อมสลิป) ──────
@@ -363,8 +373,10 @@ export type LossData = {
   autoBillingItems: AutoBillingItem[];
 };
 
+export type QuoteWithJob = Quote & { jobName: string | null };
+
 export const financeApi = {
-  getQuotes:     () => api.get<Quote[]>("/finance/quotes"),
+  getQuotes:     () => api.get<QuoteWithJob[]>("/finance/quotes"),
   getInvoices:   () => api.get<Invoice[]>("/finance/invoices"),
   getCosting:    () => api.get<ProjectCost[]>("/finance/costing"),
   getLoss:       () => api.get<LossData>("/finance/loss"),
@@ -372,6 +384,8 @@ export const financeApi = {
   createInvoice: (data: Omit<InsertInvoice, "companyId">) => api.post<Invoice>("/finance/invoices", data),
   updateQuote:   (id: string, data: Partial<Quote>)   => api.put<Quote>(`/finance/quotes/${id}`, data),
   updateInvoice: (id: string, data: Partial<Invoice>) => api.put<Invoice>(`/finance/invoices/${id}`, data),
+  deleteQuote:   (id: string) => api.delete<{ message: string }>(`/finance/quotes/${id}`),
+  deleteInvoice: (id: string) => api.delete<{ message: string }>(`/finance/invoices/${id}`),
   downloadQuotePdf:   (id: string) => fetchBlob(`/finance/quotes/${id}/pdf`),
   downloadInvoicePdf: (id: string) => fetchBlob(`/finance/invoices/${id}/pdf`),
 };

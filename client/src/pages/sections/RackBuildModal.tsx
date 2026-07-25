@@ -223,22 +223,26 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
               )}
             </div>
 
-            {/* Download PDF */}
-            <div className="border-t border-white/10 p-3">
-              <button
-                onClick={handleDownload}
-                disabled={downloading || racks.length === 0}
-                className="w-full flex items-center justify-center gap-2 h-9 px-4 text-sm font-bold rounded-lg
-                  disabled:opacity-40 hover:opacity-90"
-                style={{ backgroundColor: "#FFFF00", color: "#000" }}
-              >
-                {downloading
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <Download className="w-4 h-4" />
-                }
-                ดาวน์โหลด Packing Sheet
-              </button>
-            </div>
+            {/* Download PDF — เฉพาะโหมด global (ไม่มี jobId) เท่านั้น
+                ถ้าเปิดจากในงาน ให้โหลด packing sheet จากปุ่ม "PDF" ในแท็บ Pack (Job Operations) แทน
+                เพราะเป็นไฟล์เดียวกัน — Rack Build Mode มีหน้าที่จัดแร็คทิ้งไว้อย่างเดียว */}
+            {!jobId && (
+              <div className="border-t border-white/10 p-3">
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading || racks.length === 0}
+                  className="w-full flex items-center justify-center gap-2 h-9 px-4 text-sm font-bold rounded-lg
+                    disabled:opacity-40 hover:opacity-90"
+                  style={{ backgroundColor: "#FFFF00", color: "#000" }}
+                >
+                  {downloading
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Download className="w-4 h-4" />
+                  }
+                  ดาวน์โหลด Packing Sheet
+                </button>
+              </div>
+            )}
           </div>
 
           {/* RIGHT — Active Rack + Scan */}

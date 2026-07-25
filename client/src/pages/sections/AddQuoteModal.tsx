@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, FileText, Calculator } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
@@ -65,6 +65,19 @@ export const AddQuoteModal = ({ suggestedNumber, onClose, onSubmit }: AddQuoteMo
     enabled: !!token,
   });
 
+  const { data: estimate } = useQuery({
+    queryKey: ["job-estimate", jobId],
+    queryFn: () => jobsApi.getEstimate(jobId),
+    enabled: !!token && !!jobId,
+  });
+
+  // เติมมูลค่าอัตโนมัติจากอุปกรณ์ในงาน (เฉพาะตอนช่องยังว่าง — ไม่ทับค่าที่ผู้ใช้กรอกเอง)
+  useEffect(() => {
+    if (estimate && estimate.total > 0 && !totalValue) {
+      setTotalValue(estimate.total.toFixed(2));
+    }
+  }, [estimate]);
+
   const handleSave = () => {
     if (!quoteNumber.trim() || !client.trim() || !totalValue) return;
     onSubmit({
@@ -103,14 +116,31 @@ export const AddQuoteModal = ({ suggestedNumber, onClose, onSubmit }: AddQuoteMo
             <InputField label={t("addQuote.clientLabel")} value={client} onChange={setClient} placeholder={t("addQuote.clientPlaceholder")} />
           </div>
 
+          <SelectField label={t("addQuote.linkedJobOptional")} value={jobId} onChange={setJobId}
+            options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.id }))} />
+
           <div className="grid grid-cols-2 gap-3">
             <InputField label={t("addQuote.totalValueLabel")} type="number" value={totalValue} onChange={setTotalValue} placeholder={t("addQuote.totalValuePlaceholder")} />
             <SelectField label={tc("status")} value={status} onChange={setStatus}
               options={STATUSES.map((s) => ({ value: s, label: tc(`statusEnum.${s}`, { defaultValue: s }) }))} />
           </div>
 
-          <SelectField label={t("addQuote.linkedJobOptional")} value={jobId} onChange={setJobId}
-            options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.id }))} />
+          {jobId && (
+            <div className="flex items-center gap-2 -mt-1 text-[11px] text-white/50">
+              <Calculator className="w-3 h-3 text-[#FFFF00]/60 flex-shrink-0" />
+              {estimate && estimate.ratedItemCount > 0 ? (
+                <>
+                  <span>{t("addQuote.estimateHint", { days: estimate.days, total: estimate.total.toLocaleString() })}</span>
+                  <button type="button" onClick={() => setTotalValue(estimate.total.toFixed(2))}
+                    className="text-[#FFFF00]/80 hover:text-[#FFFF00] underline underline-offset-2">
+                    {t("addQuote.useEstimate")}
+                  </button>
+                </>
+              ) : (
+                <span>{t("addQuote.estimateNoRates")}</span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 px-5 pb-5">

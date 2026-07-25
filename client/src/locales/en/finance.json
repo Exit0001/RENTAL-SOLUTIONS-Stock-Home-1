@@ -47,5 +47,10 @@
   "colType": "Type",
   "colContract": "Contract",
   "typeLost": "Lost",
-  "typeDamaged": "Damaged"
+  "typeDamaged": "Damaged",
+
+  "confirmDeleteQuoteTitle": "Delete this quote?",
+  "confirmDeleteQuoteDesc": "This action cannot be undone.",
+  "confirmDeleteInvoiceTitle": "Delete this invoice?",
+  "confirmDeleteInvoiceDesc": "This action cannot be undone."
 }

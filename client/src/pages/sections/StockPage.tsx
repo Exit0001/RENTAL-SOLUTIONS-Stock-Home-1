@@ -612,17 +612,6 @@ export const StockPage = (): JSX.Element => {
                           >
                             <PackagePlus className="w-3 h-3" /> {t("assign")}
                           </button>
-                          <button
-                            onClick={() => toggleContainerCheckout.mutate(c.id)}
-                            disabled={toggleContainerCheckout.isPending}
-                            className={`flex items-center gap-1 h-7 px-2 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-40 ${
-                              isOut
-                                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
-                                : "bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20"
-                            }`}
-                          >
-                            {isOut ? <><LogIn className="w-3 h-3" /> {t("checkIn")}</> : <><LogOut className="w-3 h-3" /> {t("checkOut")}</>}
-                          </button>
                           {canManage && (
                             <button
                               onClick={() => setEditContainerTarget(c)}
@@ -646,6 +635,20 @@ export const StockPage = (): JSX.Element => {
                     </div>
                     {expanded && (
                       <div className="border-t border-white/[0.06]">
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
+                          <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{t("equipmentLabel")}</span>
+                          <button
+                            onClick={() => toggleContainerCheckout.mutate(c.id)}
+                            disabled={toggleContainerCheckout.isPending}
+                            className={`flex items-center gap-1 h-7 px-2 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-40 ${
+                              isOut
+                                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+                                : "bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20"
+                            }`}
+                          >
+                            {isOut ? <><LogIn className="w-3 h-3" /> {t("checkIn")}</> : <><LogOut className="w-3 h-3" /> {t("checkOut")}</>}
+                          </button>
+                        </div>
                         {c.items.length === 0 ? (
                           <div className="flex items-center gap-2 px-4 py-3 text-xs text-white/60 italic">
                             <PackagePlus className="w-3.5 h-3.5" />

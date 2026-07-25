@@ -133,7 +133,10 @@
     "totalValueLabel": "Total Value (£)",
     "totalValuePlaceholder": "e.g. 4500.00",
     "linkedJobOptional": "Linked Job (optional)",
-    "saveQuote": "Save Quote"
+    "saveQuote": "Save Quote",
+    "estimateHint": "Calculated from job equipment: {{days}} days × daily rate = £{{total}}",
+    "estimateNoRates": "No daily rates set on this job's equipment — enter the value manually",
+    "useEstimate": "Use this value"
   },
 
   "addInvoice": {
@@ -146,7 +149,10 @@
     "issuedDateLabel": "Issued Date",
     "dueDateLabel": "Due Date",
     "linkedJobOptional": "Linked Job (optional)",
-    "saveInvoice": "Save Invoice"
+    "saveInvoice": "Save Invoice",
+    "estimateHint": "Calculated from job equipment: {{days}} days × daily rate = £{{total}}",
+    "estimateNoRates": "No daily rates set on this job's equipment — enter the amount manually",
+    "useEstimate": "Use this value"
   },
 
   "assignContainer": {

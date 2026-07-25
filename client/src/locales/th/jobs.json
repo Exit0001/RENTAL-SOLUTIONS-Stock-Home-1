@@ -50,6 +50,18 @@
   "noVehiclesAssigned": "ยังไม่มีรถที่เพิ่มให้งานนี้",
   "removeVehicle": "ลบรถ",
 
+  "dailyScheduleLabel": "ตารางรายวัน",
+  "dayScheduleDeparture": "ออกจากบริษัท",
+  "dayScheduleArrival": "ถึงหน้างาน",
+  "dayScheduleEnd": "เลิกงาน",
+  "dayScheduleDepartureShort": "ออก {{time}}",
+  "dayScheduleArrivalShort": "ถึง {{time}}",
+  "dayScheduleEndShort": "เลิก {{time}}",
+  "dayScheduleCrewToday": "ทีมงานวันนี้",
+  "dayScheduleNoJobCrew": "ยังไม่มีทีมงานที่ถูกเพิ่มให้งานนี้ — ไปที่แท็บ \"ทีม & รถ\" เพื่อเพิ่มก่อน",
+  "dayScheduleRolePlaceholder": "หน้าที่วันนี้",
+  "dayScheduleNeedDates": "กรอกวันที่เริ่ม/สิ้นสุดก่อน เพื่อตั้งตารางรายวัน",
+
   "subRentalsLabel": "ของเช่าจากภายนอก",
   "manageSubRentals": "จัดการของเช่าจากภายนอก",
   "noSubRentalsAssigned": "ยังไม่มีของเช่าจากภายนอกสำหรับงานนี้",

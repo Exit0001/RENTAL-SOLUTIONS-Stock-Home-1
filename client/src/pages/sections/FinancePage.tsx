@@ -16,9 +16,14 @@ import {
   Plus,
   Download,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
 import { financeApi } from "@/api";
 import { JobExpensesModal } from "./JobExpensesModal";
@@ -64,7 +69,10 @@ export const FinancePage = (): JSX.Element => {
   const [addQuoteOpen, setAddQuoteOpen] = useState(false);
   const [addInvoiceOpen, setAddInvoiceOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const { token } = useAppStore();
+  const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
+  const { token, userRole } = useAppStore();
+  const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
 
   const { data: quotes = [] } = useQuery({
@@ -97,6 +105,16 @@ export const FinancePage = (): JSX.Element => {
   const updateInvoiceStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => financeApi.updateInvoice(id, { status: status as any }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
+  });
+
+  const deleteQuote = useMutation({
+    mutationFn: (id: string) => financeApi.deleteQuote(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["quotes"] }); setQuoteToDelete(null); },
+  });
+
+  const deleteInvoice = useMutation({
+    mutationFn: (id: string) => financeApi.deleteInvoice(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["invoices"] }); setInvoiceToDelete(null); },
   });
 
   const handleDownloadQuotePdf = async (id: string, quoteNumber: string) => {
@@ -208,7 +226,7 @@ export const FinancePage = (): JSX.Element => {
                 <tr key={q.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-quote-${q.id}`}>
                   <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{q.quoteNumber ?? q.id}</td>
                   <td className="py-2.5 text-white/60">{q.client}</td>
-                  <td className="py-2.5 text-white/60">{q.jobId ?? "—"}</td>
+                  <td className="py-2.5 text-white/60">{q.jobName ?? "—"}</td>
                   <td className="py-2.5 text-white font-bold">—</td>
                   <td className="py-2.5 text-white font-semibold">£{Number(q.totalValue).toLocaleString()}</td>
                   <td className="py-2.5"><span className="text-xs font-semibold text-white/60">—</span></td>
@@ -235,6 +253,16 @@ export const FinancePage = (): JSX.Element => {
                       >
                         {downloadingId === q.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                       </button>
+                      {canManage && (
+                        <button
+                          onClick={() => setQuoteToDelete(q.id)}
+                          className="p-1 rounded hover:bg-red-500/10 text-white/60 hover:text-red-400 transition-colors"
+                          title={tc("delete")}
+                          data-testid={`button-delete-quote-${q.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -295,15 +323,27 @@ export const FinancePage = (): JSX.Element => {
                       </select>
                     </td>
                     <td className="py-2.5 pr-4 text-right">
-                      <button
-                        onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber ?? inv.id)}
-                        disabled={downloadingId === inv.id}
-                        className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors disabled:opacity-40"
-                        title={tc("downloadPdf")}
-                        data-testid={`button-download-invoice-${inv.id}`}
-                      >
-                        {downloadingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber ?? inv.id)}
+                          disabled={downloadingId === inv.id}
+                          className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors disabled:opacity-40"
+                          title={tc("downloadPdf")}
+                          data-testid={`button-download-invoice-${inv.id}`}
+                        >
+                          {downloadingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        </button>
+                        {canManage && (
+                          <button
+                            onClick={() => setInvoiceToDelete(inv.id)}
+                            className="p-1 rounded hover:bg-red-500/10 text-white/60 hover:text-red-400 transition-colors"
+                            title={tc("delete")}
+                            data-testid={`button-delete-invoice-${inv.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -452,6 +492,44 @@ export const FinancePage = (): JSX.Element => {
           onSubmit={(data) => createInvoice.mutate(data)}
         />
       )}
+
+      <AlertDialog open={!!quoteToDelete} onOpenChange={(open) => !open && setQuoteToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDeleteQuoteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("confirmDeleteQuoteDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteQuote.isPending}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => quoteToDelete && deleteQuote.mutate(quoteToDelete)}
+              disabled={deleteQuote.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteQuote.isPending ? tc("deleting") : tc("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!invoiceToDelete} onOpenChange={(open) => !open && setInvoiceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDeleteInvoiceTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("confirmDeleteInvoiceDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteInvoice.isPending}>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => invoiceToDelete && deleteInvoice.mutate(invoiceToDelete)}
+              disabled={deleteInvoice.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteInvoice.isPending ? tc("deleting") : tc("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -47,5 +47,10 @@
   "colType": "ประเภท",
   "colContract": "สัญญา",
   "typeLost": "สูญหาย",
-  "typeDamaged": "เสียหาย"
+  "typeDamaged": "เสียหาย",
+
+  "confirmDeleteQuoteTitle": "ลบใบเสนอราคานี้?",
+  "confirmDeleteQuoteDesc": "การลบใบเสนอราคาไม่สามารถย้อนกลับได้",
+  "confirmDeleteInvoiceTitle": "ลบใบแจ้งหนี้นี้?",
+  "confirmDeleteInvoiceDesc": "การลบใบแจ้งหนี้ไม่สามารถย้อนกลับได้"
 }

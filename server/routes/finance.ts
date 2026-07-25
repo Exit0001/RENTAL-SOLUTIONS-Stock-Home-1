@@ -15,8 +15,19 @@ export const financeRouter = Router();
 financeRouter.get("/quotes", async (req, res) => {
   try {
     const result = await db
-      .select()
+      .select({
+        id:          quotes.id,
+        companyId:   quotes.companyId,
+        jobId:       quotes.jobId,
+        quoteNumber: quotes.quoteNumber,
+        client:      quotes.client,
+        totalValue:  quotes.totalValue,
+        status:      quotes.status,
+        createdAt:   quotes.createdAt,
+        jobName:     jobs.name,
+      })
       .from(quotes)
+      .leftJoin(jobs, eq(quotes.jobId, jobs.id))
       .where(eq(quotes.companyId, req.companyId))
       .orderBy(desc(quotes.createdAt));
     res.json(result);
@@ -56,6 +67,24 @@ financeRouter.put("/quotes/:id", async (req, res) => {
     res.json(quote);
   } catch {
     res.status(500).json({ message: "Failed to update quote" });
+  }
+});
+
+// DELETE /api/finance/quotes/:id — Admin/Manager เท่านั้น
+financeRouter.delete("/quotes/:id", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+  try {
+    const [deleted] = await db
+      .delete(quotes)
+      .where(and(eq(quotes.id, req.params.id), eq(quotes.companyId, req.companyId)))
+      .returning({ id: quotes.id });
+
+    if (!deleted) return res.status(404).json({ message: "Quote not found" });
+    res.json({ message: "Quote deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete quote" });
   }
 });
 
@@ -140,6 +169,24 @@ financeRouter.put("/invoices/:id", async (req, res) => {
     res.json(invoice);
   } catch {
     res.status(500).json({ message: "Failed to update invoice" });
+  }
+});
+
+// DELETE /api/finance/invoices/:id — Admin/Manager เท่านั้น
+financeRouter.delete("/invoices/:id", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "เฉพาะ Admin และ Manager เท่านั้น" });
+  }
+  try {
+    const [deleted] = await db
+      .delete(invoices)
+      .where(and(eq(invoices.id, req.params.id), eq(invoices.companyId, req.companyId)))
+      .returning({ id: invoices.id });
+
+    if (!deleted) return res.status(404).json({ message: "Invoice not found" });
+    res.json({ message: "Invoice deleted" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete invoice" });
   }
 });
 

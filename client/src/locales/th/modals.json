@@ -133,7 +133,10 @@
     "totalValueLabel": "มูลค่ารวม (£)",
     "totalValuePlaceholder": "เช่น 4500.00",
     "linkedJobOptional": "งานที่เกี่ยวข้อง (ไม่บังคับ)",
-    "saveQuote": "บันทึกใบเสนอราคา"
+    "saveQuote": "บันทึกใบเสนอราคา",
+    "estimateHint": "คำนวณจากอุปกรณ์ในงาน: {{days}} วัน × อัตรารายวัน = £{{total}}",
+    "estimateNoRates": "อุปกรณ์ในงานนี้ยังไม่มีอัตรารายวัน — กรอกมูลค่าด้วยตนเอง",
+    "useEstimate": "ใช้ค่านี้"
   },
 
   "addInvoice": {
@@ -146,7 +149,10 @@
     "issuedDateLabel": "วันที่ออก",
     "dueDateLabel": "วันครบกำหนด",
     "linkedJobOptional": "งานที่เกี่ยวข้อง (ไม่บังคับ)",
-    "saveInvoice": "บันทึกใบแจ้งหนี้"
+    "saveInvoice": "บันทึกใบแจ้งหนี้",
+    "estimateHint": "คำนวณจากอุปกรณ์ในงาน: {{days}} วัน × อัตรารายวัน = £{{total}}",
+    "estimateNoRates": "อุปกรณ์ในงานนี้ยังไม่มีอัตรารายวัน — กรอกจำนวนเงินด้วยตนเอง",
+    "useEstimate": "ใช้ค่านี้"
   },
 
   "assignContainer": {

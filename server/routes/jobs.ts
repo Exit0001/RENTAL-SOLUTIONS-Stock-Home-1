@@ -9,6 +9,7 @@ import {
   subRentals, insertSubRentalSchema,
   equipmentSets, equipmentSetItems,
   crewMembers, jobCrewMembers, vehicles, jobCrewCounts,
+  jobDaySchedules, jobDayCrew,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
@@ -930,6 +931,89 @@ jobsRouter.put("/:id/crew-counts", async (req, res) => {
   }
 });
 
+// วันที่ (YYYY-MM-DD) → เที่ยงคืน UTC เดียวกันเสมอ เพื่อให้ match แถวเดิมได้ตรงกันทุกครั้ง
+function dayKey(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00.000Z`);
+}
+
+// GET /api/jobs/:id/day-schedules — เวลาออกจากบริษัท/ถึงหน้างาน/เลิกงาน ต่อวัน (ใช้ร่วมกันทั้งทีม)
+jobsRouter.get("/:id/day-schedules", async (req, res) => {
+  try {
+    const rows = await db.select().from(jobDaySchedules).where(eq(jobDaySchedules.jobId, req.params.id));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch day schedules" });
+  }
+});
+
+// PUT /api/jobs/:id/day-schedules — upsert เวลาของวันนั้น (แถวเดียวต่อ jobId+date)
+jobsRouter.put("/:id/day-schedules", async (req, res) => {
+  try {
+    const { date, departureTime, arrivalTime, endTime, note } = req.body ?? {};
+    if (!date) return res.status(400).json({ message: "date is required" });
+    const d = dayKey(date);
+
+    const [existing] = await db.select({ id: jobDaySchedules.id }).from(jobDaySchedules)
+      .where(and(eq(jobDaySchedules.jobId, req.params.id), eq(jobDaySchedules.date, d)));
+
+    const values = {
+      departureTime: departureTime ?? null,
+      arrivalTime:   arrivalTime ?? null,
+      endTime:       endTime ?? null,
+      note:          note ?? null,
+    };
+
+    const [row] = existing
+      ? await db.update(jobDaySchedules).set(values).where(eq(jobDaySchedules.id, existing.id)).returning()
+      : await db.insert(jobDaySchedules).values({ jobId: req.params.id, date: d, ...values }).returning();
+
+    res.json(row);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/jobs/:id/day-crew — คนที่ทำงานแต่ละวัน + หน้าที่ประจำวัน (join ชื่อ/ประเภทจาก crew_members)
+jobsRouter.get("/:id/day-crew", async (req, res) => {
+  try {
+    const rows = await db.select({
+      id:           jobDayCrew.id,
+      date:         jobDayCrew.date,
+      crewMemberId: jobDayCrew.crewMemberId,
+      role:         jobDayCrew.role,
+      name:         crewMembers.name,
+      type:         crewMembers.type,
+    })
+      .from(jobDayCrew)
+      .innerJoin(crewMembers, eq(jobDayCrew.crewMemberId, crewMembers.id))
+      .where(eq(jobDayCrew.jobId, req.params.id));
+    res.json(rows.map((r) => ({ ...r, initials: crewInitials(r.name ?? "?") })));
+  } catch {
+    res.status(500).json({ message: "Failed to fetch day crew" });
+  }
+});
+
+// PUT /api/jobs/:id/day-crew — replace-all รายชื่อคนทำงาน + หน้าที่ ของวันนั้น
+jobsRouter.put("/:id/day-crew", async (req, res) => {
+  try {
+    const { date, entries }: { date: string; entries: { crewMemberId: string; role?: string | null }[] } = req.body ?? {};
+    if (!date) return res.status(400).json({ message: "date is required" });
+    const d = dayKey(date);
+
+    await db.delete(jobDayCrew).where(and(eq(jobDayCrew.jobId, req.params.id), eq(jobDayCrew.date, d)));
+
+    if (entries && entries.length > 0) {
+      await db.insert(jobDayCrew).values(
+        entries.map((e) => ({ jobId: req.params.id, date: d, crewMemberId: e.crewMemberId, role: e.role ?? null }))
+      );
+    }
+
+    res.json({ message: "Day crew updated" });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // GET /api/jobs/:id/stock — bulk item quantities assigned to this job
 jobsRouter.get("/:id/stock", async (req, res) => {
   try {
@@ -962,6 +1046,36 @@ jobsRouter.post("/:id/stock", async (req, res) => {
     res.json({ message: "Stock updated" });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// GET /api/jobs/:id/estimate — ประเมินมูลค่างานจากอุปกรณ์ที่ผูกไว้ x อัตรารายวัน x จำนวนวัน
+// ใช้เติมมูลค่าใบเสนอราคา/ใบแจ้งหนี้อัตโนมัติ เมื่อผูกกับงาน (แทนการกรอกมูลค่าเดา)
+jobsRouter.get("/:id/estimate", async (req, res) => {
+  try {
+    const [job] = await db
+      .select({ startDate: jobs.startDate, endDate: jobs.endDate })
+      .from(jobs)
+      .where(and(eq(jobs.id, req.params.id), eq(jobs.companyId, req.companyId)));
+
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const equipment = await getJobEquipment(req.params.id);
+    const itemIds = equipment.map((e) => e.stockItemId);
+    const rateRows = itemIds.length
+      ? await db.select({ id: stockItems.id, dailyRate: stockItems.dailyRate })
+          .from(stockItems).where(inArray(stockItems.id, itemIds))
+      : [];
+    const rateMap = Object.fromEntries(rateRows.map((r) => [r.id, Number(r.dailyRate ?? 0)]));
+
+    const days = Math.max(1, Math.round((job.endDate.getTime() - job.startDate.getTime()) / 86400000) + 1);
+    const perDayTotal = equipment.reduce((sum, e) => sum + rateMap[e.stockItemId] * e.quantity, 0);
+    const total = perDayTotal * days;
+    const ratedItemCount = equipment.filter((e) => rateMap[e.stockItemId] > 0).length;
+
+    res.json({ days, total, itemCount: equipment.length, ratedItemCount });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message ?? "Failed to compute job estimate" });
   }
 });
 

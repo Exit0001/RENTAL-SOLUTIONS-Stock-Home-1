@@ -23,6 +23,7 @@ import { JobExpensesModal } from "./JobExpensesModal";
 import { JobSubRentalsModal } from "./JobSubRentalsModal";
 import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { AddIncidentModal } from "./AddIncidentModal";
+import { JobDailyScheduleSection } from "./JobDailyScheduleSection";
 
 interface Props {
   job: any;
@@ -293,6 +294,10 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
               )}
               <p className="text-[11px] text-white/30 mt-2">จัดทีม/รถแบบละเอียด (ตำแหน่ง/คนขับ/เหมา) ได้ที่เมนู "ทีมงาน"</p>
             </div>
+            <div>
+              <p className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Calendar className="w-3.5 h-3.5" /> {t("dailyScheduleLabel")}</p>
+              <JobDailyScheduleSection jobId={job.id} startDate={job.startDate} endDate={job.endDate} jobCrew={jobCrew} canManage={canManage} />
+            </div>
           </div>
         )}
 
@@ -351,8 +356,8 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
       {addVehicleOpen && <AssignVehicleModal jobId={job.id} onClose={() => setAddVehicleOpen(false)} />}
       {expensesOpen && <JobExpensesModal jobId={job.id} jobName={job.name} onClose={() => setExpensesOpen(false)} />}
       {subRentalsOpen && <JobSubRentalsModal jobId={job.id} jobName={job.name} onClose={() => setSubRentalsOpen(false)} />}
-      {pullSheetOpen && <CreatePullSheetModal onClose={() => setPullSheetOpen(false)} onSubmit={(_jobId, data) => createPullSheet.mutate(data)} />}
-      {incidentOpen && <AddIncidentModal onClose={() => setIncidentOpen(false)} onSubmit={(_jobId, data) => createIncident.mutate(data)} />}
+      {pullSheetOpen && <CreatePullSheetModal onClose={() => setPullSheetOpen(false)} onSubmit={(_jobId, data) => createPullSheet.mutate(data)} fixedJobId={job.id} fixedJobName={job.name} />}
+      {incidentOpen && <AddIncidentModal onClose={() => setIncidentOpen(false)} onSubmit={(data) => createIncident.mutate(data)} jobName={job.name} />}
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

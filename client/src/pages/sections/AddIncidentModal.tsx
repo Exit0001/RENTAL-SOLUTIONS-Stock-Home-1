@@ -3,7 +3,7 @@ import { X, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
-import { jobsApi, stockApi } from "@/api";
+import { stockApi } from "@/api";
 import { FileUploadField } from "@/components/FileUploadField";
 import type { InsertIncident } from "@shared/schema";
 
@@ -44,28 +44,22 @@ const SelectField = ({ label, value, onChange, options }: {
 };
 
 interface AddIncidentModalProps {
+  jobName: string;
   onClose: () => void;
-  onSubmit: (jobId: string, data: Omit<InsertIncident, "companyId" | "jobId">) => void;
+  onSubmit: (data: Omit<InsertIncident, "companyId" | "jobId">) => void;
 }
 
-export const AddIncidentModal = ({ onClose, onSubmit }: AddIncidentModalProps): JSX.Element => {
+export const AddIncidentModal = ({ jobName, onClose, onSubmit }: AddIncidentModalProps): JSX.Element => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const { token, companyId, auth } = useAppStore();
 
-  const [jobId, setJobId] = useState("");
   const [stockItemId, setStockItemId] = useState("");
   const [stockUnitId, setStockUnitId] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("medium");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-
-  const { data: jobs = [] } = useQuery({
-    queryKey: ["jobs"],
-    queryFn: jobsApi.getAll,
-    enabled: !!token,
-  });
 
   const { data: stockItems = [] } = useQuery({
     queryKey: ["stock"],
@@ -80,8 +74,8 @@ export const AddIncidentModal = ({ onClose, onSubmit }: AddIncidentModalProps): 
   });
 
   const handleSave = () => {
-    if (!jobId || !description.trim() || !date || !auth?.userId) return;
-    onSubmit(jobId, {
+    if (!description.trim() || !date || !auth?.userId) return;
+    onSubmit({
       stockUnitId: stockUnitId || null,
       reporterId: auth.userId,
       description: description.trim(),
@@ -106,7 +100,10 @@ export const AddIncidentModal = ({ onClose, onSubmit }: AddIncidentModalProps): 
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/20">
               <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
             </div>
-            <h2 className="text-sm font-bold text-white">{t("addIncident.title")}</h2>
+            <div>
+              <h2 className="text-sm font-bold text-white">{t("addIncident.title")}</h2>
+              <p className="text-[10px] text-white/50 truncate max-w-[280px]">{jobName}</p>
+            </div>
           </div>
           <button onClick={onClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
@@ -115,12 +112,8 @@ export const AddIncidentModal = ({ onClose, onSubmit }: AddIncidentModalProps): 
         </div>
 
         <div className="p-5 flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <SelectField label={t("addIncident.jobLabel")} value={jobId} onChange={setJobId}
-              options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.id }))} />
-            <SelectField label={t("addIncident.severityLabel")} value={severity} onChange={setSeverity}
-              options={SEVERITIES.map((s) => ({ value: s, label: tc(`statusEnum.${s}`, { defaultValue: s }) }))} />
-          </div>
+          <SelectField label={t("addIncident.severityLabel")} value={severity} onChange={setSeverity}
+            options={SEVERITIES.map((s) => ({ value: s, label: tc(`statusEnum.${s}`, { defaultValue: s }) }))} />
 
           <div className="grid grid-cols-2 gap-3">
             <SelectField label={t("addIncident.stockItemOptional")} value={stockItemId}
@@ -154,7 +147,7 @@ export const AddIncidentModal = ({ onClose, onSubmit }: AddIncidentModalProps): 
             className="flex-1 h-9 rounded-lg border border-white/10 text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors">
             {tc("cancel")}
           </button>
-          <button onClick={handleSave} disabled={!jobId || !description.trim() || !date}
+          <button onClick={handleSave} disabled={!description.trim() || !date}
             className="flex-1 h-9 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ backgroundColor: "#FFFF00" }}>
             {t("addIncident.submitReport")}

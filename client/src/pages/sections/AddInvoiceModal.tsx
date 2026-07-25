@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Receipt } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Receipt, Calculator } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
@@ -74,6 +74,19 @@ export const AddInvoiceModal = ({ suggestedNumber, onClose, onSubmit }: AddInvoi
     enabled: !!token,
   });
 
+  const { data: estimate } = useQuery({
+    queryKey: ["job-estimate", jobId],
+    queryFn: () => jobsApi.getEstimate(jobId),
+    enabled: !!token && !!jobId,
+  });
+
+  // เติมจำนวนเงินอัตโนมัติจากอุปกรณ์ในงาน (เฉพาะตอนช่องยังว่าง — ไม่ทับค่าที่ผู้ใช้กรอกเอง)
+  useEffect(() => {
+    if (estimate && estimate.total > 0 && !amount) {
+      setAmount(estimate.total.toFixed(2));
+    }
+  }, [estimate]);
+
   const handleSave = () => {
     if (!invoiceNumber.trim() || !client.trim() || !amount || !issuedDate || !dueDate) return;
     onSubmit({
@@ -114,19 +127,36 @@ export const AddInvoiceModal = ({ suggestedNumber, onClose, onSubmit }: AddInvoi
             <InputField label={t("addInvoice.clientLabel")} value={client} onChange={setClient} placeholder={t("addInvoice.clientPlaceholder")} />
           </div>
 
+          <SelectField label={t("addInvoice.linkedJobOptional")} value={jobId} onChange={setJobId}
+            options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.id }))} />
+
           <div className="grid grid-cols-2 gap-3">
             <InputField label={t("addInvoice.amountLabel")} type="number" value={amount} onChange={setAmount} placeholder={t("addInvoice.amountPlaceholder")} />
             <SelectField label={tc("status")} value={status} onChange={setStatus}
               options={STATUSES.map((s) => ({ value: s, label: tc(`statusEnum.${s}`, { defaultValue: s }) }))} />
           </div>
 
+          {jobId && (
+            <div className="flex items-center gap-2 -mt-1 text-[11px] text-white/50">
+              <Calculator className="w-3 h-3 text-[#FFFF00]/60 flex-shrink-0" />
+              {estimate && estimate.ratedItemCount > 0 ? (
+                <>
+                  <span>{t("addInvoice.estimateHint", { days: estimate.days, total: estimate.total.toLocaleString() })}</span>
+                  <button type="button" onClick={() => setAmount(estimate.total.toFixed(2))}
+                    className="text-[#FFFF00]/80 hover:text-[#FFFF00] underline underline-offset-2">
+                    {t("addInvoice.useEstimate")}
+                  </button>
+                </>
+              ) : (
+                <span>{t("addInvoice.estimateNoRates")}</span>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <InputField label={t("addInvoice.issuedDateLabel")} type="date" value={issuedDate} onChange={setIssuedDate} />
             <InputField label={t("addInvoice.dueDateLabel")} type="date" value={dueDate} onChange={setDueDate} />
           </div>
-
-          <SelectField label={t("addInvoice.linkedJobOptional")} value={jobId} onChange={setJobId}
-            options={jobs.map((j: any) => ({ value: j.id, label: j.name ?? j.id }))} />
         </div>
 
         <div className="flex gap-2 px-5 pb-5">

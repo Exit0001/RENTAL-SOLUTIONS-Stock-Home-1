@@ -243,58 +243,58 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
     >
       <div className="flex items-center gap-2 px-6 py-2.5 border-b border-white/[0.06] flex-shrink-0">
         <span className="text-xs font-bold text-white/50">{t("quickAdd.itemsList", { defaultValue: "รายการที่จะเพิ่ม" })}</span>
-        <button onClick={addRow} className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 flex items-center gap-1.5 transition-colors">
-          <Plus className="w-3 h-3" />{t("quickAdd.addModel", { defaultValue: "เพิ่มรายการ" })}
+        <button onClick={addRow} className="ml-auto h-9 px-4 rounded-lg text-sm font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 flex items-center gap-1.5 transition-colors">
+          <Plus className="w-4 h-4" />{t("quickAdd.addModel", { defaultValue: "เพิ่มรายการ" })}
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-2">
             {rows.map((r) => {
               const n = qtyOf(r);
               const canExpand = mode === "unit" && n > 0;
               return (
-                <div key={r.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 flex flex-col gap-2">
+                <div key={r.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-2.5 flex flex-col gap-1.5">
                   {/* บรรทัด: แบรนด์ / หมวด / หมวดย่อย */}
-                  <div className="flex items-start gap-2">
-                    <div className="grid grid-cols-3 gap-2 flex-1 min-w-0">
+                  <div className="flex items-start gap-1.5">
+                    <div className="grid grid-cols-3 gap-1.5 flex-1 min-w-0">
                       <Combo compact value={r.brand} onChange={(v) => setField(r.id, "brand", v)} options={brandOptions} placeholder={tc("brand")} />
                       <Combo compact value={r.category} onChange={(v) => setRowCategory(r.id, v)} options={categoryOptions} placeholder={tc("category")} />
                       <Combo compact value={r.subCategory} onChange={(v) => setField(r.id, "subCategory", v)} options={subsFor(r.category)}
                         placeholder={tc("subCategory")} disabled={!r.category} disabledHint={tc("subCategory")} />
                     </div>
-                    <button onClick={() => removeRow(r.id)} className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                      <Trash2 className="w-4 h-4" />
+                    <button onClick={() => removeRow(r.id)} className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   {/* บรรทัด: ชื่อรุ่น / จำนวน / กาง */}
-                  <div className="grid grid-cols-[1.75rem_1fr_6rem] gap-2 items-center">
+                  <div className="grid grid-cols-[1.5rem_1fr_5rem] gap-1.5 items-center">
                     {canExpand ? (
                       <button onClick={() => toggleOpen(r.id)} title={t("quickAdd.unitDetails", { defaultValue: "รายละเอียดหน่วย" })}
-                        className="w-7 h-9 flex items-center justify-center text-white/40 hover:text-[#FFFF00] transition-colors">
-                        <ChevronDown className={`w-4 h-4 transition-transform ${r.open ? "" : "-rotate-90"}`} />
+                        className="w-6 h-8 flex items-center justify-center text-white/40 hover:text-[#FFFF00] transition-colors">
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${r.open ? "" : "-rotate-90"}`} />
                       </button>
                     ) : <span />}
                     <input value={r.name} onChange={(e) => setField(r.id, "name", e.target.value)}
                       placeholder={t("quickAdd.modelPlaceholder", { defaultValue: "เช่น DC-300A Series II" })}
-                      className="h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 transition-colors" />
+                      className="h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-2.5 placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 transition-colors" />
                     <input type="number" min={0} value={r.qty} onChange={(e) => setField(r.id, "qty", e.target.value)}
                       placeholder={tc("quantity")}
-                      className="h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 text-center focus:outline-none focus:border-[#FFFF00]/40 transition-colors [color-scheme:dark]" />
+                      className="h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-2.5 text-center focus:outline-none focus:border-[#FFFF00]/40 transition-colors [color-scheme:dark]" />
                   </div>
                   {/* บรรทัด: ราคาซื้อ / ค่าเช่า/วัน */}
-                  <div className="grid grid-cols-[1.75rem_1fr_1fr] gap-2 items-center">
+                  <div className="grid grid-cols-[1.5rem_1fr_1fr] gap-1.5 items-center">
                     <span />
                     <input type="number" value={r.purchaseCost} onChange={(e) => setField(r.id, "purchaseCost", e.target.value)}
                       placeholder={t("quickAdd.purchaseCost", { defaultValue: "ราคาซื้อ" })}
-                      className="h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]" />
+                      className="h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-2.5 placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]" />
                     <input type="number" value={r.dailyRate} onChange={(e) => setField(r.id, "dailyRate", e.target.value)}
                       placeholder={t("quickAdd.dailyRate", { defaultValue: "ค่าเช่า/วัน" })}
-                      className="h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]" />
+                      className="h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-2.5 placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]" />
                   </div>
 
                   {/* กาง: รายละเอียดต่อ unit */}
                   {r.open && canExpand && (
-                    <div className="ml-7 mt-1 border-l border-white/10 pl-3 flex flex-col gap-2 animate-fade-in">
+                    <div className="ml-6 mt-1 border-l border-white/10 pl-3 flex flex-col gap-2 animate-fade-in">
                       {Array.from({ length: n }).map((_, ui) => {
                         const autoName = `${r.name || "?"} #${String(ui + 1).padStart(2, "0")}`;
                         const autoBc = `${slugify(r.name || "ITEM")}-${String(ui + 1).padStart(3, "0")}`;
