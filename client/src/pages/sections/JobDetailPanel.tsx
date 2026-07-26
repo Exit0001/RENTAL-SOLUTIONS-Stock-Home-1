@@ -2,7 +2,7 @@ import { useState, useMemo, type ReactNode } from "react";
 import {
   Calendar, MapPin, Package, Layers, ScanLine, Plus, Loader2, Users, Wallet,
   UserPlus, ArrowRightLeft, Truck, ChevronRight, FileText, Camera, Copy, Trash2,
-  LayoutTemplate, X,
+  LayoutTemplate, X, Clock,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import { JobSubRentalsModal } from "./JobSubRentalsModal";
 import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { AddIncidentModal } from "./AddIncidentModal";
 import { JobDailyScheduleSection } from "./JobDailyScheduleSection";
+import { JobUnitEventsSection } from "./JobUnitEventsSection";
 
 interface Props {
   job: any;
@@ -203,8 +204,6 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         {tab === "stock" && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => setManageStockOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><Package className="w-3.5 h-3.5" /> {t("editUnits")}</button>
-              <button onClick={() => setOpsOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><Layers className="w-3.5 h-3.5" /> Operations</button>
               <button onClick={() => setRackBuildOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><ScanLine className="w-3.5 h-3.5" /> Build Racks</button>
             </div>
             {/* Racks */}
@@ -255,6 +254,11 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
                 </div>
               </div>
             )}
+            {/* Unit event history */}
+            <div>
+              <p className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Clock className="w-3.5 h-3.5" /> {t("unitEventsLabel")}</p>
+              <JobUnitEventsSection jobId={job.id} startDate={job.startDate} endDate={job.endDate} />
+            </div>
           </div>
         )}
 

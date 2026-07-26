@@ -120,5 +120,14 @@
   "phase_returned": "Returned",
   "advanceTo_prepared": "Mark as Prepared",
   "advanceTo_dispatched": "Mark as Dispatched",
-  "advanceTo_returned": "Mark as Returned"
+  "advanceTo_returned": "Mark as Returned",
+
+  "unitEventsLabel": "Equipment Change History",
+  "noUnitEventsYet": "No change history yet",
+  "unitEvent_added": "Added to plan",
+  "unitEvent_removed": "Removed from plan",
+  "unitEvent_dispatched": "Dispatched",
+  "unitEvent_returned": "Returned",
+  "addedLateBadge": "Added late",
+  "returnedEarlyBadge": "Returned early"
 }

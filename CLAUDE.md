@@ -315,8 +315,46 @@ CREATE INDEX IF NOT EXISTS "job_day_schedules_job_id_idx" ON "job_day_schedules"
 CREATE INDEX IF NOT EXISTS "job_day_crew_job_id_idx" ON "job_day_crew" USING btree ("job_id");
 CREATE INDEX IF NOT EXISTS "job_day_crew_crew_member_id_idx" ON "job_day_crew" USING btree ("crew_member_id");
 ```
-Until run, the "รายวัน" tab's `GET/PUT /api/jobs/:id/day-schedules` and `/day-crew` endpoints
-will fail (tables don't exist) — the rest of the app is unaffected.
+Until run, the "ทีม & รถ" tab's daily-schedule section's `GET/PUT /api/jobs/:id/day-schedules`
+and `/day-crew` endpoints will fail (tables don't exist) — the rest of the app is unaffected.
+(Originally its own "รายวัน" tab; later merged into "ทีม & รถ" — see that section below.)
+
+**Pending (2026-07-27)** — `job_unit_events` table (+ `job_unit_event_type` enum) for a
+per-job/unit change-history log: `added`/`removed`/`dispatched`/`returned`, with actor +
+timestamp, shown in `JobDetailPanel`'s "อุปกรณ์" tab. Lets staff see equipment that came back
+before the job's end date or got added to the plan after it started (flagged with a badge by
+comparing the event's `createdAt` against `jobs.startDate`/`endDate` — a simple calendar
+heuristic, not perfect for jobs finalized day-of). Already in `shared/schema.ts` and
+`migrations/0025_job_unit_events.sql`. Run in Supabase SQL Editor:
+```sql
+CREATE TYPE "public"."job_unit_event_type" AS ENUM('added', 'removed', 'dispatched', 'returned');
+
+CREATE TABLE IF NOT EXISTS "job_unit_events" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"company_id" uuid NOT NULL,
+	"job_id" uuid NOT NULL,
+	"stock_unit_id" uuid NOT NULL,
+	"event_type" "job_unit_event_type" NOT NULL,
+	"actor_user_id" uuid,
+	"note" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_stock_unit_id_stock_units_id_fk" FOREIGN KEY ("stock_unit_id") REFERENCES "public"."stock_units"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_actor_user_id_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+
+CREATE INDEX IF NOT EXISTS "job_unit_events_job_id_idx" ON "job_unit_events" USING btree ("job_id");
+CREATE INDEX IF NOT EXISTS "job_unit_events_stock_unit_id_idx" ON "job_unit_events" USING btree ("stock_unit_id");
+```
+Until run, `GET /api/jobs/:id/unit-events` will fail (table doesn't exist) and the history
+section shows nothing. The write side (`logJobUnitEvents()` in `server/lib/jobUnitEvents.ts`,
+called from `POST /:id/units`, `POST /:id/apply-set/:setId`, `POST /:id/containers`,
+`DELETE /:id/containers/:containerId`, `POST /:id/containers/:containerId/load`,
+`PUT /:id/units/phase`, `POST /:id/duplicate`) deliberately swallows its own errors —
+those core equipment actions keep working normally even before this migration runs; only the
+history log itself stays empty.
 
 **Already applied (2026-07-19)** — `equipment_sets` + `equipment_set_items` tables for the
 Equipment Sets (ชุดอุปกรณ์ / Kits) feature. In `shared/schema.ts` and

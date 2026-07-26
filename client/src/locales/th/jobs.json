@@ -120,5 +120,14 @@
   "phase_returned": "คืนแล้ว",
   "advanceTo_prepared": "ทำเครื่องหมายว่าจัดเตรียมแล้ว",
   "advanceTo_dispatched": "ทำเครื่องหมายว่าออกงานแล้ว",
-  "advanceTo_returned": "ทำเครื่องหมายว่าคืนแล้ว"
+  "advanceTo_returned": "ทำเครื่องหมายว่าคืนแล้ว",
+
+  "unitEventsLabel": "ประวัติการเปลี่ยนแปลงอุปกรณ์",
+  "noUnitEventsYet": "ยังไม่มีประวัติการเปลี่ยนแปลง",
+  "unitEvent_added": "เพิ่มเข้าแผนงาน",
+  "unitEvent_removed": "เอาออกจากแผนงาน",
+  "unitEvent_dispatched": "ออกงานแล้ว",
+  "unitEvent_returned": "คืนแล้ว",
+  "addedLateBadge": "เพิ่มเข้ามาทีหลัง",
+  "returnedEarlyBadge": "คืนก่อนกำหนด"
 }

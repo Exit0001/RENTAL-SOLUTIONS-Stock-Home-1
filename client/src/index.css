@@ -9,6 +9,17 @@
 
 :root {
   --animate-spin: spin 1s linear infinite;
+
+  /* Brand accent color — default theme (black + yellow) */
+  --brand: #FFFF00;
+  --brand-rgb: 255 255 0;
+}
+
+/* Alternate theme (black + white + red) — swaps only the accent color,
+   backgrounds/text/borders stay identical to the default theme */
+[data-theme="red"] {
+  --brand: #DC2626;
+  --brand-rgb: 220 38 38;
 }
 
 /* Hide all scrollbars globally while keeping scroll functionality */
@@ -116,7 +127,7 @@
 .animate-loading-bar {
   position: absolute;
   height: 100%;
-  background: #FFFF00;
+  background: var(--brand);
   animation: loading-bar 1s ease-in-out infinite;
 }
 

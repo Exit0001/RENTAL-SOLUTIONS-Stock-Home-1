@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo } from "react";
 import {
   X, Package, Truck, ScanLine, CheckCircle2, AlertCircle,
   Loader2, ChevronDown, ChevronRight, Download, Zap, BoxSelect,
-  RotateCcw, ArrowRightLeft, Hash, Link2, AlertTriangle, Plus,
+  RotateCcw, ArrowRightLeft, Hash, Link2, AlertTriangle, Plus, Trash2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
@@ -27,6 +27,7 @@ interface LogEntry {
   text:    string;
   sub?:    string;
   rack?:   string;
+  rackId?: string;
 }
 
 interface Props {
@@ -379,6 +380,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             type: "rack_switch",
             text: matchedRack.name,
             sub:  prevRack ? `เปลี่ยนจาก ${prevRack}` : "เลือกแร็คแล้ว",
+            rackId: matchedRack.id,
           });
           return;
         }
@@ -476,7 +478,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
     const prevRack = activeRack?.name;
     const newRack  = allContainers.find((c) => c.id === rackId);
     setActiveRackId(rackId);
-    if (newRack) pushLog({ type: "rack_switch", text: newRack.name, sub: prevRack ? `เปลี่ยนจาก ${prevRack}` : "เลือกแร็คแล้ว" });
+    if (newRack) pushLog({ type: "rack_switch", text: newRack.name, sub: prevRack ? `เปลี่ยนจาก ${prevRack}` : "เลือกแร็คแล้ว", rackId });
   };
 
   const handleDownload = async () => {
@@ -629,9 +631,15 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     <p className="text-xs text-center">รายการสแกนจะแสดงที่นี่<br/>ล่าสุดอยู่ด้านบน</p>
                   </div>
                 ) : (
-                  scanLog.map((entry, idx) => (
+                  scanLog.map((entry, idx) => {
+                    const isRackEntry = entry.type === "rack_switch" && !!entry.rackId;
+                    const isActiveRack = isRackEntry && entry.rackId === activeRackId;
+                    return (
                     <div key={entry.id}
+                      onClick={() => isRackEntry && handleSelectRack(entry.rackId!)}
+                      title={isRackEntry ? "คลิกเพื่อเลือกแร็คนี้อีกครั้ง" : undefined}
                       className={`flex items-start gap-3 px-3 py-2 rounded-lg transition-opacity
+                        ${isRackEntry ? "cursor-pointer hover:bg-[#FFFF00]/[0.1]" : ""}
                         ${idx === 0 ? "opacity-100" : idx < 3 ? "opacity-70" : "opacity-40"}
                         ${entry.type === "rack_switch" ? "bg-[#FFFF00]/[0.06] border border-[#FFFF00]/15"
                           : entry.type === "item_ok"    ? "bg-white/[0.03]"
@@ -658,9 +666,11 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                         {entry.sub && <p className="text-[10px] text-white/35 truncate">{entry.sub}</p>}
                         {entry.rack && <p className="text-[10px] text-[#FFFF00]/40 truncate">→ {entry.rack}</p>}
                       </div>
-                      {idx === 0 && <div className="w-1.5 h-1.5 rounded-full bg-[#FFFF00] flex-shrink-0 mt-1.5 animate-pulse" />}
+                      {isActiveRack && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FFFF00] text-black font-bold flex-shrink-0">กำลังใช้</span>}
+                      {idx === 0 && !isActiveRack && <div className="w-1.5 h-1.5 rounded-full bg-[#FFFF00] flex-shrink-0 mt-1.5 animate-pulse" />}
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
@@ -777,7 +787,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                         <div className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => toggleGroup(itemName)}>
                           {expanded ? <ChevronDown className="w-3.5 h-3.5 text-white/25 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-white/25 flex-shrink-0" />}
                           {allReady ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
-                          <span className="font-medium text-sm flex-1 min-w-0 truncate">{itemName}</span>
+                          <span className="font-medium text-sm text-white flex-1 min-w-0 truncate">{itemName}</span>
                           {accessoryOfName && (
                             <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 flex-shrink-0" title={`อุปกรณ์เสริมของ ${accessoryOfName}`}>
                               <Link2 className="w-2.5 h-2.5" />{accessoryOfName}
@@ -788,7 +798,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                           )}
                           <span className="text-[10px] text-white/40 tabular-nums flex-shrink-0">{prepared}/{units.length}</span>
                           {rackBadge && (
-                            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 flex-shrink-0 ml-1">
+                            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 flex-shrink-0 ml-1" title={`ตอนนี้อยู่ในแร็ค: ${rackBadge}`}>
                               <BoxSelect className="w-2.5 h-2.5" />{rackBadge}
                             </span>
                           )}
@@ -803,9 +813,10 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                 qc.invalidateQueries({ queryKey: ["job-units", job.id] });
                                 qc.invalidateQueries({ queryKey: ["containers"] });
                               }}
+                              title={`ย้ายอุปกรณ์กลุ่มนี้ทั้งหมดไปที่แร็ค "${activeRack.name}" (แร็คที่กำลังใช้อยู่)`}
                               className="flex items-center gap-1 h-5 px-1.5 rounded text-[9px] font-bold border border-[#FFFF00]/25 text-[#FFFF00]/60 hover:text-[#FFFF00] hover:border-[#FFFF00]/50 transition-colors flex-shrink-0 ml-1"
                             >
-                              → {activeRack.name}
+                              ย้ายทั้งหมด → {activeRack.name}
                             </button>
                           )}
                         </div>
@@ -837,6 +848,33 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                       {jobRacks.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>
                                   )}
+                                  {unitRack && (
+                                    <button
+                                      onClick={() => containersApi.removeUnit(unitRack.id, u.id).then(() => qc.invalidateQueries({ queryKey: ["containers"] }))}
+                                      title="นำออกจากแร็ค (สแกน/เลือกผิด)"
+                                      className="p-1 rounded text-white/50 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  {u.phase === "planned" && (
+                                    <button
+                                      onClick={() => {
+                                        if (!confirm(`นำ "${u.name || u.itemName}" ออกจากรายการอุปกรณ์ของงานนี้?`)) return;
+                                        const remainingIds = jobUnits.filter((x) => x.id !== u.id).map((x) => x.id);
+                                        const ops: Promise<unknown>[] = [jobsApi.setUnits(job.id, remainingIds)];
+                                        if (unitRack) ops.push(containersApi.removeUnit(unitRack.id, u.id));
+                                        Promise.all(ops).then(() => {
+                                          qc.invalidateQueries({ queryKey: ["job-units", job.id] });
+                                          qc.invalidateQueries({ queryKey: ["containers"] });
+                                        });
+                                      }}
+                                      title="เอาออกจากงานนี้ (เลือกผิด/ไม่ใช้แล้ว)"
+                                      className="p-1 rounded text-white/50 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                   {u.phase === "planned" && (
                                     <button
                                       onClick={() => {
@@ -849,6 +887,22 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                       }}
                                       className="text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-white/35 hover:text-white hover:border-white/25 transition-colors flex-shrink-0"
                                     >→ OK</button>
+                                  )}
+                                  {u.phase === "prepared" && (
+                                    <button
+                                      onClick={() => {
+                                        const ops: Promise<unknown>[] = [jobsApi.updatePhase(job.id, [u.id], "planned")];
+                                        if (unitRack) ops.push(containersApi.removeUnit(unitRack.id, u.id));
+                                        Promise.all(ops).then(() => {
+                                          qc.invalidateQueries({ queryKey: ["job-units", job.id] });
+                                          qc.invalidateQueries({ queryKey: ["containers"] });
+                                        });
+                                      }}
+                                      title="ยกเลิก — เลือกผิด กลับเป็นวางแผน"
+                                      className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-white/35 hover:text-red-400 hover:border-red-400/30 transition-colors flex-shrink-0"
+                                    >
+                                      <RotateCcw className="w-2.5 h-2.5" />ยกเลิก
+                                    </button>
                                   )}
                                 </div>
                               );
@@ -1100,7 +1154,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       <div key={itemName} className="bg-white/[0.025] border border-white/[0.05] rounded-xl overflow-hidden">
                         <div className="flex items-center gap-2 px-3 py-2.5">
                           {allBack ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
-                          <span className="font-medium text-sm flex-1 min-w-0 truncate">{itemName}</span>
+                          <span className="font-medium text-sm text-white flex-1 min-w-0 truncate">{itemName}</span>
                           <span className="text-[10px] text-white/40 tabular-nums flex-shrink-0">{returned}/{units.length}</span>
                         </div>
                         <div className="border-t border-white/[0.04]">
