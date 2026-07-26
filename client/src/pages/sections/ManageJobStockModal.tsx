@@ -23,15 +23,16 @@ interface Props {
   jobId:       string;
   jobName:     string;
   onClose:     () => void;
+  initialSearch?: string;
 }
 
-export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Element => {
+export const ManageJobStockModal = ({ jobId, jobName, onClose, initialSearch }: Props): JSX.Element => {
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
   const qc = useQueryClient();
 
-  const [search,         setSearch]         = useState("");
+  const [search,         setSearch]         = useState(initialSearch ?? "");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [expanded,       setExpanded]       = useState<Set<string>>(new Set());
   const [cartUnits,      setCartUnits]      = useState<Map<string, CartUnitLine>>(new Map());
@@ -129,6 +130,61 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
   const resolvePosition = (stockItemId: string): string | null =>
     activeZone === "auto" ? (lastPositionByItem.get(stockItemId) ?? null) : activeZone;
 
+  // เพิ่ม accessory ที่ "จำเป็น" ของ parent เข้าตะกร้าอัตโนมัติ ตามจำนวน parent ที่เพิ่มเข้ามาใหม่ (deltaQty)
+  // ใช้ทั้งตอนเพิ่ม unit เดี่ยว, เลือกทั้งหมด, และปรับจำนวน bulk — currentCartUnits คือ snapshot ของ
+  // cartUnits ก่อนเรียก (กันไม่เพิ่ม unit accessory ซ้ำกับที่อยู่ในตะกร้าแล้ว)
+  const applyRequiredAccessories = (parentStockItemId: string, deltaQty: number, currentCartUnits: Map<string, CartUnitLine>) => {
+    if (deltaQty <= 0) return;
+    const links = (accessoryMap.get(parentStockItemId) ?? []).filter((l) => l.required);
+    if (links.length === 0) return;
+
+    const unitAdds: { unitId: string; stockItemId: string }[] = [];
+    const bulkDeltas = new Map<string, number>();
+
+    for (const link of links) {
+      const accGroup = stockGroups.find((g) => g.id === link.accessoryStockItemId);
+      if (!accGroup) continue;
+      const wantQty = link.quantityPerUnit * deltaQty;
+      if (accGroup.trackingMode === "bulk") {
+        bulkDeltas.set(accGroup.id, (bulkDeltas.get(accGroup.id) ?? 0) + wantQty);
+      } else {
+        const availableUnits = accGroup.units.filter((u) => u.status === "available" && !currentCartUnits.has(u.id));
+        for (const u of availableUnits.slice(0, wantQty)) unitAdds.push({ unitId: u.id, stockItemId: accGroup.id });
+      }
+    }
+
+    if (unitAdds.length > 0) {
+      setCartUnits((prev) => {
+        const next = new Map(prev);
+        for (const { unitId, stockItemId } of unitAdds) {
+          if (!next.has(unitId)) next.set(unitId, { unitId, stockItemId, position: resolvePosition(stockItemId) });
+        }
+        return next;
+      });
+    }
+    if (bulkDeltas.size > 0) {
+      setCartBulkLines((prev) => {
+        const next = new Map(prev);
+        for (const [accStockItemId, addQty] of Array.from(bulkDeltas.entries())) {
+          const accBulkMax = bulkMaxByItem.get(accStockItemId) ?? 0;
+          const existing = Array.from(next.entries()).find(([, l]) => l.stockItemId === accStockItemId);
+          if (existing) {
+            const [lineId, line] = existing;
+            const max = accBulkMax + line.quantity;
+            next.set(lineId, { ...line, quantity: Math.min(max, line.quantity + addQty) });
+          } else {
+            const qty = Math.min(accBulkMax, addQty);
+            if (qty > 0) {
+              const lineId = crypto.randomUUID();
+              next.set(lineId, { lineId, stockItemId: accStockItemId, quantity: qty, position: resolvePosition(accStockItemId) });
+            }
+          }
+        }
+        return next;
+      });
+    }
+  };
+
   // pre-populate cart from saved job data — merge-only (add rows the map doesn't have yet,
   // never remove/overwrite an existing local entry). A plain full-replace here would blow away
   // unsaved local edits whenever a rack/set add (below) invalidates this same query mid-session.
@@ -174,36 +230,24 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
   }, [assignedUnits, stockGroups, assignedLoading, stockLoading]);
 
   const toggleUnit = (unitId: string) => {
+    if (cartUnits.has(unitId)) {
+      setCartUnits((prev) => { const next = new Map(prev); next.delete(unitId); return next; });
+      return;
+    }
+
+    let parentStockItemId: string | undefined;
+    for (const g of stockGroups) {
+      if (g.units.some((u) => u.id === unitId)) { parentStockItemId = g.id; break; }
+    }
+    if (!parentStockItemId) return;
+    const pid = parentStockItemId;
+
     setCartUnits((prev) => {
       const next = new Map(prev);
-      if (next.has(unitId)) {
-        next.delete(unitId);
-        return next;
-      }
-
-      let parentStockItemId: string | undefined;
-      for (const g of stockGroups) {
-        if (g.units.some((u) => u.id === unitId)) { parentStockItemId = g.id; break; }
-      }
-      if (!parentStockItemId) return next;
-
-      next.set(unitId, { unitId, stockItemId: parentStockItemId, position: resolvePosition(parentStockItemId) });
-
-      // auto-select required accessories
-      const links = accessoryMap.get(parentStockItemId) ?? [];
-      for (const link of links) {
-        if (!link.required) continue;
-        const accGroup = stockGroups.find((g) => g.id === link.accessoryStockItemId);
-        if (!accGroup) continue;
-        const availableUnits = accGroup.units.filter((u) => u.status === "available" && !next.has(u.id));
-        const toAdd = availableUnits.slice(0, link.quantityPerUnit);
-        for (const u of toAdd) {
-          next.set(u.id, { unitId: u.id, stockItemId: accGroup.id, position: resolvePosition(accGroup.id) });
-        }
-      }
-
+      next.set(unitId, { unitId, stockItemId: pid, position: resolvePosition(pid) });
       return next;
     });
+    applyRequiredAccessories(pid, 1, cartUnits);
   };
 
   const toggleGroupExpand = (groupId: string) =>
@@ -215,23 +259,39 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
 
   const toggleSelectAll = (units: StockUnit[], stockItemId: string) => {
     const allSelected = units.every((u) => cartUnits.has(u.id));
+    if (allSelected) {
+      setCartUnits((prev) => {
+        const next = new Map(prev);
+        units.forEach((u) => next.delete(u.id));
+        return next;
+      });
+      return;
+    }
+    const newlyAdded = units.filter((u) => !cartUnits.has(u.id));
     setCartUnits((prev) => {
       const next = new Map(prev);
-      if (allSelected) {
-        units.forEach((u) => next.delete(u.id));
-      } else {
-        units.forEach((u) => {
-          if (!next.has(u.id)) next.set(u.id, { unitId: u.id, stockItemId, position: resolvePosition(stockItemId) });
-        });
-      }
+      newlyAdded.forEach((u) => {
+        if (!next.has(u.id)) next.set(u.id, { unitId: u.id, stockItemId, position: resolvePosition(stockItemId) });
+      });
       return next;
     });
+    if (newlyAdded.length > 0) applyRequiredAccessories(stockItemId, newlyAdded.length, cartUnits);
   };
 
   // catalog stepper — operates on the single line for this item; if already split into
   // multiple positioned lines, the catalog defers to the cart pane instead (see splitNotice)
   const adjustBulkQty = (stockItemId: string, delta: number) => {
     const bulkMax = bulkMaxByItem.get(stockItemId) ?? 0;
+    const existing = Array.from(cartBulkLines.entries()).filter(([, l]) => l.stockItemId === stockItemId);
+    let appliedDelta = 0;
+    if (existing.length === 1) {
+      const [, line] = existing[0];
+      const max = bulkMax + line.quantity;
+      const newQty = Math.max(0, Math.min(max, line.quantity + delta));
+      appliedDelta = newQty - line.quantity;
+    } else if (existing.length === 0 && delta > 0) {
+      appliedDelta = 1;
+    }
     setCartBulkLines((prev) => {
       const matches = Array.from(prev.entries()).filter(([, l]) => l.stockItemId === stockItemId);
       if (matches.length > 1) return prev;
@@ -248,20 +308,25 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
       }
       return next;
     });
+    if (appliedDelta > 0) applyRequiredAccessories(stockItemId, appliedDelta, cartUnits);
   };
 
   const onBulkLineQtyChange = (lineId: string, delta: number) => {
+    const line = cartBulkLines.get(lineId);
+    if (!line) return;
+    const bulkMax = bulkMaxByItem.get(line.stockItemId) ?? 0;
+    const max = bulkMax + line.quantity;
+    const newQty = Math.max(0, Math.min(max, line.quantity + delta));
+    const appliedDelta = newQty - line.quantity;
     setCartBulkLines((prev) => {
-      const line = prev.get(lineId);
-      if (!line) return prev;
-      const bulkMax = bulkMaxByItem.get(line.stockItemId) ?? 0;
-      const max = bulkMax + line.quantity;
-      const newQty = Math.max(0, Math.min(max, line.quantity + delta));
+      const l = prev.get(lineId);
+      if (!l) return prev;
       const next = new Map(prev);
       if (newQty === 0) next.delete(lineId);
-      else next.set(lineId, { ...line, quantity: newQty });
+      else next.set(lineId, { ...l, quantity: newQty });
       return next;
     });
+    if (appliedDelta > 0) applyRequiredAccessories(line.stockItemId, appliedDelta, cartUnits);
   };
 
   const onBulkLineAdd = (stockItemId: string) => {
@@ -271,6 +336,7 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose }: Props): JSX.Ele
       next.set(lineId, { lineId, stockItemId, quantity: 1, position: null });
       return next;
     });
+    applyRequiredAccessories(stockItemId, 1, cartUnits);
   };
 
   const onBulkLineRemove = (lineId: string) => {

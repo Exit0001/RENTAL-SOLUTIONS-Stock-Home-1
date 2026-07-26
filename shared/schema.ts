@@ -39,6 +39,7 @@ export const incidentStatusEnum = pgEnum("incident_status", ["open", "resolved"]
 export const activityTypeEnum = pgEnum("activity_type", ["stock", "finance", "maintenance", "jobs"]);
 export const jobExpenseCategoryEnum = pgEnum("job_expense_category", ["staff", "transport"]);
 export const jobUnitPhaseEnum        = pgEnum("job_unit_phase", ["planned", "prepared", "dispatched", "returned"]);
+export const jobUnitEventTypeEnum    = pgEnum("job_unit_event_type", ["added", "removed", "dispatched", "returned"]);
 export const stockTrackingModeEnum  = pgEnum("stock_tracking_mode", ["unit", "bulk"]);
 export const crewTypeEnum           = pgEnum("crew_type", ["own_crew", "freelancer", "outsource", "loader"]);
 export const notificationTypeEnum = pgEnum("notification_type", [
@@ -399,6 +400,22 @@ export const jobUnits = pgTable("job_units", {
 }, (t) => [
   index("job_units_job_id_idx").on(t.jobId),
   index("job_units_stock_unit_id_idx").on(t.stockUnitId),
+]);
+
+// job_unit_events — ประวัติการเปลี่ยนแปลงอุปกรณ์ต่องาน (เพิ่ม/เอาออกจากแผน, ดิสแพตช์, คืน)
+// ใช้ตรวจจับ "ของกลับมาก่อนวันเก็บ" / "มีของเพิ่มเข้ามาทีหลัง" โดยเทียบ createdAt กับ jobs.startDate/endDate
+export const jobUnitEvents = pgTable("job_unit_events", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  companyId:    uuid("company_id").references(() => companies.id, { onDelete: "cascade" }).notNull(),
+  jobId:        uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }).notNull(),
+  stockUnitId:  uuid("stock_unit_id").references(() => stockUnits.id, { onDelete: "cascade" }).notNull(),
+  eventType:    jobUnitEventTypeEnum("event_type").notNull(),
+  actorUserId:  uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+  note:         text("note"),
+  createdAt:    timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("job_unit_events_job_id_idx").on(t.jobId),
+  index("job_unit_events_stock_unit_id_idx").on(t.stockUnitId),
 ]);
 
 // ─────────────────────────────────────────────
@@ -772,6 +789,7 @@ export const insertLocationSchema     = createInsertSchema(locations).omit({ id:
 export const insertPositionSchema      = createInsertSchema(positions).omit({ id: true, createdAt: true });
 export const insertContainerTypeSchema = createInsertSchema(containerTypes).omit({ id: true, createdAt: true });
 export const insertJobUnitSchema      = createInsertSchema(jobUnits).omit({ id: true });
+export const insertJobUnitEventSchema = createInsertSchema(jobUnitEvents).omit({ id: true, createdAt: true });
 export const insertJobContainerSchema = createInsertSchema(jobContainers).omit({ id: true });
 export const insertJobCrewSchema      = createInsertSchema(jobCrew).omit({ id: true });
 export const insertCrewMemberSchema   = createInsertSchema(crewMembers).omit({ id: true, createdAt: true });
@@ -816,6 +834,9 @@ export type InsertJob = z.infer<typeof insertJobSchema>;
 
 export type JobUnit       = typeof jobUnits.$inferSelect;
 export type InsertJobUnit = z.infer<typeof insertJobUnitSchema>;
+
+export type JobUnitEvent       = typeof jobUnitEvents.$inferSelect;
+export type InsertJobUnitEvent = z.infer<typeof insertJobUnitEventSchema>;
 
 export type JobTemplate           = typeof jobTemplates.$inferSelect;
 export type InsertJobTemplate     = z.infer<typeof insertJobTemplateSchema>;

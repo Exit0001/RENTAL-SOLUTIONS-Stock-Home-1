@@ -80,6 +80,25 @@ className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-whi
 **Divider opacity standard: `border-white/[0.06]`** everywhere (tab bars, action bars, section
 dividers, card borders). Older Stock action bars used `border-white/10` — normalized to `/[0.06]`.
 
+**Card grid action-button row standard** (Containers, Equipment Sets, and any future card-grid
+tab in `StockPage.tsx`-style layouts): all actions on a card (primary action, Edit, Delete) are
+**grouped together, left-aligned, same pill style** — never icon-only buttons pushed right via
+`ml-auto`. Edit/Delete always show their label text, not just an icon:
+```tsx
+<div className="mt-auto flex items-center gap-2 pt-2">
+  <button className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors">
+    <Pencil className="w-3 h-3" /> {tc("edit")}
+  </button>
+  {canManage && (
+    <button className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+      <Trash2 className="w-3 h-3" /> {tc("delete")}
+    </button>
+  )}
+</div>
+```
+Secondary per-card actions that only make sense once a card is expanded (e.g. Container's
+check-in/check-out toggle) belong in the expanded section's header, not in this front-of-card row.
+
 ## Database Schema (36 tables)
 
 ```

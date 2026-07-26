@@ -123,6 +123,7 @@
   "accessoriesHint": "Link accessories that must travel with this item. Auto-suggested when adding to a job.",
   "noAccessoriesYet": "No accessories linked yet",
   "addAccessory": "Add",
+  "addSelectedAccessories": "Add {{count}} items",
   "searchAccessoryPlaceholder": "Search stock items to link...",
   "availableCountLabel": "avail.",
   "requiredLabel": "Required",

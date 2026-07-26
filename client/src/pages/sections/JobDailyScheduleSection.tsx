@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, Users, ChevronDown, ChevronUp, StickyNote } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { jobsApi } from "@/api";
@@ -43,6 +43,27 @@ export const TimeField = ({ label, value, disabled, onCommit }: {
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => { if (local !== value) onCommit(local); }}
         className="h-8 px-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-[#FFFF00]/40 disabled:opacity-50"
+      />
+    </div>
+  );
+};
+
+export const NoteField = ({ label, placeholder, value, disabled, onCommit }: {
+  label: string; placeholder?: string; value: string; disabled?: boolean; onCommit: (v: string) => void;
+}) => {
+  const [local, setLocal] = useState(value);
+  useEffect(() => setLocal(value), [value]);
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[9px] text-white/40 uppercase tracking-wider">{label}</label>
+      <textarea
+        value={local}
+        disabled={disabled}
+        placeholder={placeholder}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => { if (local !== value) onCommit(local); }}
+        rows={2}
+        className="px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#FFFF00]/40 disabled:opacity-50 resize-none"
       />
     </div>
   );
@@ -115,6 +136,11 @@ export const JobDailyScheduleSection = ({ jobId, startDate, endDate, jobCrew, ca
                   <Users className="w-3 h-3" />{workingToday.length}
                 </span>
               )}
+              {sched?.note && (
+                <span className="text-white/40 flex-shrink-0" title={sched.note}>
+                  <StickyNote className="w-3 h-3" />
+                </span>
+              )}
               <span className="ml-auto flex-shrink-0">{isOpen ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}</span>
             </button>
 
@@ -140,6 +166,14 @@ export const JobDailyScheduleSection = ({ jobId, startDate, endDate, jobCrew, ca
                     onCommit={(v) => saveSchedule.mutate({ date, departureTime: sched?.departureTime ?? null, arrivalTime: sched?.arrivalTime ?? null, endTime: v || null, note: sched?.note ?? null })}
                   />
                 </div>
+
+                <NoteField
+                  label={t("dayScheduleNote")}
+                  placeholder={t("dayScheduleNotePlaceholder")}
+                  value={sched?.note ?? ""}
+                  disabled={!canManage}
+                  onCommit={(v) => saveSchedule.mutate({ date, departureTime: sched?.departureTime ?? null, arrivalTime: sched?.arrivalTime ?? null, endTime: sched?.endTime ?? null, note: v || null })}
+                />
 
                 <div>
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5 flex items-center gap-1.5"><Users className="w-3 h-3" />{t("dayScheduleCrewToday")}</p>

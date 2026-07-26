@@ -2,14 +2,15 @@ import React, { useRef, useEffect, useState, useMemo } from "react";
 import {
   X, Package, Truck, ScanLine, CheckCircle2, AlertCircle,
   Loader2, ChevronDown, ChevronRight, Download, Zap, BoxSelect,
-  RotateCcw, ArrowRightLeft, Hash,
+  RotateCcw, ArrowRightLeft, Hash, Link2, AlertTriangle, Plus,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi, stockApi, containersApi } from "@/api";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
+import { ManageJobStockModal } from "./ManageJobStockModal";
 import type { AssignedUnit, ContainerWithItems } from "@/api";
-import type { Job } from "@shared/schema";
+import type { Job, ItemAccessory, StockItem } from "@shared/schema";
 
 type OpsTab = "pack" | "dispatch" | "return";
 
@@ -107,6 +108,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [dispatching, setDispatching] = useState(false);
+  const [manageStockSearch, setManageStockSearch] = useState<string | null>(null);
   const [activeRackId, setActiveRackId] = useState<string | null>(null);
   const [scanLog, setScanLog]         = useState<LogEntry[]>([]);
 
@@ -141,6 +143,24 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
     queryFn:  containersApi.getAll,
     enabled:  !!token && open,
   });
+
+  // อุปกรณ์เสริมที่ "จำเป็น" ต้องไปด้วยกัน — ใช้จับคู่การ์ดในแท็บ Pack + เตือนถ้ายังขาดในแผนงาน
+  const { data: accessoryLinks = [] } = useQuery<ItemAccessory[]>({
+    queryKey: ["accessory-links"],
+    queryFn:  stockApi.getAllAccessoryLinks,
+    enabled:  !!token && open,
+  });
+  const { data: allStock = [] } = useQuery<StockItem[]>({
+    queryKey: ["stock"],
+    queryFn:  stockApi.getAll,
+    enabled:  !!token && open,
+  });
+  const stockNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of allStock) m.set(s.id, s.name);
+    return m;
+  }, [allStock]);
+  const requiredAccessoryLinks = useMemo(() => accessoryLinks.filter((l) => l.required), [accessoryLinks]);
 
   // Reset on close
   useEffect(() => {
@@ -196,14 +216,63 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
   const allPrepared                = totalUnits > 0 && notPlannedCount === totalUnits;
   const allDispatched              = totalUnits > 0 && dispatchedAndReturnedCount === totalUnits;
 
+  // จับกลุ่มตามรุ่น (stock item) แล้วจัดให้ accessory ที่ "จำเป็น" อยู่ติดกับของหลักเสมอ
+  // (เฉพาะกรณีทั้งของหลักและ accessory มีอยู่ในงานนี้จริง) แทนการเรียงตามตัวอักษรล้วนๆ
   const packedGroups = useMemo(() => {
-    const map: Record<string, AssignedUnit[]> = {};
+    const map = new Map<string, { itemName: string; stockItemId: string; units: AssignedUnit[]; accessoryOfName?: string }>();
     for (const u of jobUnits) {
-      if (!map[u.itemName]) map[u.itemName] = [];
-      map[u.itemName].push(u);
+      if (!map.has(u.itemName)) map.set(u.itemName, { itemName: u.itemName, stockItemId: u.stockItemId, units: [] });
+      map.get(u.itemName)!.units.push(u);
     }
-    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [jobUnits]);
+    const groups = Array.from(map.values()).sort((a, b) => a.itemName.localeCompare(b.itemName));
+
+    const presentIds = new Set(groups.map((g) => g.stockItemId));
+    const parentOf = new Map<string, string>(); // accessoryStockItemId -> parentStockItemId
+    for (const link of requiredAccessoryLinks) {
+      if (presentIds.has(link.parentStockItemId) && presentIds.has(link.accessoryStockItemId)) {
+        parentOf.set(link.accessoryStockItemId, link.parentStockItemId);
+      }
+    }
+    const byStockItemId = new Map(groups.map((g) => [g.stockItemId, g]));
+    const consumed = new Set<string>();
+    const ordered: typeof groups = [];
+    for (const g of groups) {
+      if (consumed.has(g.stockItemId) || parentOf.has(g.stockItemId)) continue;
+      ordered.push(g);
+      consumed.add(g.stockItemId);
+      for (const [accId, parentId] of Array.from(parentOf.entries())) {
+        if (parentId !== g.stockItemId || consumed.has(accId)) continue;
+        const accGroup = byStockItemId.get(accId);
+        if (accGroup) {
+          ordered.push({ ...accGroup, accessoryOfName: g.itemName });
+          consumed.add(accId);
+        }
+      }
+    }
+    for (const g of groups) {
+      if (!consumed.has(g.stockItemId)) { ordered.push(g); consumed.add(g.stockItemId); }
+    }
+    return ordered;
+  }, [jobUnits, requiredAccessoryLinks]);
+
+  const accessoryShortfalls = useMemo(() => {
+    const parentCounts = new Map<string, number>();
+    for (const u of jobUnits) parentCounts.set(u.stockItemId, (parentCounts.get(u.stockItemId) ?? 0) + 1);
+
+    const wanted = new Map<string, number>();
+    for (const link of requiredAccessoryLinks) {
+      const parentQty = parentCounts.get(link.parentStockItemId) ?? 0;
+      if (parentQty === 0) continue;
+      wanted.set(link.accessoryStockItemId, (wanted.get(link.accessoryStockItemId) ?? 0) + link.quantityPerUnit * parentQty);
+    }
+
+    const results: { stockItemId: string; name: string; wanted: number; got: number }[] = [];
+    for (const [accId, wantedQty] of Array.from(wanted.entries())) {
+      const got = parentCounts.get(accId) ?? 0;
+      if (got < wantedQty) results.push({ stockItemId: accId, name: stockNameById.get(accId) ?? "?", wanted: wantedQty, got });
+    }
+    return results;
+  }, [jobUnits, requiredAccessoryLinks, stockNameById]);
 
   const rackStats = useMemo(() =>
     jobRacks.map((rack) => {
@@ -445,6 +514,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
   const opsDones     = { pack: packDone, dispatch: dispatchDone, return: returnDone };
 
   return (
+    <>
     <WorkspaceShell
       icon={<Truck className="w-4 h-4 text-black" />}
       title={job.name}
@@ -653,6 +723,34 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                 </div>
               </div>
 
+              {/* Missing required accessory warning — informational only, ไม่บล็อกงาน */}
+              {accessoryShortfalls.length > 0 && (
+                <div className="mx-3 mt-3 flex-shrink-0 rounded-lg bg-amber-400/[0.06] border border-amber-400/20 px-3 py-2.5">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-amber-400">ขาดอุปกรณ์เสริมที่จำเป็น</p>
+                      <div className="space-y-1 mt-1.5">
+                        {accessoryShortfalls.map((s) => (
+                          <div key={s.stockItemId} className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-white/70 truncate">{s.name}</span>
+                            <span className="text-[10px] text-amber-300/90 font-mono whitespace-nowrap">มี {s.got} / ต้องการ {s.wanted}</span>
+                            <button
+                              onClick={() => setManageStockSearch(s.name)}
+                              className="flex items-center gap-1 h-6 px-2 rounded text-[10px] font-bold text-black flex-shrink-0 hover:opacity-80 transition-opacity"
+                              style={{ backgroundColor: "#FFFF00" }}
+                            >
+                              <Plus className="w-2.5 h-2.5" />เพิ่ม
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-white/50 mt-2">คำเตือนนี้ไม่บล็อกการแพ็ค/ดิสแพตช์</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Unit list */}
               <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
                 {packedGroups.length === 0 ? (
@@ -662,7 +760,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     <p className="text-xs">เพิ่มอุปกรณ์ผ่าน "Edit Units" ก่อน</p>
                   </div>
                 ) : (
-                  packedGroups.map(([itemName, units]) => {
+                  packedGroups.map(({ itemName, units, accessoryOfName }) => {
                     const expanded  = expandedGroups.has(itemName);
                     const prepared  = units.filter((u) => u.phase !== "planned").length;
                     const allReady  = prepared === units.length;
@@ -680,6 +778,11 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                           {expanded ? <ChevronDown className="w-3.5 h-3.5 text-white/25 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-white/25 flex-shrink-0" />}
                           {allReady ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
                           <span className="font-medium text-sm flex-1 min-w-0 truncate">{itemName}</span>
+                          {accessoryOfName && (
+                            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 flex-shrink-0" title={`อุปกรณ์เสริมของ ${accessoryOfName}`}>
+                              <Link2 className="w-2.5 h-2.5" />{accessoryOfName}
+                            </span>
+                          )}
                           {zone && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FFFF00]/10 text-[#FFFF00]/70 flex-shrink-0 font-semibold">{zone}</span>
                           )}
@@ -1031,5 +1134,14 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
         )}
 
     </WorkspaceShell>
+    {manageStockSearch !== null && (
+      <ManageJobStockModal
+        jobId={job.id}
+        jobName={job.name}
+        initialSearch={manageStockSearch}
+        onClose={() => setManageStockSearch(null)}
+      />
+    )}
+    </>
   );
 };

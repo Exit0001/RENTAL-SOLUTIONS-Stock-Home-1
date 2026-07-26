@@ -9,7 +9,7 @@ import {
   subRentals, insertSubRentalSchema,
   equipmentSets, equipmentSetItems,
   crewMembers, jobCrewMembers, vehicles, jobCrewCounts,
-  jobDaySchedules, jobDayCrew,
+  jobDaySchedules, jobDayCrew, jobUnitEvents,
 } from "@shared/schema";
 import { generatePullSheetPdf } from "../lib/pullsheetPdf";
 import { generatePackingSheetPdf } from "../lib/packingSheetPdf";
@@ -17,6 +17,7 @@ import { notify } from "../lib/notify";
 import { sendLineMessage } from "../lib/line";
 import { setUnitsOut, setUnitsAvailable } from "../lib/stockUnitStatus";
 import { recalculateUnitHealth } from "../lib/health";
+import { logJobUnitEvents } from "../lib/jobUnitEvents";
 
 export const jobsRouter = Router();
 
@@ -390,8 +391,10 @@ jobsRouter.post("/:id/duplicate", async (req, res) => {
     ]);
 
     // units → reset phase เป็น planned (ตาม Sync Contract: assign แผนไม่แตะ status)
-    if (srcUnits.length)
+    if (srcUnits.length) {
       await db.insert(jobUnits).values(srcUnits.map((u) => ({ jobId: job.id, stockUnitId: u.stockUnitId, phase: "planned" as const })));
+      await logJobUnitEvents(req.companyId, job.id, srcUnits.map((u) => u.stockUnitId), "added", req.userId, `คัดลอกจากงาน ${orig.name}`);
+    }
     if (srcStock.length)
       await db.insert(jobStock).values(srcStock.map((s) => ({ jobId: job.id, stockItemId: s.stockItemId, quantity: s.quantity })));
     if (srcCrew.length)
@@ -441,6 +444,33 @@ jobsRouter.get("/:id/units", async (req, res) => {
   }
 });
 
+// GET /api/jobs/:id/unit-events — ประวัติการเปลี่ยนแปลงอุปกรณ์ของ job (เพิ่ม/เอาออก/ดิสแพตช์/คืน)
+jobsRouter.get("/:id/unit-events", async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        id:           jobUnitEvents.id,
+        eventType:    jobUnitEvents.eventType,
+        note:         jobUnitEvents.note,
+        createdAt:    jobUnitEvents.createdAt,
+        stockUnitId:  jobUnitEvents.stockUnitId,
+        unitName:     stockUnits.name,
+        serialNumber: stockUnits.serialNumber,
+        actorName:    users.name,
+        itemName:     stockItems.name,
+      })
+      .from(jobUnitEvents)
+      .innerJoin(stockUnits, eq(jobUnitEvents.stockUnitId, stockUnits.id))
+      .leftJoin(stockItems, eq(stockUnits.stockItemId, stockItems.id))
+      .leftJoin(users, eq(jobUnitEvents.actorUserId, users.id))
+      .where(eq(jobUnitEvents.jobId, req.params.id))
+      .orderBy(desc(jobUnitEvents.createdAt));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch job unit events" });
+  }
+});
+
 // POST /api/jobs/:id/units — set individual units สำหรับ job (replace all)
 jobsRouter.post("/:id/units", async (req, res) => {
   try {
@@ -463,6 +493,15 @@ jobsRouter.post("/:id/units", async (req, res) => {
     }
 
     // Status is ONLY changed by physical scan (ScanModal). Planning does not touch status.
+
+    const existingIds = new Set(existing.map((r) => r.stockUnitId));
+    const newIdSet = new Set(newIds);
+    const addedIds = newIds.filter((id) => !existingIds.has(id));
+    const removedIds = Array.from(existingIds).filter((id) => !newIdSet.has(id));
+    await Promise.all([
+      logJobUnitEvents(req.companyId, req.params.id, addedIds, "added", req.userId),
+      logJobUnitEvents(req.companyId, req.params.id, removedIds, "removed", req.userId),
+    ]);
 
     res.json({ message: "Units updated" });
   } catch (err: any) {
@@ -517,6 +556,9 @@ jobsRouter.put("/:id/units/phase", async (req, res) => {
         eq(jobUnits.jobId, req.params.id),
         inArray(jobUnits.stockUnitId, stockUnitIds),
       ));
+    if (phase === "dispatched" || phase === "returned") {
+      await logJobUnitEvents(req.companyId, req.params.id, stockUnitIds, phase, req.userId);
+    }
     res.json({ message: "Phase updated", count: stockUnitIds.length });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -584,6 +626,8 @@ jobsRouter.post("/:id/containers", async (req, res) => {
 
       if (newIds.length > 0) {
         await db.insert(jobUnits).values(newIds.map((stockUnitId) => ({ jobId: req.params.id, stockUnitId })));
+        const [rack] = await db.select({ name: containers.name }).from(containers).where(eq(containers.id, containerId));
+        await logJobUnitEvents(req.companyId, req.params.id, newIds, "added", req.userId, rack ? `จากแร็ค: ${rack.name}` : null);
       }
 
       // Status changed only by physical scan, not by container assignment
@@ -677,7 +721,10 @@ jobsRouter.post("/:id/apply-set/:setId", async (req, res) => {
       }
     }
 
-    if (unitRows.length) await db.insert(jobUnits).values(unitRows);
+    if (unitRows.length) {
+      await db.insert(jobUnits).values(unitRows);
+      await logJobUnitEvents(req.companyId, jobId, unitRows.map((u) => u.stockUnitId), "added", req.userId, `จากชุด: ${set.name}`);
+    }
     if (bulkInserts.length) await db.insert(jobStock).values(bulkInserts);
     for (const u of bulkUpdates) await db.update(jobStock).set({ quantity: u.quantity }).where(eq(jobStock.id, u.id));
 
@@ -703,9 +750,10 @@ jobsRouter.delete("/:id/containers/:containerId", async (req, res) => {
       .where(eq(containerUnits.containerId, req.params.containerId));
     const unitIds = unitLinks.map((l) => l.stockUnitId);
     if (unitIds.length) {
-      await db.delete(jobUnits).where(
+      const removed = await db.delete(jobUnits).where(
         and(eq(jobUnits.jobId, req.params.id), inArray(jobUnits.stockUnitId, unitIds))
-      );
+      ).returning({ stockUnitId: jobUnits.stockUnitId });
+      await logJobUnitEvents(req.companyId, req.params.id, removed.map((r) => r.stockUnitId), "removed", req.userId);
     }
 
     res.json({ message: "Container removed from job" });
@@ -752,6 +800,7 @@ jobsRouter.post("/:id/containers/:containerId/load", async (req, res) => {
 
       // sync stock unit status → out
       await setUnitsOut(matchingUnitIds);
+      await logJobUnitEvents(req.companyId, req.params.id, matchingUnitIds, "dispatched", req.userId);
     }
 
     res.json({ loaded: matchingUnitIds.length, skipped });

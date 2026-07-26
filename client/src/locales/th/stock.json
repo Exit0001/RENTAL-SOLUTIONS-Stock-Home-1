@@ -123,6 +123,7 @@
   "accessoriesHint": "เชื่อมอุปกรณ์เสริมที่ต้องไปพร้อมกัน จะแนะนำอัตโนมัติเมื่อเพิ่มเข้างาน",
   "noAccessoriesYet": "ยังไม่มีอุปกรณ์เสริม",
   "addAccessory": "เพิ่ม",
+  "addSelectedAccessories": "เพิ่ม {{count}} รายการ",
   "searchAccessoryPlaceholder": "ค้นหาอุปกรณ์ที่จะเชื่อม...",
   "availableCountLabel": "พร้อม",
   "requiredLabel": "จำเป็น",

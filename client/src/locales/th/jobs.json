@@ -61,6 +61,8 @@
   "dayScheduleNoJobCrew": "ยังไม่มีทีมงานที่ถูกเพิ่มให้งานนี้ — ไปที่แท็บ \"ทีม & รถ\" เพื่อเพิ่มก่อน",
   "dayScheduleRolePlaceholder": "หน้าที่วันนี้",
   "dayScheduleNeedDates": "กรอกวันที่เริ่ม/สิ้นสุดก่อน เพื่อตั้งตารางรายวัน",
+  "dayScheduleNote": "หมายเหตุ",
+  "dayScheduleNotePlaceholder": "รายละเอียดเพิ่มเติมของวันนี้ เช่น จุดนัดพบ, ของที่ต้องเตรียม...",
 
   "subRentalsLabel": "ของเช่าจากภายนอก",
   "manageSubRentals": "จัดการของเช่าจากภายนอก",

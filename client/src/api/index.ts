@@ -224,6 +224,11 @@ export type JobBulkEntry    = { id: string; jobId: string; stockItemId: string; 
 export type JobEstimate     = { days: number; total: number; itemCount: number; ratedItemCount: number };
 export type JobDaySchedule  = { id: string; jobId: string; date: string; departureTime: string | null; arrivalTime: string | null; endTime: string | null; note: string | null };
 export type JobDayCrewEntry = { id: string; date: string; crewMemberId: string; role: string | null; name: string; initials: string; type: CrewType };
+export type JobUnitEvent = {
+  id: string; eventType: "added" | "removed" | "dispatched" | "returned"; note: string | null;
+  createdAt: string; stockUnitId: string; unitName: string; serialNumber: string | null;
+  actorName: string | null; itemName: string | null;
+};
 
 export const jobsApi = {
   getAll:        () => api.get<Job[]>("/jobs"),
@@ -283,6 +288,7 @@ export const jobsApi = {
   getDayCrew:      (jobId: string) => api.get<JobDayCrewEntry[]>(`/jobs/${jobId}/day-crew`),
   setDayCrew:      (jobId: string, date: string, entries: { crewMemberId: string; role?: string | null }[]) =>
                    api.put<{ message: string }>(`/jobs/${jobId}/day-crew`, { date, entries }),
+  getUnitEvents:   (jobId: string) => api.get<JobUnitEvent[]>(`/jobs/${jobId}/unit-events`),
 };
 
 // ─── Job Expenses (ค่าเด็กโหลด / ค่าเดินทาง-ส่งของ พร้อมสลิป) ──────

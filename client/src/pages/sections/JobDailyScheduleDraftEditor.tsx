@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Clock, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, Users, ChevronDown, ChevronUp, StickyNote } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { toDateStr, enumerateDays, TimeField } from "./JobDailyScheduleSection";
+import { toDateStr, enumerateDays, TimeField, NoteField } from "./JobDailyScheduleSection";
 
 export type DraftDaySchedule = { departureTime: string | null; arrivalTime: string | null; endTime: string | null; note: string | null };
 export type DraftDayCrewEntry = { crewMemberId: string; role: string | null };
@@ -64,6 +64,11 @@ export const JobDailyScheduleDraftEditor = ({ startDate, endDate, crew, schedule
                   <Users className="w-3 h-3" />{workingToday.length}
                 </span>
               )}
+              {sched?.note && (
+                <span className="text-white/40 flex-shrink-0" title={sched.note}>
+                  <StickyNote className="w-3 h-3" />
+                </span>
+              )}
               <span className="ml-auto flex-shrink-0">{isOpen ? <ChevronUp className="w-3.5 h-3.5 text-white/40" /> : <ChevronDown className="w-3.5 h-3.5 text-white/40" />}</span>
             </button>
 
@@ -77,6 +82,9 @@ export const JobDailyScheduleDraftEditor = ({ startDate, endDate, crew, schedule
                   <TimeField label={t("dayScheduleEnd")} value={sched?.endTime ?? ""}
                     onCommit={(v) => onScheduleChange(date, { endTime: v || null })} />
                 </div>
+
+                <NoteField label={t("dayScheduleNote")} placeholder={t("dayScheduleNotePlaceholder")} value={sched?.note ?? ""}
+                  onCommit={(v) => onScheduleChange(date, { note: v || null })} />
 
                 <div>
                   <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5 flex items-center gap-1.5"><Users className="w-3 h-3" />{t("dayScheduleCrewToday")}</p>

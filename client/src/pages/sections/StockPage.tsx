@@ -45,6 +45,7 @@ import { QuickAddItemsModal, type QuickAddPayload } from "./QuickAddItemsModal";
 import { AddLocationModal } from "./AddLocationModal";
 import { AddMaintenanceLogModal } from "./AddMaintenanceLogModal";
 import { ItemDetailPanel } from "./ItemDetailPanel";
+import { AccessoriesModal } from "./AccessoriesModal";
 import { StockFilterControlsSection } from "./StockFilterControlsSection";
 import { StockFilterSidebarSection } from "./StockFilterSidebarSection";
 import { StockItemsTableSection } from "./StockItemsTableSection";
@@ -102,6 +103,7 @@ export const StockPage = (): JSX.Element => {
   const [addMaintenanceLogOpen, setAddMaintenanceLogOpen] = useState(false);
   const [editItemOpen, setEditItemOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [accessoriesItem, setAccessoriesItem] = useState<any>(null);
   const [assignContainer, setAssignContainer] = useState<ContainerWithItems | null>(null);
   const [setBuilderOpen, setSetBuilderOpen] = useState(false);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
@@ -523,6 +525,7 @@ export const StockPage = (): JSX.Element => {
                   searchQuery={searchQuery}
                   onViewItem={(item) => setSelectedItem(item as any)}
                   onEditItem={(item) => { setEditingItem(item as any); setEditItemOpen(true); }}
+                  onManageAccessories={(item) => setAccessoriesItem(item as any)}
                   selectedItemId={selectedItem?.id ?? null}
                 />
               </div>
@@ -531,6 +534,12 @@ export const StockPage = (): JSX.Element => {
                 <ItemDetailPanel
                   item={selectedItem as any}
                   onClose={() => setSelectedItem(null)}
+                />
+              )}
+              {accessoriesItem && (
+                <AccessoriesModal
+                  item={accessoriesItem as any}
+                  onClose={() => setAccessoriesItem(null)}
                 />
               )}
             </div>
@@ -604,10 +613,10 @@ export const StockPage = (): JSX.Element => {
                           </p>
                         </div>
 
-                        <div className="mt-auto flex items-center gap-1.5 pt-2 flex-wrap">
+                        <div className="mt-auto flex items-center gap-2 pt-2 flex-wrap">
                           <button
                             onClick={() => setAssignContainer(c)}
-                            className="flex items-center gap-1 h-7 px-2 rounded-lg border border-white/10 text-[11px] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors"
                             title={t("assignItemsTooltip")}
                           >
                             <PackagePlus className="w-3 h-3" /> {t("assign")}
@@ -615,19 +624,19 @@ export const StockPage = (): JSX.Element => {
                           {canManage && (
                             <button
                               onClick={() => setEditContainerTarget(c)}
-                              className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors ml-auto"
+                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors"
                               title={t("editContainer")}
                             >
-                              <Pencil className="w-3.5 h-3.5" />
+                              <Pencil className="w-3 h-3" /> {tc("edit")}
                             </button>
                           )}
                           {canManage && (
                             <button
                               onClick={() => setDeleteContainerTarget(c)}
-                              className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
+                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                               title={t("deleteContainer")}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" /> {tc("delete")}
                             </button>
                           )}
                         </div>

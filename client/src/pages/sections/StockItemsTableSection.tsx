@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon, Layers, Plus } from "lucide-react";
+import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon, Layers, Plus, Link2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
@@ -65,7 +65,7 @@ const AvailabilityBadge = ({ available, total, planned }: { available: number; t
   );
 };
 
-const ActionIcons = ({ onView, onEdit, onDelete }: { onView?: () => void; onEdit?: () => void; onDelete?: () => void }) => {
+const ActionIcons = ({ onView, onEdit, onAccessories, onDelete }: { onView?: () => void; onEdit?: () => void; onAccessories?: () => void; onDelete?: () => void }) => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   return (
@@ -79,6 +79,13 @@ const ActionIcons = ({ onView, onEdit, onDelete }: { onView?: () => void; onEdit
       >
         <Pencil className="w-4 h-4" />
       </button>
+      {onAccessories && (
+        <button onClick={(e) => { e.stopPropagation(); onAccessories(); }}
+          className="p-1.5 rounded-md text-white/60 hover:text-[#FFFF00] hover:bg-white/10 transition-colors" title={t("tabAccessories")}
+        >
+          <Link2 className="w-4 h-4" />
+        </button>
+      )}
       {onDelete && (
         <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="p-1.5 rounded-md text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title={tc("delete")}>
@@ -650,6 +657,7 @@ interface StockItemsTableProps {
   searchQuery?: string;
   onViewItem?: (item: StockItem) => void;
   onEditItem?: (item: StockItem) => void;
+  onManageAccessories?: (item: StockItem) => void;
   selectedItemId?: string | null;
 }
 
@@ -660,6 +668,7 @@ export const StockItemsTableSection = ({
   searchQuery = "",
   onViewItem,
   onEditItem,
+  onManageAccessories,
   selectedItemId,
 }: StockItemsTableProps): JSX.Element => {
   const { t } = useTranslation("stock");
@@ -956,6 +965,7 @@ export const StockItemsTableSection = ({
                             <ActionIcons
                               onView={() => onViewItem?.(item)}
                               onEdit={() => onEditItem?.(item)}
+                              onAccessories={() => onManageAccessories?.(item)}
                               onDelete={canManage ? () => { setDeleteError(null); setDeleteItemId(item.id); } : undefined}
                             />
                           </TableCell>

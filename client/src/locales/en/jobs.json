@@ -61,6 +61,8 @@
   "dayScheduleNoJobCrew": "No crew assigned to this job yet — add some in the \"Crew & Vehicles\" tab first",
   "dayScheduleRolePlaceholder": "Duty today",
   "dayScheduleNeedDates": "Enter start/end dates first to set up the daily schedule",
+  "dayScheduleNote": "Note",
+  "dayScheduleNotePlaceholder": "Extra details for this day, e.g. meeting point, things to bring...",
 
   "subRentalsLabel": "Sub-Rentals",
   "manageSubRentals": "Manage sub-rentals",
