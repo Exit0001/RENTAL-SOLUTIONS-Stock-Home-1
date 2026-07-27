@@ -35,14 +35,14 @@ export const TimeField = ({ label, value, disabled, onCommit }: {
   useEffect(() => setLocal(value), [value]);
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[9px] text-white/40 uppercase tracking-wider">{label}</label>
+      <label className="text-[9px] text-fg/40 uppercase tracking-wider">{label}</label>
       <input
         type="time"
         value={local}
         disabled={disabled}
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => { if (local !== value) onCommit(local); }}
-        className="h-8 px-2 rounded-lg bg-black/30 border border-white/10 text-xs text-white [color-scheme:dark] focus:outline-none focus:border-[#FFFF00]/40 disabled:opacity-50"
+        className="h-8 px-2 rounded-lg bg-black/30 border border-fg/10 text-xs text-fg [color-scheme:dark] focus:outline-none focus:border-brand/40 disabled:opacity-50"
       />
     </div>
   );
@@ -55,7 +55,7 @@ export const NoteField = ({ label, placeholder, value, disabled, onCommit }: {
   useEffect(() => setLocal(value), [value]);
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[9px] text-white/40 uppercase tracking-wider">{label}</label>
+      <label className="text-[9px] text-fg/40 uppercase tracking-wider">{label}</label>
       <textarea
         value={local}
         disabled={disabled}
@@ -63,7 +63,7 @@ export const NoteField = ({ label, placeholder, value, disabled, onCommit }: {
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => { if (local !== value) onCommit(local); }}
         rows={2}
-        className="px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#FFFF00]/40 disabled:opacity-50 resize-none"
+        className="px-2 py-1.5 rounded-lg bg-black/30 border border-fg/10 text-xs text-fg placeholder-fg/30 focus:outline-none focus:border-brand/40 disabled:opacity-50 resize-none"
       />
     </div>
   );
@@ -118,11 +118,11 @@ export const JobDailyScheduleSection = ({ jobId, startDate, endDate, jobCrew, ca
         const isOpen = expanded.has(date);
 
         return (
-          <div key={date} className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-            <button onClick={() => toggleExpand(date)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/[0.02] transition-colors text-left">
-              <span className="text-sm font-semibold text-white/85 flex-shrink-0">{dateLabel}</span>
+          <div key={date} className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] overflow-hidden">
+            <button onClick={() => toggleExpand(date)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-fg/[0.02] transition-colors text-left">
+              <span className="text-sm font-semibold text-fg/85 flex-shrink-0">{dateLabel}</span>
               {(sched?.departureTime || sched?.arrivalTime || sched?.endTime) && (
-                <span className="text-[11px] text-white/50 flex items-center gap-1 truncate">
+                <span className="text-[11px] text-fg/50 flex items-center gap-1 truncate">
                   <Clock className="w-3 h-3 flex-shrink-0" />
                   {[
                     sched?.departureTime && t("dayScheduleDepartureShort", { time: sched.departureTime }),
@@ -132,20 +132,20 @@ export const JobDailyScheduleSection = ({ jobId, startDate, endDate, jobCrew, ca
                 </span>
               )}
               {workingToday.length > 0 && (
-                <span className="text-[11px] text-[#FFFF00]/70 flex items-center gap-1 flex-shrink-0">
+                <span className="text-[11px] text-brand/70 flex items-center gap-1 flex-shrink-0">
                   <Users className="w-3 h-3" />{workingToday.length}
                 </span>
               )}
               {sched?.note && (
-                <span className="text-white/40 flex-shrink-0" title={sched.note}>
+                <span className="text-fg/40 flex-shrink-0" title={sched.note}>
                   <StickyNote className="w-3 h-3" />
                 </span>
               )}
-              <span className="ml-auto flex-shrink-0">{isOpen ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}</span>
+              <span className="ml-auto flex-shrink-0">{isOpen ? <ChevronUp className="w-4 h-4 text-fg/40" /> : <ChevronDown className="w-4 h-4 text-fg/40" />}</span>
             </button>
 
             {isOpen && (
-              <div className="px-3 pb-3 pt-1 border-t border-white/[0.06] space-y-3">
+              <div className="px-3 pb-3 pt-1 border-t border-fg/[0.06] space-y-3">
                 <div className="grid grid-cols-3 gap-2">
                   <TimeField
                     label={t("dayScheduleDeparture")}
@@ -176,9 +176,9 @@ export const JobDailyScheduleSection = ({ jobId, startDate, endDate, jobCrew, ca
                 />
 
                 <div>
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5 flex items-center gap-1.5"><Users className="w-3 h-3" />{t("dayScheduleCrewToday")}</p>
+                  <p className="text-[10px] font-bold text-fg/40 uppercase tracking-wider mb-1.5 flex items-center gap-1.5"><Users className="w-3 h-3" />{t("dayScheduleCrewToday")}</p>
                   {jobCrew.length === 0 ? (
-                    <p className="text-xs text-white/40 italic">{t("dayScheduleNoJobCrew")}</p>
+                    <p className="text-xs text-fg/40 italic">{t("dayScheduleNoJobCrew")}</p>
                   ) : (
                     <div className="space-y-1">
                       {jobCrew.map((c) => {
@@ -194,9 +194,9 @@ export const JobDailyScheduleSection = ({ jobId, startDate, endDate, jobCrew, ca
                                   : [...workingToday, { crewMemberId: c.crewMemberId, role: null } as JobDayCrewEntry];
                                 saveDayCrew.mutate({ date, entries: next.map((n) => ({ crewMemberId: n.crewMemberId, role: n.role })) });
                               }}
-                              className={`w-4 h-4 rounded border flex-shrink-0 transition-colors disabled:opacity-40 ${isChecked ? "bg-[#FFFF00] border-[#FFFF00]" : "border-white/20 hover:border-white/40"}`}
+                              className={`w-4 h-4 rounded border flex-shrink-0 transition-colors disabled:opacity-40 ${isChecked ? "bg-brand border-brand" : "border-fg/20 hover:border-fg/40"}`}
                             />
-                            <span className="text-xs text-white/75 flex-1 truncate">{c.name}</span>
+                            <span className="text-xs text-fg/75 flex-1 truncate">{c.name}</span>
                             {isChecked && (
                               <input
                                 key={`${c.crewMemberId}-${entry?.role ?? ""}`}
@@ -207,7 +207,7 @@ export const JobDailyScheduleSection = ({ jobId, startDate, endDate, jobCrew, ca
                                   const next = workingToday.map((w) => w.crewMemberId === c.crewMemberId ? { ...w, role: e.target.value || null } : w);
                                   saveDayCrew.mutate({ date, entries: next.map((n) => ({ crewMemberId: n.crewMemberId, role: n.role })) });
                                 }}
-                                className="h-6 w-32 px-2 text-[11px] rounded bg-black/30 border border-white/10 text-white/80 focus:outline-none focus:border-[#FFFF00]/40 disabled:opacity-40"
+                                className="h-6 w-32 px-2 text-[11px] rounded bg-black/30 border border-fg/10 text-fg/80 focus:outline-none focus:border-brand/40 disabled:opacity-40"
                               />
                             )}
                           </div>

@@ -88,21 +88,21 @@ export const AccessoriesModal = ({ item, onClose }: Props): JSX.Element => {
       style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-lg max-h-[85vh] flex flex-col bg-[#0d0d0d] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-modal-up">
+      <div className="w-full max-w-lg max-h-[85vh] flex flex-col bg-surface-1 border border-fg/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-modal-up">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-fg/[0.06] flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFFF00" }}>
+            <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
               <Link2 className="w-4 h-4 text-black" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-bold text-white text-sm truncate">{t("tabAccessories")}</h3>
-              <p className="text-[11px] text-white/50 truncate">{item.name}</p>
+              <h3 className="font-bold text-fg text-sm truncate">{t("tabAccessories")}</h3>
+              <p className="text-[11px] text-fg/50 truncate">{item.name}</p>
             </div>
           </div>
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors flex-shrink-0">
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors flex-shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -113,12 +113,12 @@ export const AccessoriesModal = ({ item, onClose }: Props): JSX.Element => {
           {canManage && (
             <div className="space-y-2">
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-fg/40" />
                 <input
                   value={accSearch}
                   onChange={(e) => setAccSearch(e.target.value)}
                   placeholder={t("searchAccessoryPlaceholder")}
-                  className="w-full h-8 pl-8 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#FFFF00]/40"
+                  className="w-full h-8 pl-8 pr-3 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-xs text-fg placeholder-fg/30 focus:outline-none focus:border-brand/40"
                 />
               </div>
               {accSearchResults.map((si) => {
@@ -127,12 +127,12 @@ export const AccessoriesModal = ({ item, onClose }: Props): JSX.Element => {
                   <div
                     key={si.id}
                     onClick={() => toggleAccSelected(si.id)}
-                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${checked ? "bg-[#FFFF00]/[0.08] border-[#FFFF00]/30" : "bg-white/[0.03] border-white/[0.06] hover:border-white/15"}`}
+                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${checked ? "bg-brand/[0.08] border-brand/30" : "bg-fg/[0.03] border-fg/[0.06] hover:border-fg/15"}`}
                   >
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? "bg-[#FFFF00] border-[#FFFF00]" : "border-white/20"}`}>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? "bg-brand border-brand" : "border-fg/20"}`}>
                       {checked && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
                     </div>
-                    <p className="text-xs text-white/70 flex-1 truncate">{si.name}</p>
+                    <p className="text-xs text-fg/70 flex-1 truncate">{si.name}</p>
                   </div>
                 );
               })}
@@ -141,7 +141,7 @@ export const AccessoriesModal = ({ item, onClose }: Props): JSX.Element => {
                   onClick={handleAddSelectedAcc}
                   disabled={addingBulkAcc}
                   className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-bold text-black disabled:opacity-40 transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: "#FFFF00" }}
+                  style={{ backgroundColor: "var(--brand)" }}
                 >
                   {addingBulkAcc ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   {t("addSelectedAccessories", { count: accSelected.size })}
@@ -150,52 +150,52 @@ export const AccessoriesModal = ({ item, onClose }: Props): JSX.Element => {
             </div>
           )}
 
-          <p className="text-[10px] text-white/50 leading-relaxed">{t("accessoriesHint")}</p>
+          <p className="text-[10px] text-fg/50 leading-relaxed">{t("accessoriesHint")}</p>
 
           {accLoading ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-white/60">
+            <div className="flex items-center justify-center gap-2 py-6 text-fg/60">
               <Loader2 className="w-4 h-4 animate-spin" />
             </div>
           ) : accessories.length === 0 ? (
-            <div className="flex flex-col items-center py-6 gap-2 text-white/40">
+            <div className="flex flex-col items-center py-6 gap-2 text-fg/40">
               <Link2 className="w-6 h-6" />
               <p className="text-xs">{t("noAccessoriesYet")}</p>
             </div>
           ) : (
             <div className="space-y-2">
               {accessories.map((acc) => (
-                <div key={acc.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <div key={acc.id} className="flex items-center gap-2 p-2.5 rounded-lg bg-fg/[0.03] border border-fg/[0.06]">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-white/80 truncate">{acc.accessoryName}</p>
+                    <p className="text-xs font-medium text-fg/80 truncate">{acc.accessoryName}</p>
                     <div className="flex items-center gap-2 mt-1">
                       {canManage ? (
-                        <div className="flex items-center gap-0.5 bg-black/30 rounded-md border border-white/10">
+                        <div className="flex items-center gap-0.5 bg-black/30 rounded-md border border-fg/10">
                           <button
                             onClick={() => updateAcc.mutate({ linkId: acc.id, data: { quantityPerUnit: Math.max(1, acc.quantityPerUnit - 1) } })}
-                            className="w-5 h-5 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                            className="w-5 h-5 flex items-center justify-center text-fg/50 hover:text-fg transition-colors"
                           >
                             <Minus className="w-2.5 h-2.5" />
                           </button>
-                          <span className="text-[10px] text-white/70 w-4 text-center tabular-nums">×{acc.quantityPerUnit}</span>
+                          <span className="text-[10px] text-fg/70 w-4 text-center tabular-nums">×{acc.quantityPerUnit}</span>
                           <button
                             onClick={() => updateAcc.mutate({ linkId: acc.id, data: { quantityPerUnit: acc.quantityPerUnit + 1 } })}
-                            className="w-5 h-5 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                            className="w-5 h-5 flex items-center justify-center text-fg/50 hover:text-fg transition-colors"
                           >
                             <Plus className="w-2.5 h-2.5" />
                           </button>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-white/50">×{acc.quantityPerUnit}</span>
+                        <span className="text-[10px] text-fg/50">×{acc.quantityPerUnit}</span>
                       )}
                       {canManage ? (
                         <button
                           onClick={() => updateAcc.mutate({ linkId: acc.id, data: { required: !acc.required } })}
-                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-colors ${acc.required ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-white/10 text-white/50 hover:bg-white/15"}`}
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold transition-colors ${acc.required ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-fg/10 text-fg/50 hover:bg-fg/15"}`}
                         >
                           {acc.required ? t("requiredLabel") : t("optionalLabel")}
                         </button>
                       ) : (
-                        <span className={`text-[9px] px-1 rounded font-bold ${acc.required ? "bg-amber-500/20 text-amber-400" : "bg-white/10 text-white/50"}`}>
+                        <span className={`text-[9px] px-1 rounded font-bold ${acc.required ? "bg-amber-500/20 text-amber-400" : "bg-fg/10 text-fg/50"}`}>
                           {acc.required ? t("requiredLabel") : t("optionalLabel")}
                         </span>
                       )}
@@ -205,7 +205,7 @@ export const AccessoriesModal = ({ item, onClose }: Props): JSX.Element => {
                   {canManage && (
                     <button onClick={() => removeAcc.mutate(acc.id)}
                       disabled={removeAcc.isPending}
-                      className="p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0">
+                      className="p-1.5 rounded text-fg/40 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}

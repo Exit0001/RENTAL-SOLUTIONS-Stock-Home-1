@@ -43,6 +43,7 @@ export type Me = {
   role: string;
   companyId: string;
   companyName: string;
+  companyLogoUrl: string | null;
   avatarUrl: string | null;
 };
 
@@ -61,7 +62,7 @@ export const authApi = {
   getTeam:  () => api.get<TeamMember[]>("/auth/team"),
   removeMember: (userId: string) => api.delete<{ message: string }>(`/auth/team/${userId}`),
   getCompany: () => api.get<Company>("/auth/company"),
-  updateCompany: (data: { name?: string; lineChannelAccessToken?: string; lineGroupId?: string }) =>
+  updateCompany: (data: { name?: string; lineChannelAccessToken?: string; lineGroupId?: string; companyLogoUrl?: string | null }) =>
     api.put<Company>("/auth/company", data),
 };
 

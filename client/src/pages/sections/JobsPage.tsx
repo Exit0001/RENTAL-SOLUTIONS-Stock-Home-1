@@ -61,10 +61,10 @@ const jobTabs: { key: JobTab; labelKey: string; icon: typeof Briefcase }[] = [
 const statusStyles: Record<string, string> = {
   Active:     "bg-emerald-950/60 text-emerald-400",
   Scheduled:  "bg-blue-950/60 text-blue-400",
-  Completed:  "bg-white/5 text-white/60",
+  Completed:  "bg-fg/5 text-fg/60",
   Pending:    "bg-amber-950/60 text-amber-400",
   Dispatched: "bg-emerald-950/60 text-emerald-400",
-  Draft:      "bg-white/5 text-white/60",
+  Draft:      "bg-fg/5 text-fg/60",
   Returned:   "bg-blue-950/60 text-blue-400",
   Open:       "bg-red-950/60 text-red-400",
   Resolved:   "bg-emerald-950/60 text-emerald-400",
@@ -89,8 +89,8 @@ const priorityColors: Record<string, string> = {
 };
 
 const taskStatusColors: Record<string, string> = {
-  "In Progress": "text-[#FFFF00]",
-  Pending:       "text-white/60",
+  "In Progress": "text-brand",
+  Pending:       "text-fg/60",
   Done:          "text-emerald-400",
 };
 
@@ -172,6 +172,7 @@ export const JobsPage = (): JSX.Element => {
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["pull-sheets"] });
       qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
       setDeleteJobTarget(null);
     },
   });
@@ -263,7 +264,7 @@ export const JobsPage = (): JSX.Element => {
             <AlertDialogAction
               onClick={() => deleteJobTarget && deleteJob.mutate(deleteJobTarget.id)}
               disabled={deleteJob.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-fg"
             >
               {deleteJob.isPending ? tc("deleting") : tc("delete")}
             </AlertDialogAction>
@@ -278,38 +279,38 @@ export const JobsPage = (): JSX.Element => {
           style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
           onClick={(e) => e.target === e.currentTarget && setSaveTplJob(null)}
         >
-          <div className="w-full max-w-sm bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06]">
-              <div className="w-8 h-8 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center">
-                <LayoutTemplate className="w-4 h-4 text-[#FFFF00]" />
+          <div className="w-full max-w-sm bg-surface-1 border border-fg/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-fg/[0.06]">
+              <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center">
+                <LayoutTemplate className="w-4 h-4 text-brand" />
               </div>
               <div>
-                <h2 className="font-bold text-white text-sm">{t("saveAsTemplate")}</h2>
-                <p className="text-[10px] text-white/60 truncate max-w-[240px]">{saveTplJob.name}</p>
+                <h2 className="font-bold text-fg text-sm">{t("saveAsTemplate")}</h2>
+                <p className="text-[10px] text-fg/60 truncate max-w-[240px]">{saveTplJob.name}</p>
               </div>
             </div>
             <div className="px-6 py-5 space-y-3">
-              <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("templateName")}</label>
+              <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">{t("templateName")}</label>
               <input
                 autoFocus
                 value={tplName}
                 onChange={(e) => setTplName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && tplName.trim() && !saveTemplate.isPending) saveTemplate.mutate({ jobId: saveTplJob.id, name: tplName.trim() }); }}
                 placeholder={t("templateNamePlaceholder")}
-                className="w-full h-9 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FFFF00]/40"
+                className="w-full h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder-fg/20 focus:outline-none focus:border-brand/40"
               />
-              <p className="text-[10px] text-white/40">{t("templateSaveHint")}</p>
+              <p className="text-[10px] text-fg/40">{t("templateSaveHint")}</p>
             </div>
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-white/[0.06]">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-fg/[0.06]">
               <button onClick={() => setSaveTplJob(null)}
-                className="h-9 px-4 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+                className="h-9 px-4 rounded-lg text-sm text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors">
                 {tc("cancel")}
               </button>
               <button
                 onClick={() => saveTemplate.mutate({ jobId: saveTplJob.id, name: tplName.trim() })}
                 disabled={!tplName.trim() || saveTemplate.isPending}
                 className="flex items-center gap-2 h-9 px-5 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80 disabled:opacity-30"
-                style={{ backgroundColor: "#FFFF00" }}
+                style={{ backgroundColor: "var(--brand)" }}
               >
                 {saveTemplate.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LayoutTemplate className="w-3.5 h-3.5" />}
                 {tc("save")}
@@ -320,17 +321,17 @@ export const JobsPage = (): JSX.Element => {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white" data-testid="text-jobs-title">{t("pageTitle")}</h1>
+        <h1 className="text-xl font-bold text-fg" data-testid="text-jobs-title">{t("pageTitle")}</h1>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-3 text-xs">
             <span className="flex items-center gap-1 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "active").length, status: tc("statusEnum.active") })}</span>
             <span className="flex items-center gap-1 text-blue-400"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "scheduled").length, status: tc("statusEnum.scheduled") })}</span>
-            <span className="flex items-center gap-1 text-white/60"><span className="w-1.5 h-1.5 rounded-full bg-white/30" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "completed").length, status: tc("statusEnum.completed") })}</span>
+            <span className="flex items-center gap-1 text-fg/60"><span className="w-1.5 h-1.5 rounded-full bg-fg/30" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "completed").length, status: tc("statusEnum.completed") })}</span>
           </div>
           <button
             onClick={() => setAddJobOpen(true)}
             className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-            style={{ backgroundColor: "#FFFF00" }}
+            style={{ backgroundColor: "var(--brand)" }}
           >
             <Plus className="w-4 h-4" /> {t("addJob")}
           </button>
@@ -338,37 +339,37 @@ export const JobsPage = (): JSX.Element => {
       </div>
 
       {activeTab === "jobs" && (
-        <div className="flex flex-1 min-h-0 border border-white/[0.06] rounded-xl overflow-hidden bg-[#0d0d0d]">
+        <div className="flex flex-1 min-h-0 border border-fg/[0.06] rounded-xl overflow-hidden bg-surface-1">
           {/* LEFT: job list */}
-          <aside className="w-[280px] flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-[#0b0b0b]">
-            <div className="px-3 py-2.5 border-b border-white/[0.06] flex items-center gap-2 flex-shrink-0">
-              <span className="text-xs font-bold text-white/50">รายการงาน</span>
-              <span className="text-[11px] text-white/40">{(jobs as any[]).length}</span>
+          <aside className="w-[280px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-1">
+            <div className="px-3 py-2.5 border-b border-fg/[0.06] flex items-center gap-2 flex-shrink-0">
+              <span className="text-xs font-bold text-fg/50">รายการงาน</span>
+              <span className="text-[11px] text-fg/40">{(jobs as any[]).length}</span>
             </div>
-            <div className="p-2 border-b border-white/[0.04] flex-shrink-0">
+            <div className="p-2 border-b border-fg/[0.04] flex-shrink-0">
               <button onClick={() => setSelectedJobId(null)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${!selectedJobId ? "bg-[#FFFF00]/[0.1] text-[#FFFF00] border border-[#FFFF00]/30" : "text-white/60 border border-white/[0.08] hover:text-white hover:border-white/20"}`}>
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${!selectedJobId ? "bg-brand/[0.1] text-brand border border-brand/30" : "text-fg/60 border border-fg/[0.08] hover:text-fg hover:border-fg/20"}`}>
                 <CalendarRange className="w-4 h-4" /> ปฏิทินรวม
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {jobsLoading ? (
-                Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-white/[0.03] animate-pulse" />)
+                Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 rounded-lg bg-fg/[0.03] animate-pulse" />)
               ) : (jobs as any[]).length === 0 ? (
-                <p className="text-center text-xs text-white/40 py-8">{t("noJobsYet", { defaultValue: "ยังไม่มีงาน" })}</p>
+                <p className="text-center text-xs text-fg/40 py-8">{t("noJobsYet", { defaultValue: "ยังไม่มีงาน" })}</p>
               ) : (jobs as any[]).map((job) => {
                 const s = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                 const e = new Date(job.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                 const active = selectedJobId === job.id;
-                const dot = job.status === "active" ? "bg-emerald-400" : job.status === "scheduled" ? "bg-blue-400" : job.status === "completed" ? "bg-white/40" : job.status === "cancelled" ? "bg-red-400" : "bg-white/25";
+                const dot = job.status === "active" ? "bg-emerald-400" : job.status === "scheduled" ? "bg-blue-400" : job.status === "completed" ? "bg-fg/40" : job.status === "cancelled" ? "bg-red-400" : "bg-fg/25";
                 return (
                   <button key={job.id} onClick={() => setSelectedJobId(job.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${active ? "border-[#FFFF00]/50 bg-[#FFFF00]/[0.06]" : "border-transparent hover:bg-white/[0.03]"}`}>
+                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${active ? "border-brand/50 bg-brand/[0.06]" : "border-transparent hover:bg-fg/[0.03]"}`}>
                     <div className="flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                      <p className={`text-sm font-medium truncate flex-1 ${active ? "text-[#FFFF00]" : "text-white/85"}`}>{job.name}</p>
+                      <p className={`text-sm font-medium truncate flex-1 ${active ? "text-brand" : "text-fg/85"}`}>{job.name}</p>
                     </div>
-                    <p className="text-[10px] text-white/40 mt-0.5 pl-3.5 truncate">{job.client} · {s === e ? s : `${s}–${e}`}</p>
+                    <p className="text-[10px] text-fg/40 mt-0.5 pl-3.5 truncate">{job.client} · {s === e ? s : `${s}–${e}`}</p>
                   </button>
                 );
               })}
@@ -381,8 +382,8 @@ export const JobsPage = (): JSX.Element => {
             ) : (
               <div className="h-full overflow-y-auto p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <CalendarRange className="w-3.5 h-3.5 text-[#FFFF00]/40" />
-                  <span className="text-[10px] font-bold text-[#FFFF00]/40 uppercase tracking-wider">ตารางงาน — เลือกงานจากรายการซ้ายเพื่อจัดการ</span>
+                  <CalendarRange className="w-3.5 h-3.5 text-brand/40" />
+                  <span className="text-[10px] font-bold text-brand/40 uppercase tracking-wider">ตารางงาน — เลือกงานจากรายการซ้ายเพื่อจัดการ</span>
                 </div>
                 <JobScheduleView jobs={jobs as any[]} />
               </div>

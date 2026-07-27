@@ -24,6 +24,11 @@
   "lineGroupIdLabel": "Group ID",
   "lineSaved": "LINE settings saved",
 
+  "logoTitle": "Company Logo",
+  "logoHelpText": "Upload your company's logo — it will replace the \"STAK\" wordmark shown in the top-left of every screen.",
+  "logoLabel": "Logo",
+  "logoSaved": "Logo saved",
+
   "backupTitle": "Data Backup",
   "backupHelpText": "Download all of your company's data (inventory, jobs, equipment sets, quotes, etc.) as a single JSON file to keep your own backup copy — this file contains only your company's data (Supabase also keeps automated server-level database backups as an extra layer).",
   "backupExportBtn": "Download backup (.json)",

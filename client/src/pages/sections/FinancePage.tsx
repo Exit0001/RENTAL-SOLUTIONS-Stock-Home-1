@@ -56,7 +56,7 @@ const statusColors: Record<string, string> = {
   Pending:  "bg-amber-950/60 text-amber-400",
   Overdue:  "bg-red-950/60 text-red-400",
   Sent:     "bg-blue-950/60 text-blue-400",
-  Draft:    "bg-white/5 text-white/60",
+  Draft:    "bg-fg/5 text-fg/60",
   Accepted: "bg-emerald-950/60 text-emerald-400",
   Declined: "bg-red-950/60 text-red-400",
 };
@@ -169,40 +169,40 @@ export const FinancePage = (): JSX.Element => {
   return (
     <div className="flex-1 overflow-auto p-6 space-y-4" data-testid="page-finance">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white" data-testid="text-finance-title">{t("pageTitle")}</h1>
+        <h1 className="text-xl font-bold text-fg" data-testid="text-finance-title">{t("pageTitle")}</h1>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
         {summaryCards.map((c) => (
-          <div key={c.key} className="bg-[#111] border border-white/[0.06] rounded-xl p-4" data-testid={`card-${c.key}`}>
+          <div key={c.key} className="bg-surface-1 border border-fg/[0.06] rounded-xl p-4" data-testid={`card-${c.key}`}>
             <div className="flex items-start justify-between mb-2">
-              <div className="p-1.5 rounded-lg bg-[#FFFF00]/10"><c.icon className="w-4 h-4 text-[#FFFF00]" /></div>
+              <div className="p-1.5 rounded-lg bg-brand/10"><c.icon className="w-4 h-4 text-brand" /></div>
               <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-400"><ArrowUpRight className="w-3 h-3" />{c.change}</span>
             </div>
-            <p className="text-xl font-bold text-white">{c.value}</p>
-            <p className="text-[10px] text-white/60">{c.label}</p>
+            <p className="text-xl font-bold text-fg">{c.value}</p>
+            <p className="text-[10px] text-fg/60">{c.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center gap-1 border-b border-white/[0.06]">
+      <div className="flex items-center gap-1 border-b border-fg/[0.06]">
         {financeTabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"}`} data-testid={`tab-${tab.key}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"}`} data-testid={`tab-${tab.key}`}>
             <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
           </button>
         ))}
       </div>
 
       {activeTab === "quotes" && (
-        <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-            <FileText className="w-4 h-4 text-[#FFFF00]" />
-            <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("smartQuotes")}</span>
-            <span className="ml-auto text-[10px] text-white/60">{t("linkedToStock")}</span>
+        <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
+            <FileText className="w-4 h-4 text-brand" />
+            <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("smartQuotes")}</span>
+            <span className="ml-auto text-[10px] text-fg/60">{t("linkedToStock")}</span>
             <button
               onClick={() => setAddQuoteOpen(true)}
               className="h-9 px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black"
-              style={{ backgroundColor: "#FFFF00" }}
+              style={{ backgroundColor: "var(--brand)" }}
               data-testid="button-add-quote"
             >
               <Plus className="w-4 h-4" />{t("newQuote")}
@@ -210,7 +210,7 @@ export const FinancePage = (): JSX.Element => {
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
+              <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                 <th className="py-2.5 pl-4 text-left font-semibold">{t("colQuote")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colClient")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colProject")}</th>
@@ -223,31 +223,31 @@ export const FinancePage = (): JSX.Element => {
             </thead>
             <tbody>
               {(quotes as any[]).map((q) => (
-                <tr key={q.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-quote-${q.id}`}>
-                  <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{q.quoteNumber ?? q.id}</td>
-                  <td className="py-2.5 text-white/60">{q.client}</td>
-                  <td className="py-2.5 text-white/60">{q.jobName ?? "—"}</td>
-                  <td className="py-2.5 text-white font-bold">—</td>
-                  <td className="py-2.5 text-white font-semibold">£{Number(q.totalValue).toLocaleString()}</td>
-                  <td className="py-2.5"><span className="text-xs font-semibold text-white/60">—</span></td>
+                <tr key={q.id} className="border-b border-fg/[0.04] hover:bg-fg/[0.02] transition-colors" data-testid={`row-quote-${q.id}`}>
+                  <td className="py-2.5 pl-4 font-mono text-brand/70 text-xs">{q.quoteNumber ?? q.id}</td>
+                  <td className="py-2.5 text-fg/60">{q.client}</td>
+                  <td className="py-2.5 text-fg/60">{q.jobName ?? "—"}</td>
+                  <td className="py-2.5 text-fg font-bold">—</td>
+                  <td className="py-2.5 text-fg font-semibold">£{Number(q.totalValue).toLocaleString()}</td>
+                  <td className="py-2.5"><span className="text-xs font-semibold text-fg/60">—</span></td>
                   <td className="py-2.5">
                     <select
                       value={q.status}
                       onChange={(e) => updateQuoteStatus.mutate({ id: q.id, status: e.target.value })}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40 ${statusColors[q.status] ?? "bg-white/5 text-white/60"}`}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40 ${statusColors[q.status] ?? "bg-fg/5 text-fg/60"}`}
                     >
                       {QUOTE_STATUSES.map((s) => (
-                        <option key={s} value={s} className="bg-[#111] text-white">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
+                        <option key={s} value={s} className="bg-surface-1 text-fg">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
                       ))}
                     </select>
                   </td>
                   <td className="py-2.5 pr-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors" title={tc("send")} data-testid={`button-send-quote-${q.id}`}><Send className="w-3.5 h-3.5" /></button>
+                      <button className="p-1 rounded hover:bg-fg/5 text-fg/60 hover:text-brand transition-colors" title={tc("send")} data-testid={`button-send-quote-${q.id}`}><Send className="w-3.5 h-3.5" /></button>
                       <button
                         onClick={() => handleDownloadQuotePdf(q.id, q.quoteNumber ?? q.id)}
                         disabled={downloadingId === q.id}
-                        className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors disabled:opacity-40"
+                        className="p-1 rounded hover:bg-fg/5 text-fg/60 hover:text-brand transition-colors disabled:opacity-40"
                         title={tc("downloadPdf")}
                         data-testid={`button-download-quote-${q.id}`}
                       >
@@ -256,7 +256,7 @@ export const FinancePage = (): JSX.Element => {
                       {canManage && (
                         <button
                           onClick={() => setQuoteToDelete(q.id)}
-                          className="p-1 rounded hover:bg-red-500/10 text-white/60 hover:text-red-400 transition-colors"
+                          className="p-1 rounded hover:bg-red-500/10 text-fg/60 hover:text-red-400 transition-colors"
                           title={tc("delete")}
                           data-testid={`button-delete-quote-${q.id}`}
                         >
@@ -273,14 +273,14 @@ export const FinancePage = (): JSX.Element => {
       )}
 
       {activeTab === "invoices" && (
-        <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-[#FFFF00]" />
-            <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("invoicesAndPayments")}</span>
+        <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-brand" />
+            <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("invoicesAndPayments")}</span>
             <button
               onClick={() => setAddInvoiceOpen(true)}
               className="ml-auto h-9 px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black"
-              style={{ backgroundColor: "#FFFF00" }}
+              style={{ backgroundColor: "var(--brand)" }}
               data-testid="button-add-invoice"
             >
               <Plus className="w-4 h-4" />{t("newInvoice")}
@@ -288,7 +288,7 @@ export const FinancePage = (): JSX.Element => {
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
+              <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                 <th className="py-2.5 pl-4 text-left font-semibold">{t("colInvoice")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colClient")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colAmount")}</th>
@@ -302,23 +302,23 @@ export const FinancePage = (): JSX.Element => {
               {(invoices as any[]).map((inv) => {
                 const daysLeft = Math.round((new Date(inv.dueDate).getTime() - Date.now()) / 86400000);
                 return (
-                  <tr key={inv.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-invoice-${inv.id}`}>
-                    <td className="py-2.5 pl-4 font-mono text-[#FFFF00]/70 text-xs">{inv.invoiceNumber ?? inv.id}</td>
-                    <td className="py-2.5 text-white/60">{inv.client}</td>
-                    <td className="py-2.5 text-white font-semibold">£{Number(inv.amount).toLocaleString()}</td>
-                    <td className="py-2.5 text-white/60 text-xs">{new Date(inv.issuedDate).toLocaleDateString("en-GB")}</td>
+                  <tr key={inv.id} className="border-b border-fg/[0.04] hover:bg-fg/[0.02] transition-colors" data-testid={`row-invoice-${inv.id}`}>
+                    <td className="py-2.5 pl-4 font-mono text-brand/70 text-xs">{inv.invoiceNumber ?? inv.id}</td>
+                    <td className="py-2.5 text-fg/60">{inv.client}</td>
+                    <td className="py-2.5 text-fg font-semibold">£{Number(inv.amount).toLocaleString()}</td>
+                    <td className="py-2.5 text-fg/60 text-xs">{new Date(inv.issuedDate).toLocaleDateString("en-GB")}</td>
                     <td className="py-2.5 text-xs">
-                      <span className={inv.status === "overdue" ? "text-red-400" : "text-white/60"}>{new Date(inv.dueDate).toLocaleDateString("en-GB")}</span>
+                      <span className={inv.status === "overdue" ? "text-red-400" : "text-fg/60"}>{new Date(inv.dueDate).toLocaleDateString("en-GB")}</span>
                       {daysLeft < 0 && <span className="ml-1 text-red-400/60 text-[10px]">{t("daysOverdue", { days: Math.abs(daysLeft) })}</span>}
                     </td>
                     <td className="py-2.5">
                       <select
                         value={inv.status}
                         onChange={(e) => updateInvoiceStatus.mutate({ id: inv.id, status: e.target.value })}
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FFFF00]/40 ${statusColors[inv.status] ?? "bg-white/5 text-white/60"}`}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40 ${statusColors[inv.status] ?? "bg-fg/5 text-fg/60"}`}
                       >
                         {INVOICE_STATUSES.map((s) => (
-                          <option key={s} value={s} className="bg-[#111] text-white">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
+                          <option key={s} value={s} className="bg-surface-1 text-fg">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
                         ))}
                       </select>
                     </td>
@@ -327,7 +327,7 @@ export const FinancePage = (): JSX.Element => {
                         <button
                           onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber ?? inv.id)}
                           disabled={downloadingId === inv.id}
-                          className="p-1 rounded hover:bg-white/5 text-white/60 hover:text-[#FFFF00] transition-colors disabled:opacity-40"
+                          className="p-1 rounded hover:bg-fg/5 text-fg/60 hover:text-brand transition-colors disabled:opacity-40"
                           title={tc("downloadPdf")}
                           data-testid={`button-download-invoice-${inv.id}`}
                         >
@@ -336,7 +336,7 @@ export const FinancePage = (): JSX.Element => {
                         {canManage && (
                           <button
                             onClick={() => setInvoiceToDelete(inv.id)}
-                            className="p-1 rounded hover:bg-red-500/10 text-white/60 hover:text-red-400 transition-colors"
+                            className="p-1 rounded hover:bg-red-500/10 text-fg/60 hover:text-red-400 transition-colors"
                             title={tc("delete")}
                             data-testid={`button-delete-invoice-${inv.id}`}
                           >
@@ -354,14 +354,14 @@ export const FinancePage = (): JSX.Element => {
       )}
 
       {activeTab === "costing" && (
-        <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-[#FFFF00]" />
-            <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("projectCostingRoi")}</span>
+        <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
+            <Calculator className="w-4 h-4 text-brand" />
+            <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("projectCostingRoi")}</span>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
+              <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                 <th className="py-2.5 pl-4 text-left font-semibold">{t("colProject")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colRevenue")}</th>
                 <th className="py-2.5 text-left font-semibold">{t("colStaff")}</th>
@@ -376,37 +376,37 @@ export const FinancePage = (): JSX.Element => {
                 const totalCost = p.staff + p.transport + p.subRentals;
                 const profit = p.revenue - totalCost;
                 return (
-                  <tr key={p.project} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`row-cost-${p.project.toLowerCase().replace(/\s+/g, "-")}`}>
-                    <td className="py-2.5 pl-4 text-white/80 font-medium">{p.project}</td>
+                  <tr key={p.project} className="border-b border-fg/[0.04] hover:bg-fg/[0.02] transition-colors" data-testid={`row-cost-${p.project.toLowerCase().replace(/\s+/g, "-")}`}>
+                    <td className="py-2.5 pl-4 text-fg/80 font-medium">{p.project}</td>
                     <td className="py-2.5 text-emerald-400 font-semibold">£{p.revenue.toLocaleString()}</td>
-                    <td className="py-2.5 text-white/60">
+                    <td className="py-2.5 text-fg/60">
                       <button onClick={() => setExpensesJob({ jobId: p.jobId, project: p.project })}
-                        className="hover:text-[#FFFF00] underline-offset-2 hover:underline transition-colors">
+                        className="hover:text-brand underline-offset-2 hover:underline transition-colors">
                         £{p.staff.toLocaleString()}
                       </button>
                     </td>
-                    <td className="py-2.5 text-white/60">
+                    <td className="py-2.5 text-fg/60">
                       <button onClick={() => setExpensesJob({ jobId: p.jobId, project: p.project })}
-                        className="hover:text-[#FFFF00] underline-offset-2 hover:underline transition-colors">
+                        className="hover:text-brand underline-offset-2 hover:underline transition-colors">
                         £{p.transport.toLocaleString()}
                       </button>
                     </td>
-                    <td className="py-2.5 text-white/60">{p.subRentals ? `£${p.subRentals.toLocaleString()}` : "—"}</td>
+                    <td className="py-2.5 text-fg/60">{p.subRentals ? `£${p.subRentals.toLocaleString()}` : "—"}</td>
                     <td className="py-2.5 text-emerald-400 font-bold">£{profit.toLocaleString()}</td>
                     <td className="py-2.5 pr-4 text-right">
-                      <span className={`text-xs font-bold ${p.roi >= 200 ? "text-emerald-400" : p.roi >= 150 ? "text-[#FFFF00]" : "text-amber-400"}`}>{p.roi}%</span>
+                      <span className={`text-xs font-bold ${p.roi >= 200 ? "text-emerald-400" : p.roi >= 150 ? "text-brand" : "text-amber-400"}`}>{p.roi}%</span>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          <div className="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
-            <span className="text-xs text-white/60">{t("totalAcrossProjects")}</span>
+          <div className="px-4 py-3 border-t border-fg/[0.06] flex items-center justify-between">
+            <span className="text-xs text-fg/60">{t("totalAcrossProjects")}</span>
             <div className="flex items-center gap-6 text-xs">
-              <span className="text-white/50">{t("revenueLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue, 0).toLocaleString()}</span></span>
-              <span className="text-white/50">{t("profitLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue - p.staff - p.transport - p.subRentals, 0).toLocaleString()}</span></span>
-              <span className="text-white/50">{t("avgRoiLabel")} <span className="text-[#FFFF00] font-bold">{projectCosts.length > 0 ? Math.round(projectCosts.reduce((s, p) => s + p.roi, 0) / projectCosts.length) : 0}%</span></span>
+              <span className="text-fg/50">{t("revenueLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue, 0).toLocaleString()}</span></span>
+              <span className="text-fg/50">{t("profitLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue - p.staff - p.transport - p.subRentals, 0).toLocaleString()}</span></span>
+              <span className="text-fg/50">{t("avgRoiLabel")} <span className="text-brand font-bold">{projectCosts.length > 0 ? Math.round(projectCosts.reduce((s, p) => s + p.roi, 0) / projectCosts.length) : 0}%</span></span>
             </div>
           </div>
         </div>
@@ -416,26 +416,26 @@ export const FinancePage = (): JSX.Element => {
         <div className="space-y-4">
           <div className="grid grid-cols-4 gap-3">
             {lossItems.map((l) => (
-              <div key={l.category} className="bg-[#111] border border-white/[0.06] rounded-xl p-4" data-testid={`loss-${l.category.toLowerCase().replace(/\s+/g, "-")}`}>
+              <div key={l.category} className="bg-surface-1 border border-fg/[0.06] rounded-xl p-4" data-testid={`loss-${l.category.toLowerCase().replace(/\s+/g, "-")}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle className="w-3.5 h-3.5 text-red-400/60" />
-                  <span className="text-xs font-semibold text-white/50">{l.category}</span>
+                  <span className="text-xs font-semibold text-fg/50">{l.category}</span>
                 </div>
                 <p className="text-xl font-bold text-red-400">{l.amount}</p>
-                <p className="text-[10px] text-white/60 mt-1">{l.desc}</p>
+                <p className="text-[10px] text-fg/60 mt-1">{l.desc}</p>
               </div>
             ))}
           </div>
 
-          <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+          <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-red-400" />
               <span className="font-bold text-red-400 text-xs tracking-widest uppercase">{t("automatedDamageLossBilling")}</span>
-              <span className="ml-auto text-[10px] text-white/60">{t("autoCalculatedHint")}</span>
+              <span className="ml-auto text-[10px] text-fg/60">{t("autoCalculatedHint")}</span>
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
+                <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                   <th className="py-2.5 pl-4 text-left font-semibold">{t("colRef")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colClient")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colAsset")}</th>
@@ -452,12 +452,12 @@ export const FinancePage = (): JSX.Element => {
                     Damaged: t("typeDamaged"),
                   };
                   return (
-                    <tr key={ab.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`billing-${ab.id}`}>
-                      <td className="py-2.5 pl-4 font-mono text-xs text-white/60">{ab.id}</td>
-                      <td className="py-2.5 text-white/60">{ab.client}</td>
-                      <td className="py-2.5 font-mono text-xs text-[#FFFF00]/60">{ab.asset}</td>
+                    <tr key={ab.id} className="border-b border-fg/[0.04] hover:bg-fg/[0.02] transition-colors" data-testid={`billing-${ab.id}`}>
+                      <td className="py-2.5 pl-4 font-mono text-xs text-fg/60">{ab.id}</td>
+                      <td className="py-2.5 text-fg/60">{ab.client}</td>
+                      <td className="py-2.5 font-mono text-xs text-brand/60">{ab.asset}</td>
                       <td className="py-2.5"><span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${ab.type === "Lost" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>{typeLabels[ab.type] ?? ab.type}</span></td>
-                      <td className="py-2.5 text-white/60 text-xs">{ab.contract}</td>
+                      <td className="py-2.5 text-fg/60 text-xs">{ab.contract}</td>
                       <td className="py-2.5 text-red-400 font-semibold">{ab.amount}</td>
                       <td className="py-2.5 pr-4 text-right"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColors[ab.status]}`}>{tc(`statusEnum.${ab.status}`, { defaultValue: ab.status })}</span></td>
                     </tr>
@@ -504,7 +504,7 @@ export const FinancePage = (): JSX.Element => {
             <AlertDialogAction
               onClick={() => quoteToDelete && deleteQuote.mutate(quoteToDelete)}
               disabled={deleteQuote.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-fg"
             >
               {deleteQuote.isPending ? tc("deleting") : tc("delete")}
             </AlertDialogAction>
@@ -523,7 +523,7 @@ export const FinancePage = (): JSX.Element => {
             <AlertDialogAction
               onClick={() => invoiceToDelete && deleteInvoice.mutate(invoiceToDelete)}
               disabled={deleteInvoice.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-fg"
             >
               {deleteInvoice.isPending ? tc("deleting") : tc("delete")}
             </AlertDialogAction>

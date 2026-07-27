@@ -79,25 +79,25 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
       style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl flex flex-col"
+      <div className="w-full max-w-xl bg-surface-1 border border-fg/[0.08] rounded-2xl shadow-2xl flex flex-col"
         style={{ maxHeight: "min(85vh, 640px)" }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-fg/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFFF00" }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
               <ArrowRightLeft className="w-3.5 h-3.5 text-black" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">{t("jobSubRentals.title")}</h2>
-              <p className="text-[11px] text-white/40">{jobName}</p>
+              <h2 className="text-sm font-bold text-fg">{t("jobSubRentals.title")}</h2>
+              <p className="text-[11px] text-fg/40">{jobName}</p>
             </div>
           </div>
           {totalCost > 0 && (
-            <span className="font-bold text-[#FFFF00]/80 text-[11px] mr-3">฿{totalCost.toLocaleString()}/{t("jobSubRentals.perDay")}</span>
+            <span className="font-bold text-brand/80 text-[11px] mr-3">฿{totalCost.toLocaleString()}/{t("jobSubRentals.perDay")}</span>
           )}
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors flex-shrink-0">
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors flex-shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -105,30 +105,30 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
         {/* List */}
         <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
           {isLoading && (
-            <div className="flex items-center gap-2 py-6 justify-center text-white/40 text-xs">
+            <div className="flex items-center gap-2 py-6 justify-center text-fg/40 text-xs">
               <Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}
             </div>
           )}
           {!isLoading && rentals.length === 0 && (
             <div className="py-8 text-center">
-              <p className="text-xs text-white/30">{t("jobSubRentals.noRentalsYet")}</p>
+              <p className="text-xs text-fg/30">{t("jobSubRentals.noRentalsYet")}</p>
             </div>
           )}
           {!isLoading && rentals.length > 0 && (
             <div className="space-y-1.5">
               {rentals.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] group hover:bg-white/[0.035] transition-colors">
+                <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-fg/[0.06] bg-fg/[0.02] group hover:bg-fg/[0.035] transition-colors">
                   <div className="w-1 h-8 rounded-full bg-purple-400/60 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white/85 truncate">{r.itemName}</span>
+                      <span className="text-sm font-medium text-fg/85 truncate">{r.itemName}</span>
                       <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold flex-shrink-0 ${
                         r.status === "active" ? "bg-purple-500/15 text-purple-400" :
                         r.status === "returned" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>
                         {tc(`statusEnum.${r.status}`, { defaultValue: r.status })}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-[10px] text-white/50 mt-0.5">
+                    <div className="flex items-center gap-3 text-[10px] text-fg/50 mt-0.5">
                       <span>{t("jobSubRentals.fromPartner", { partner: r.partner })}</span>
                       <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{t("jobSubRentals.dueLabel", { date: new Date(r.dueBack).toLocaleDateString("en-GB") })}</span>
                       {r.dailyRate && <span>฿{Number(r.dailyRate).toLocaleString()}/{t("jobSubRentals.perDay")}</span>}
@@ -136,7 +136,7 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
                   </div>
                   {r.receiptUrl && (
                     <a href={r.receiptUrl} target="_blank" rel="noopener noreferrer"
-                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-[#FFFF00]/60 hover:text-[#FFFF00] transition-all flex-shrink-0">
+                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-brand/60 hover:text-brand transition-all flex-shrink-0">
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
@@ -145,7 +145,7 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
                       onClick={() => returnRental.mutate(r.id)}
                       disabled={returnRental.isPending && returnRental.variables === r.id}
                       title={t("jobSubRentals.markReturned")}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-white/30 hover:text-emerald-400 transition-all disabled:opacity-50 flex-shrink-0"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-fg/30 hover:text-emerald-400 transition-all disabled:opacity-50 flex-shrink-0"
                     >
                       {returnRental.isPending && returnRental.variables === r.id
                         ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -156,7 +156,7 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
                     <button
                       onClick={() => { if (confirm(t("jobSubRentals.deleteConfirm"))) deleteRental.mutate(r.id); }}
                       disabled={deleteRental.isPending && deleteRental.variables === r.id}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-white/30 hover:text-red-400 transition-all disabled:opacity-50 flex-shrink-0"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-fg/30 hover:text-red-400 transition-all disabled:opacity-50 flex-shrink-0"
                     >
                       {deleteRental.isPending && deleteRental.variables === r.id
                         ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -171,19 +171,19 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
 
         {/* Add form */}
         {canManage && (
-          <div className="border-t border-white/[0.06] px-5 py-4 flex-shrink-0 space-y-2 bg-[#0c0c0c] rounded-b-2xl">
+          <div className="border-t border-fg/[0.06] px-5 py-4 flex-shrink-0 space-y-2 bg-surface-1 rounded-b-2xl">
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
                 placeholder={t("jobSubRentals.itemNamePlaceholder")}
-                className="h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-3 placeholder:text-white/25 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                className="h-8 bg-black/40 border border-fg/10 rounded-lg text-xs text-fg px-3 placeholder:text-fg/25 focus:outline-none focus:border-brand/40 transition-colors"
               />
               <input
                 value={partner}
                 onChange={(e) => setPartner(e.target.value)}
                 placeholder={t("jobSubRentals.partnerCompanyPlaceholder")}
-                className="h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-3 placeholder:text-white/25 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                className="h-8 bg-black/40 border border-fg/10 rounded-lg text-xs text-fg px-3 placeholder:text-fg/25 focus:outline-none focus:border-brand/40 transition-colors"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -191,17 +191,17 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
                 type="date"
                 value={dueBack}
                 onChange={(e) => setDueBack(e.target.value)}
-                className="h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-2 flex-shrink-0 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                className="h-8 bg-black/40 border border-fg/10 rounded-lg text-xs text-fg px-2 flex-shrink-0 focus:outline-none focus:border-brand/40 transition-colors"
               />
               <div className="relative w-28 flex-shrink-0">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/30 pointer-events-none">฿</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-fg/30 pointer-events-none">฿</span>
                 <input
                   type="number"
                   value={dailyRate}
                   onChange={(e) => setDailyRate(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && canAdd && createRental.mutate()}
                   placeholder="0/day"
-                  className="w-full h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white pl-6 pr-2 placeholder:text-white/25 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                  className="w-full h-8 bg-black/40 border border-fg/10 rounded-lg text-xs text-fg pl-6 pr-2 placeholder:text-fg/25 focus:outline-none focus:border-brand/40 transition-colors"
                 />
               </div>
 
@@ -212,7 +212,7 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
                 disabled={uploading}
                 title={t("shared.receiptBill")}
                 className={`w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors
-                  ${receiptUrl ? "border-[#FFFF00]/40 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 text-white/40 hover:text-white hover:border-white/30"}`}
+                  ${receiptUrl ? "border-brand/40 bg-brand/10 text-brand" : "border-fg/10 text-fg/40 hover:text-fg hover:border-fg/30"}`}
               >
                 {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
               </button>
@@ -221,7 +221,7 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
                 onClick={() => createRental.mutate()}
                 disabled={!canAdd}
                 className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-bold text-black flex-shrink-0 transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed ml-auto"
-                style={{ backgroundColor: "#FFFF00" }}
+                style={{ backgroundColor: "var(--brand)" }}
               >
                 {createRental.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 {t("jobSubRentals.addRental")}

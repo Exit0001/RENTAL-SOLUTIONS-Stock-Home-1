@@ -69,37 +69,37 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
       style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl flex flex-col"
+      <div className="w-full max-w-xl bg-surface-1 border border-fg/[0.08] rounded-2xl shadow-2xl flex flex-col"
         style={{ maxHeight: "min(85vh, 640px)" }}>
 
         {/* ── Header ─────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-fg/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFFF00" }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
               <Wallet className="w-3.5 h-3.5 text-black" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white">{t("jobExpenses.title")}</h2>
-              <p className="text-[11px] text-white/40">{jobName}</p>
+              <h2 className="text-sm font-bold text-fg">{t("jobExpenses.title")}</h2>
+              <p className="text-[11px] text-fg/40">{jobName}</p>
             </div>
           </div>
           {grandTotal > 0 && (
             <div className="flex items-center gap-3 text-[11px] mr-3">
               {staffTotal > 0 && (
-                <span className="flex items-center gap-1 text-white/50">
+                <span className="flex items-center gap-1 text-fg/50">
                   <Users className="w-3 h-3" /> ฿{staffTotal.toLocaleString()}
                 </span>
               )}
               {transportTotal > 0 && (
-                <span className="flex items-center gap-1 text-white/50">
+                <span className="flex items-center gap-1 text-fg/50">
                   <Truck className="w-3 h-3" /> ฿{transportTotal.toLocaleString()}
                 </span>
               )}
-              <span className="font-bold text-[#FFFF00]/80">฿{grandTotal.toLocaleString()}</span>
+              <span className="font-bold text-brand/80">฿{grandTotal.toLocaleString()}</span>
             </div>
           )}
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors flex-shrink-0">
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors flex-shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -107,41 +107,41 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
         {/* ── Expense list (scrollable) ───────────────────── */}
         <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
           {isLoading && (
-            <div className="flex items-center gap-2 py-6 justify-center text-white/40 text-xs">
+            <div className="flex items-center gap-2 py-6 justify-center text-fg/40 text-xs">
               <Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}
             </div>
           )}
           {!isLoading && expenses.length === 0 && (
             <div className="py-8 text-center">
-              <p className="text-xs text-white/30">{t("jobExpenses.noExpensesYet")}</p>
+              <p className="text-xs text-fg/30">{t("jobExpenses.noExpensesYet")}</p>
             </div>
           )}
           {!isLoading && expenses.length > 0 && (
             <div className="space-y-1.5">
               {expenses.map((e) => (
-                <div key={e.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] group hover:bg-white/[0.035] transition-colors">
+                <div key={e.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-fg/[0.06] bg-fg/[0.02] group hover:bg-fg/[0.035] transition-colors">
                   <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${e.category === "staff" ? "bg-blue-500/10 text-blue-400" : "bg-amber-500/10 text-amber-400"}`}>
                     {e.category === "staff" ? <Users className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white">฿{Number(e.amount).toLocaleString()}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/50">
+                      <span className="text-sm font-bold text-fg">฿{Number(e.amount).toLocaleString()}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-fg/[0.06] text-fg/50">
                         {e.category === "staff" ? t("jobExpenses.categoryStaff") : t("jobExpenses.categoryTransport")}
                       </span>
                     </div>
-                    {e.note && <p className="text-[11px] text-white/50 truncate mt-0.5">{e.note}</p>}
+                    {e.note && <p className="text-[11px] text-fg/50 truncate mt-0.5">{e.note}</p>}
                   </div>
                   {e.receiptUrl && (
                     <a href={e.receiptUrl} target="_blank" rel="noopener noreferrer"
-                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-[#FFFF00]/60 hover:text-[#FFFF00] transition-all flex-shrink-0">
+                      className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[10px] text-brand/60 hover:text-brand transition-all flex-shrink-0">
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
                   <button
                     onClick={() => { if (confirm(t("jobExpenses.deleteConfirm"))) deleteExpense.mutate(e.id); }}
                     disabled={deleteExpense.isPending && deleteExpense.variables === e.id}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-white/30 hover:text-red-400 transition-all disabled:opacity-50 flex-shrink-0"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-fg/30 hover:text-red-400 transition-all disabled:opacity-50 flex-shrink-0"
                   >
                     {deleteExpense.isPending && deleteExpense.variables === e.id
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -154,23 +154,23 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
         </div>
 
         {/* ── Add form (fixed bottom) ─────────────────────── */}
-        <div className="border-t border-white/[0.06] px-5 py-4 flex-shrink-0 space-y-3 bg-[#0c0c0c] rounded-b-2xl">
+        <div className="border-t border-fg/[0.06] px-5 py-4 flex-shrink-0 space-y-3 bg-surface-1 rounded-b-2xl">
           {/* Row 1: Category + Amount */}
           <div className="flex items-center gap-2">
             {/* Category pills */}
-            <div className="flex rounded-lg border border-white/10 overflow-hidden flex-shrink-0">
+            <div className="flex rounded-lg border border-fg/10 overflow-hidden flex-shrink-0">
               <button
                 onClick={() => setCategory("staff")}
                 className={`flex items-center gap-1.5 px-3 h-8 text-xs font-bold transition-colors
-                  ${category === "staff" ? "bg-blue-500/20 text-blue-300" : "text-white/40 hover:text-white"}`}
+                  ${category === "staff" ? "bg-blue-500/20 text-blue-300" : "text-fg/40 hover:text-fg"}`}
               >
                 <Users className="w-3.5 h-3.5" /> ค่าแรง
               </button>
-              <div className="w-px bg-white/10" />
+              <div className="w-px bg-fg/10" />
               <button
                 onClick={() => setCategory("transport")}
                 className={`flex items-center gap-1.5 px-3 h-8 text-xs font-bold transition-colors
-                  ${category === "transport" ? "bg-amber-500/20 text-amber-300" : "text-white/40 hover:text-white"}`}
+                  ${category === "transport" ? "bg-amber-500/20 text-amber-300" : "text-fg/40 hover:text-fg"}`}
               >
                 <Truck className="w-3.5 h-3.5" /> ขนส่ง
               </button>
@@ -178,14 +178,14 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
 
             {/* Amount */}
             <div className="relative flex-shrink-0 w-32">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/30 pointer-events-none">฿</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-fg/30 pointer-events-none">฿</span>
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && canAdd && createExpense.mutate()}
                 placeholder="0"
-                className="w-full h-8 bg-black/40 border border-white/10 rounded-lg text-sm text-white pl-6 pr-3 placeholder:text-white/25 focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                className="w-full h-8 bg-black/40 border border-fg/10 rounded-lg text-sm text-fg pl-6 pr-3 placeholder:text-fg/25 focus:outline-none focus:border-brand/40 transition-colors"
               />
             </div>
 
@@ -195,7 +195,7 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
               onChange={(e) => setNote(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && canAdd && createExpense.mutate()}
               placeholder={t("jobExpenses.notePlaceholder")}
-              className="flex-1 h-8 bg-black/40 border border-white/10 rounded-lg text-xs text-white px-3 placeholder:text-white/25 focus:outline-none focus:border-[#FFFF00]/40 transition-colors min-w-0"
+              className="flex-1 h-8 bg-black/40 border border-fg/10 rounded-lg text-xs text-fg px-3 placeholder:text-fg/25 focus:outline-none focus:border-brand/40 transition-colors min-w-0"
             />
 
             {/* Receipt upload icon */}
@@ -206,7 +206,7 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
               disabled={uploading}
               title="แนบใบเสร็จ / ใบกำกับภาษี"
               className={`w-8 h-8 rounded-lg border flex items-center justify-center flex-shrink-0 transition-colors
-                ${receiptUrl ? "border-[#FFFF00]/40 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 text-white/40 hover:text-white hover:border-white/30"}`}
+                ${receiptUrl ? "border-brand/40 bg-brand/10 text-brand" : "border-fg/10 text-fg/40 hover:text-fg hover:border-fg/30"}`}
             >
               {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
             </button>
@@ -216,7 +216,7 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
               onClick={() => createExpense.mutate()}
               disabled={!canAdd}
               className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-bold text-black flex-shrink-0 transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#FFFF00" }}
+              style={{ backgroundColor: "var(--brand)" }}
             >
               {createExpense.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               {t("jobExpenses.addExpense")}
@@ -225,14 +225,14 @@ export const JobExpensesModal = ({ jobId, jobName, onClose }: Props): JSX.Elemen
 
           {/* Receipt preview (when attached) */}
           {receiptUrl && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FFFF00]/5 border border-[#FFFF00]/15">
-              <Paperclip className="w-3.5 h-3.5 text-[#FFFF00]/60 flex-shrink-0" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-brand/5 border border-brand/15">
+              <Paperclip className="w-3.5 h-3.5 text-brand/60 flex-shrink-0" />
               <a href={receiptUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[11px] text-[#FFFF00]/70 hover:text-[#FFFF00] underline truncate flex-1">
+                className="text-[11px] text-brand/70 hover:text-brand underline truncate flex-1">
                 ดูไฟล์ที่แนบ
               </a>
               <button onClick={() => setReceiptUrl(null)}
-                className="w-4 h-4 rounded-full bg-white/10 hover:bg-red-500/20 text-white/40 hover:text-red-400 flex items-center justify-center transition-colors flex-shrink-0">
+                className="w-4 h-4 rounded-full bg-fg/10 hover:bg-red-500/20 text-fg/40 hover:text-red-400 flex items-center justify-center transition-colors flex-shrink-0">
                 <X className="w-2.5 h-2.5" />
               </button>
             </div>

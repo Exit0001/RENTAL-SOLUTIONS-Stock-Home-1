@@ -72,6 +72,53 @@ async function checkUnitUnique(companyId: string, { serialNumber, barcode }: { s
   }
 }
 
+// เวอร์ชัน batch ของ checkUnitUnique — เช็ค serial/barcode ของหลาย unit พร้อมกันด้วย 2 query
+// (IN แทนการวน await ทีละแถว) เพราะ round-trip ไปยัง Supabase pooler คือต้นทุนหลักที่ทำให้
+// เพิ่มของทีละมาก ๆ ช้า ไม่ใช่ตัว query เอง (มี index lower(serial)/lower(barcode) อยู่แล้ว)
+async function checkUnitsBatchUnique(companyId: string, rows: { serialNumber?: string | null; barcode?: string | null }[]) {
+  const lowerSerials = Array.from(new Set(
+    rows.map((r) => r.serialNumber?.trim()).filter((v): v is string => !!v).map((v) => v.toLowerCase())
+  ));
+  const lowerBarcodes = Array.from(new Set(
+    rows.map((r) => r.barcode?.trim()).filter((v): v is string => !!v).map((v) => v.toLowerCase())
+  ));
+
+  if (lowerSerials.length > 0) {
+    const [row] = await db
+      .select({ id: stockUnits.id, stockItemId: stockUnits.stockItemId, itemName: stockItems.name, serialNumber: stockUnits.serialNumber })
+      .from(stockUnits)
+      .innerJoin(stockItems, eq(stockItems.id, stockUnits.stockItemId))
+      .where(and(
+        eq(stockUnits.companyId, companyId),
+        inArray(sql`LOWER(${stockUnits.serialNumber})`, lowerSerials),
+      ))
+      .limit(1);
+    if (row) {
+      throw new DuplicateUnitError(
+        `Serial number "${row.serialNumber}" มีอยู่แล้วในระบบ`,
+        "serialNumber", row.id, row.stockItemId, row.itemName,
+      );
+    }
+  }
+  if (lowerBarcodes.length > 0) {
+    const [row] = await db
+      .select({ id: stockUnits.id, stockItemId: stockUnits.stockItemId, itemName: stockItems.name, barcode: stockUnits.barcode })
+      .from(stockUnits)
+      .innerJoin(stockItems, eq(stockItems.id, stockUnits.stockItemId))
+      .where(and(
+        eq(stockUnits.companyId, companyId),
+        inArray(sql`LOWER(${stockUnits.barcode})`, lowerBarcodes),
+      ))
+      .limit(1);
+    if (row) {
+      throw new DuplicateUnitError(
+        `Barcode "${row.barcode}" มีอยู่แล้วในระบบ`,
+        "barcode", row.id, row.stockItemId, row.itemName,
+      );
+    }
+  }
+}
+
 // แปลง error เป็น JSON response — เติม duplicateItemId/duplicateItemName ให้ client ถ้าเป็น
 // DuplicateUnitError โดยเฉพาะ (ไม่กระทบ error ทั่วไปที่ยังส่งแค่ message เหมือนเดิม)
 function unitErrorResponse(err: any): { status: number; body: Record<string, unknown> } {
@@ -556,10 +603,9 @@ stockRouter.post("/:id/units/batch", async (req, res) => {
     const dupB = firstDup(lowerBarcodes);
     if (dupB)  throw new Error(`Barcode "${dupB}" ซ้ำกันในรายการที่เพิ่ม`);
 
-    // ตรวจซ้ำกับ DB (ใช้ index lower(serial)/lower(barcode) จาก migration 0016)
-    for (const r of rows) {
-      await checkUnitUnique(req.companyId, { serialNumber: r.serialNumber, barcode: r.barcode });
-    }
+    // ตรวจซ้ำกับ DB (ใช้ index lower(serial)/lower(barcode) จาก migration 0016) — 2 query รวม
+    // ไม่ใช่วน await ทีละแถว (round-trip ไปยัง pooler คือต้นทุนหลัก ไม่ใช่ตัว query)
+    await checkUnitsBatchUnique(req.companyId, rows);
 
     const inserted = await db.insert(stockUnits).values(rows).returning();
 

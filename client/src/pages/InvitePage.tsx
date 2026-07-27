@@ -65,6 +65,7 @@ export const InvitePage = ({ onDone }: { onDone: () => void }) => {
         userRole:     me.role,
         companyId:    me.companyId,
         companyName:  me.companyName,
+        companyLogoUrl: me.companyLogoUrl ?? null,
         avatarUrl:    null,
       });
 
@@ -80,56 +81,56 @@ export const InvitePage = ({ onDone }: { onDone: () => void }) => {
 
   if (done) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-surface-0 flex items-center justify-center">
         <div className="text-center">
           <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-white">{t("joinedSuccess")}</h2>
-          <p className="text-sm text-white/60 mt-1">{t("loggingIn")}</p>
+          <h2 className="text-lg font-bold text-fg">{t("joinedSuccess")}</h2>
+          <p className="text-sm text-fg/60 mt-1">{t("loggingIn")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-surface-0 flex items-center justify-center p-6">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
 
-      <div className="w-full max-w-sm bg-[#111] border border-white/[0.08] rounded-2xl p-8">
+      <div className="w-full max-w-sm bg-surface-1 border border-fg/[0.08] rounded-2xl p-8">
         <div className="mb-6 text-center">
-          <p className="text-[10px] text-[#FFFF00]/50 tracking-widest uppercase mb-1">STAK v2.0</p>
-          <h1 className="text-xl font-bold text-white">{t("confirmInviteTitle")}</h1>
-          <p className="text-xs text-white/60 mt-1">{t("confirmInviteSubtitle")}</p>
+          <p className="text-[10px] text-brand/50 tracking-widest uppercase mb-1">STAK v2.0</p>
+          <h1 className="text-xl font-bold text-fg">{t("confirmInviteTitle")}</h1>
+          <p className="text-xs text-fg/60 mt-1">{t("confirmInviteSubtitle")}</p>
         </div>
 
         <div className="space-y-3">
           <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/60" />
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder={t("yourNamePlaceholder")}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40" />
           </div>
 
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/60" />
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               placeholder={t("setPasswordPlaceholder")}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40" />
           </div>
 
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/60" />
             <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
               placeholder={t("confirmPasswordPlaceholder")}
               onKeyDown={(e) => e.key === "Enter" && handleAccept()}
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40" />
           </div>
 
           {error && <p className="text-xs text-red-400 bg-red-400/10 px-3 py-2 rounded-lg">{error}</p>}
 
           <button onClick={handleAccept} disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#FFFF00] text-black text-sm font-bold hover:opacity-90 disabled:opacity-50">
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand text-black text-sm font-bold hover:opacity-90 disabled:opacity-50">
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{t("confirming")}</> : t("getStarted")}
           </button>
         </div>

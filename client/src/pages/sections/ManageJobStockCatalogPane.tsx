@@ -11,7 +11,7 @@ const statusDot: Record<string, string> = {
   available:   "bg-emerald-400",
   out:         "bg-blue-400",
   maintenance: "bg-amber-400",
-  retired:     "bg-white/20",
+  retired:     "bg-fg/20",
 };
 
 interface Props {
@@ -119,25 +119,25 @@ export const ManageJobStockCatalogPane = ({
   };
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col border-r border-white/[0.06]">
+    <div className="flex-1 min-w-0 flex flex-col border-r border-fg/[0.06]">
       {/* Search + category chips */}
       <div className="px-4 pt-4 pb-2 flex-shrink-0 space-y-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60" />
           <input
             autoFocus
             placeholder={t("manageContainerUnits.searchPlaceholder")}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white
-              placeholder-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-all"
+            className="w-full h-9 pl-9 pr-3 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg
+              placeholder-fg/20 focus:outline-none focus:border-brand/40 transition-all"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => handleCategoryClick(null)}
             className={`h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border
-              ${!categoryFilter ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}
+              ${!categoryFilter ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
           >
             {t("manageJobStock.allCategories")}
           </button>
@@ -178,15 +178,15 @@ export const ManageJobStockCatalogPane = ({
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
         {isLoading && (
-          <div className="flex items-center justify-center gap-2 py-12 text-white/60">
+          <div className="flex items-center justify-center gap-2 py-12 text-fg/60">
             <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">{tc("loading")}</span>
           </div>
         )}
 
         {!isLoading && groupedByCategory.map(([category, groups]) => (
           <div key={category}>
-            <div className="px-1 py-1.5 sticky top-0 bg-[#0f0f0f]/95 backdrop-blur-sm z-10">
-              <span className="text-xs font-bold text-[#FFFF00] uppercase tracking-wider">{category}</span>
+            <div className="px-1 py-1.5 sticky top-0 bg-surface-1/95 backdrop-blur-sm z-10">
+              <span className="text-xs font-bold text-brand uppercase tracking-wider">{category}</span>
             </div>
 
             <div className="space-y-2">
@@ -202,17 +202,17 @@ export const ManageJobStockCatalogPane = ({
                   const lineCount = bulkLineCount(group.id);
                   const isSplit   = lineCount > 1;
                   return (
-                    <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden bg-white/[0.02]">
+                    <div key={group.id} className="rounded-xl border border-fg/[0.06] overflow-hidden bg-fg/[0.02]">
                       <div className="flex items-center gap-3 px-3 py-2.5">
                         <Layers className="w-4 h-4 text-amber-400/70 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
-                          <p className="text-[10px] text-white/60">
+                          <p className="text-sm font-semibold text-fg/80 truncate">{group.name}</p>
+                          <p className="text-[10px] text-fg/60">
                             {t("manageJobStock.bulkAvailable", { available: group.availableCount ?? group.quantity ?? 0, total: group.quantity ?? 0 })}
                           </p>
                         </div>
                         {isSplit ? (
-                          <span className="text-[10px] text-white/40 italic max-w-[120px] text-right">
+                          <span className="text-[10px] text-fg/40 italic max-w-[120px] text-right">
                             {t("manageJobStock.splitNotice")}
                           </span>
                         ) : (
@@ -220,17 +220,17 @@ export const ManageJobStockCatalogPane = ({
                             <button
                               type="button"
                               onClick={() => onAdjustBulkQty(group.id, -1)}
-                              className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
+                              className="w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className={`w-8 text-center text-sm font-bold ${qty > 0 ? "text-[#FFFF00]" : "text-white/60"}`}>
+                            <span className={`w-8 text-center text-sm font-bold ${qty > 0 ? "text-brand" : "text-fg/60"}`}>
                               {qty}
                             </span>
                             <button
                               type="button"
                               onClick={() => onAdjustBulkQty(group.id, 1)}
-                              className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
+                              className="w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -242,44 +242,44 @@ export const ManageJobStockCatalogPane = ({
                 }
 
                 return (
-                  <div key={group.id} className="rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div key={group.id} className="rounded-xl border border-fg/[0.06] overflow-hidden">
                     <div
                       className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors
-                        ${isExpanded ? "bg-white/[0.04]" : "bg-white/[0.02] hover:bg-white/[0.04]"}`}
+                        ${isExpanded ? "bg-fg/[0.04]" : "bg-fg/[0.02] hover:bg-fg/[0.04]"}`}
                       onClick={() => onToggleGroupExpand(group.id)}
                     >
                       <div
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
-                          ${allSelected ? "border-[#FFFF00] bg-[#FFFF00]" :
-                            selectedInGroup > 0 ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" :
-                            "border-white/20"}`}
+                          ${allSelected ? "border-brand bg-brand" :
+                            selectedInGroup > 0 ? "border-brand/60 bg-brand/20" :
+                            "border-fg/20"}`}
                         onClick={(e) => { e.stopPropagation(); if (groupUnits.length) onToggleSelectAll(groupUnits, group.id); }}
                       >
                         {allSelected && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
                         {!allSelected && selectedInGroup > 0 && (
-                          <div className="w-2 h-0.5 bg-[#FFFF00] rounded-full" />
+                          <div className="w-2 h-0.5 bg-brand rounded-full" />
                         )}
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
-                        <p className="text-[10px] text-white/60">{t("manageContainerUnits.unitsCount", { count: groupUnits.length })}</p>
+                        <p className="text-sm font-semibold text-fg/80 truncate">{group.name}</p>
+                        <p className="text-[10px] text-fg/60">{t("manageContainerUnits.unitsCount", { count: groupUnits.length })}</p>
                       </div>
 
                       {selectedInGroup > 0 && (
-                        <span className="text-[10px] font-bold text-[#FFFF00]/60 px-1.5 py-0.5 rounded bg-[#FFFF00]/10">
+                        <span className="text-[10px] font-bold text-brand/60 px-1.5 py-0.5 rounded bg-brand/10">
                           {selectedInGroup}/{groupUnits.length}
                         </span>
                       )}
 
                       {isExpanded
-                        ? <ChevronDown className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
-                        : <ChevronRight className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
+                        ? <ChevronDown className="w-3.5 h-3.5 text-fg/60 flex-shrink-0" />
+                        : <ChevronRight className="w-3.5 h-3.5 text-fg/60 flex-shrink-0" />
                       }
                     </div>
 
                     {isExpanded && groupUnits.length === 0 && (
-                      <div className="px-10 py-3 text-xs text-white/60 italic border-t border-white/[0.04]">
+                      <div className="px-10 py-3 text-xs text-fg/60 italic border-t border-fg/[0.04]">
                         {t("manageContainerUnits.noUnitsHint")}
                       </div>
                     )}
@@ -290,19 +290,19 @@ export const ManageJobStockCatalogPane = ({
                         <div
                           key={unit.id}
                           onClick={() => onToggleUnit(unit.id)}
-                          className={`flex items-center gap-3 pl-10 pr-3 py-1.5 cursor-pointer border-t border-white/[0.04] transition-colors
-                            ${isSelected ? "bg-[#FFFF00]/[0.04]" : "hover:bg-white/[0.02]"}`}
+                          className={`flex items-center gap-3 pl-10 pr-3 py-1.5 cursor-pointer border-t border-fg/[0.04] transition-colors
+                            ${isSelected ? "bg-brand/[0.04]" : "hover:bg-fg/[0.02]"}`}
                         >
                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                            ${isSelected ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20"}`}>
+                            ${isSelected ? "border-brand bg-brand" : "border-fg/20"}`}>
                             {isSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs truncate ${isSelected ? "text-white/90" : "text-white/50"}`}>
+                            <p className={`text-xs truncate ${isSelected ? "text-fg/90" : "text-fg/50"}`}>
                               {unit.name}
                             </p>
-                            <p className="text-[10px] text-white/60 font-mono">
+                            <p className="text-[10px] text-fg/60 font-mono">
                               {unit.serialNumber ? `SN: ${unit.serialNumber}` : ""}
                               {unit.serialNumber && unit.barcode ? "  ·  " : ""}
                               {unit.barcode ? `BC: ${unit.barcode}` : ""}
@@ -310,8 +310,8 @@ export const ManageJobStockCatalogPane = ({
                             </p>
                           </div>
 
-                          <span className="flex items-center gap-1.5 text-[10px] text-white/60 flex-shrink-0">
-                            <span className={`w-1.5 h-1.5 rounded-full ${statusDot[unit.status] ?? "bg-white/20"}`} />
+                          <span className="flex items-center gap-1.5 text-[10px] text-fg/60 flex-shrink-0">
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusDot[unit.status] ?? "bg-fg/20"}`} />
                             {tc(`statusEnum.${unit.status}`, { defaultValue: unit.status })}
                           </span>
                         </div>
@@ -326,8 +326,8 @@ export const ManageJobStockCatalogPane = ({
 
         {!isLoading && filteredGroups.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <Package className="w-8 h-8 text-white/40" />
-            <p className="text-xs text-white/60">{t("manageContainerUnits.noItemsFound")}</p>
+            <Package className="w-8 h-8 text-fg/40" />
+            <p className="text-xs text-fg/60">{t("manageContainerUnits.noItemsFound")}</p>
           </div>
         )}
       </div>

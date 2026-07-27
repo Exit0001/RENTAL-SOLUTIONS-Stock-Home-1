@@ -147,23 +147,23 @@ export const ManageContainerUnitsModal = ({ containers, initialContainerId, onCl
                 key={c.id}
                 onClick={() => setActiveId(c.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors flex items-center gap-2.5
-                  ${isActive ? "bg-[#FFFF00]/10 border-[#FFFF00]/40" : "bg-white/[0.02] border-white/[0.06] hover:border-white/20"}`}
+                  ${isActive ? "bg-brand/10 border-brand/40" : "bg-fg/[0.02] border-fg/[0.06] hover:border-fg/20"}`}
               >
-                <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? "bg-[#FFFF00]/20" : "bg-white/5"}`}>
-                  <Layers className={`w-3.5 h-3.5 ${isActive ? "text-[#FFFF00]" : "text-white/50"}`} />
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? "bg-brand/20" : "bg-fg/5"}`}>
+                  <Layers className={`w-3.5 h-3.5 ${isActive ? "text-brand" : "text-fg/50"}`} />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold truncate ${isActive ? "text-[#FFFF00]" : "text-white/85"}`}>{c.name}</p>
-                  <p className="text-[10px] text-white/50 truncate">
+                  <p className={`text-sm font-semibold truncate ${isActive ? "text-brand" : "text-fg/85"}`}>{c.name}</p>
+                  <p className="text-[10px] text-fg/50 truncate">
                     {c.type ? `${c.type} · ` : ""}{t("manageContainerUnits.unitsCount", { count, defaultValue: `${count} ชิ้น` })}
                   </p>
                 </div>
-                {changed && <span className="w-1.5 h-1.5 rounded-full bg-[#FFFF00] flex-shrink-0" title="มีการแก้ไข" />}
+                {changed && <span className="w-1.5 h-1.5 rounded-full bg-brand flex-shrink-0" title="มีการแก้ไข" />}
               </button>
             );
           })}
           {containers.length === 0 && (
-            <div className="flex flex-col items-center gap-2 py-8 text-center text-white/50">
+            <div className="flex flex-col items-center gap-2 py-8 text-center text-fg/50">
               <Package className="w-7 h-7" />
               <p className="text-xs">ยังไม่มีแร็ค</p>
             </div>
@@ -173,11 +173,11 @@ export const ManageContainerUnitsModal = ({ containers, initialContainerId, onCl
       footer={
         <>
           <div className="flex items-center gap-3">
-            <div className="text-sm text-white/70 font-medium">
+            <div className="text-sm text-fg/70 font-medium">
               {activeContainer?.name} · {activeSet.size} ชิ้น
             </div>
             {changedRackIds.length > 0 && (
-              <span className="text-[11px] text-[#FFFF00]/80">แก้ไข {changedRackIds.length} แร็ค</span>
+              <span className="text-[11px] text-brand/80">แก้ไข {changedRackIds.length} แร็ค</span>
             )}
             {error && <span className="text-xs text-red-400">{error}</span>}
           </div>

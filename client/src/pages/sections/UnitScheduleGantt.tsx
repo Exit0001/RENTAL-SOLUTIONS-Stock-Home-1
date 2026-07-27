@@ -81,23 +81,23 @@ export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
     <div className="flex flex-col">
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-fg/[0.06] flex-shrink-0">
         <div className="flex items-center gap-0.5">
           <button type="button" onClick={() => navigate(-1)}
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors">
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-fg/40 hover:text-fg/70 hover:bg-fg/[0.06] transition-colors">
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <button type="button" onClick={() => navigate(1)}
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors">
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-fg/40 hover:text-fg/70 hover:bg-fg/[0.06] transition-colors">
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
         <button type="button" onClick={goToday}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-white/[0.08] text-[10px] text-white/50 hover:text-white/80 hover:border-white/[0.15] transition-colors">
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-fg/[0.08] text-[10px] text-fg/50 hover:text-fg/80 hover:border-fg/[0.15] transition-colors">
           <CalendarDays className="w-3 h-3" />
           วันนี้
         </button>
-        <span className="text-[10px] text-white/25 ml-1">
+        <span className="text-[10px] text-fg/25 ml-1">
           {days[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })} –{" "}
           {days[VIEW_DAYS - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
         </span>
@@ -108,35 +108,35 @@ export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
         <div style={{ minWidth: totalW }}>
 
           {/* Month header */}
-          <div className="flex sticky top-0 z-30 bg-[#0d0d0d]">
-            <div className="flex-shrink-0 sticky left-0 z-40 bg-[#0d0d0d] border-b border-r border-white/[0.06]"
+          <div className="flex sticky top-0 z-30 bg-surface-1">
+            <div className="flex-shrink-0 sticky left-0 z-40 bg-surface-1 border-b border-r border-fg/[0.06]"
               style={{ width: LEFT_W, height: 22 }} />
             {monthGroups.map((mg, i) => (
-              <div key={i} className="flex-shrink-0 flex items-center px-2 border-b border-r border-white/[0.06]"
+              <div key={i} className="flex-shrink-0 flex items-center px-2 border-b border-r border-fg/[0.06]"
                 style={{ width: mg.span * COL_W, height: 22 }}>
-                <span className="text-[9px] font-semibold text-white/40 truncate">{mg.label}</span>
+                <span className="text-[9px] font-semibold text-fg/40 truncate">{mg.label}</span>
               </div>
             ))}
           </div>
 
           {/* Day header */}
-          <div className="flex sticky top-[22px] z-30 bg-[#0d0d0d]">
-            <div className="flex-shrink-0 sticky left-0 z-40 bg-[#0d0d0d] border-b border-r border-white/[0.06] flex items-center px-3"
+          <div className="flex sticky top-[22px] z-30 bg-surface-1">
+            <div className="flex-shrink-0 sticky left-0 z-40 bg-surface-1 border-b border-r border-fg/[0.06] flex items-center px-3"
               style={{ width: LEFT_W, height: 34 }}>
-              <span className="text-[9px] font-bold text-[#FFFF00]/40 uppercase tracking-widest">{t("colUnit")}</span>
+              <span className="text-[9px] font-bold text-brand/40 uppercase tracking-widest">{t("colUnit")}</span>
             </div>
             {days.map((d, i) => {
               const isToday   = i === todayOffset;
               const isWeekend = d.getDay() === 0 || d.getDay() === 6;
               return (
                 <div key={i}
-                  className={`flex-shrink-0 flex flex-col items-center justify-center border-b border-r border-white/[0.06] ${isWeekend ? "bg-white/[0.015]" : ""}`}
+                  className={`flex-shrink-0 flex flex-col items-center justify-center border-b border-r border-fg/[0.06] ${isWeekend ? "bg-fg/[0.015]" : ""}`}
                   style={{ width: COL_W, height: 34 }}>
-                  <span className={`text-[8px] font-medium leading-none ${isToday ? "text-[#FFFF00]/70" : "text-white/25"}`}>
+                  <span className={`text-[8px] font-medium leading-none ${isToday ? "text-brand/70" : "text-fg/25"}`}>
                     {DOW_TH[d.getDay()]}
                   </span>
-                  <div className={`mt-0.5 w-[18px] h-[18px] flex items-center justify-center rounded-full ${isToday ? "bg-[#FFFF00]" : ""}`}>
-                    <span className={`text-[10px] font-bold leading-none ${isToday ? "text-black" : isWeekend ? "text-white/30" : "text-white/55"}`}>
+                  <div className={`mt-0.5 w-[18px] h-[18px] flex items-center justify-center rounded-full ${isToday ? "bg-brand" : ""}`}>
+                    <span className={`text-[10px] font-bold leading-none ${isToday ? "text-black" : isWeekend ? "text-fg/30" : "text-fg/55"}`}>
                       {d.getDate()}
                     </span>
                   </div>
@@ -150,22 +150,22 @@ export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
             <div key={u.id} className="flex" style={{ height: ROW_H }}>
 
               <div
-                className={`flex-shrink-0 sticky left-0 z-10 flex flex-col justify-center px-3 border-b border-r border-white/[0.04] ${ri % 2 === 1 ? "bg-[#0f0f0f]" : "bg-[#0d0d0d]"}`}
+                className={`flex-shrink-0 sticky left-0 z-10 flex flex-col justify-center px-3 border-b border-r border-fg/[0.04] ${ri % 2 === 1 ? "bg-surface-1" : "bg-surface-1"}`}
                 style={{ width: LEFT_W }}
               >
-                <p className="text-[11px] font-medium text-white/75 truncate leading-tight">{u.name}</p>
-                <p className="text-[9px] text-white/25 truncate leading-tight mt-0.5 font-mono">{u.serialNumber || u.barcode || "—"}</p>
+                <p className="text-[11px] font-medium text-fg/75 truncate leading-tight">{u.name}</p>
+                <p className="text-[9px] text-fg/25 truncate leading-tight mt-0.5 font-mono">{u.serialNumber || u.barcode || "—"}</p>
               </div>
 
               <div
-                className={`relative flex-shrink-0 border-b border-white/[0.04] ${ri % 2 === 1 ? "bg-[#0f0f0f]" : ""}`}
+                className={`relative flex-shrink-0 border-b border-fg/[0.04] ${ri % 2 === 1 ? "bg-surface-1" : ""}`}
                 style={{ width: VIEW_DAYS * COL_W, height: ROW_H }}
               >
                 {days.map((d, di) => {
                   const isToday   = di === todayOffset;
                   const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                   return (
-                    <div key={di} className="absolute top-0 bottom-0 border-r border-white/[0.04]"
+                    <div key={di} className="absolute top-0 bottom-0 border-r border-fg/[0.04]"
                       style={{
                         left: di * COL_W, width: COL_W,
                         background: isToday ? "rgba(255,255,0,0.04)" : isWeekend ? "rgba(255,255,255,0.008)" : undefined,
@@ -174,7 +174,7 @@ export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
                 })}
 
                 {todayOffset >= 0 && todayOffset < VIEW_DAYS && (
-                  <div className="absolute top-0 bottom-0 w-px bg-[#FFFF00]/20 pointer-events-none z-10"
+                  <div className="absolute top-0 bottom-0 w-px bg-brand/20 pointer-events-none z-10"
                     style={{ left: todayOffset * COL_W + COL_W / 2 }} />
                 )}
 
@@ -217,7 +217,7 @@ export const UnitScheduleGantt = ({ units }: Props): JSX.Element => {
           ))}
 
           {units.length === 0 && (
-            <div className="flex items-center justify-center py-14 text-white/30 text-sm">
+            <div className="flex items-center justify-center py-14 text-fg/30 text-sm">
               {t("noUnitsYetPanel")}
             </div>
           )}

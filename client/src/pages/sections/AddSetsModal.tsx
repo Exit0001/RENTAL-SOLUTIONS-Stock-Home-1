@@ -145,7 +145,7 @@ export const AddSetsModal = ({ onClose }: Props): JSX.Element => {
     return {
       key: String(d.id),
       label: d.name.trim() || `ชุด ${i + 1}`,
-      badge: p > 0 ? <span className={`text-[10px] ${d.id === active.id ? "text-black/60" : "text-white/40"}`}>{p}</span> : undefined,
+      badge: p > 0 ? <span className={`text-[10px] ${d.id === active.id ? "text-black/60" : "text-fg/40"}`}>{p}</span> : undefined,
     };
   });
 
@@ -160,7 +160,7 @@ export const AddSetsModal = ({ onClose }: Props): JSX.Element => {
       headerActions={
         <button
           onClick={addDraft}
-          className="h-9 px-3 rounded-lg text-xs font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 flex items-center gap-1.5 transition-colors"
+          className="h-9 px-3 rounded-lg text-xs font-bold text-brand border border-brand/30 hover:bg-brand/10 flex items-center gap-1.5 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />เพิ่มชุด
         </button>
@@ -169,7 +169,7 @@ export const AddSetsModal = ({ onClose }: Props): JSX.Element => {
       footer={
         <>
           <div className="flex items-center gap-3">
-            <div className="text-sm text-white/70 font-medium">รวม {validDrafts.length} ชุด · {totalPieces} ชิ้น</div>
+            <div className="text-sm text-fg/70 font-medium">รวม {validDrafts.length} ชุด · {totalPieces} ชิ้น</div>
             {error && <span className="text-xs text-red-400">{error}</span>}
           </div>
           <div className="flex items-center gap-2">
@@ -182,20 +182,20 @@ export const AddSetsModal = ({ onClose }: Props): JSX.Element => {
       }
     >
       {/* Meta ของแท็บที่เปิดอยู่ */}
-      <div className="px-6 py-2.5 border-b border-white/[0.06] flex-shrink-0 flex items-center gap-2.5">
+      <div className="px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0 flex items-center gap-2.5">
         <input
           value={active.name}
           onChange={(e) => patchActive((d) => ({ ...d, name: e.target.value }))}
           placeholder="ชื่อชุด * เช่น ชุดกลอง Yamaha BG2"
-          className="flex-1 h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/50"
+          className="flex-1 h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/50"
         />
         <button
           type="button"
           onClick={() => patchActive((d) => ({ ...d, metaOpen: !d.metaOpen }))}
           className={`h-9 px-3 rounded-lg text-xs font-medium border flex items-center gap-1.5 flex-shrink-0 transition-colors
-            ${active.metaOpen ? "bg-white/[0.06] border-white/20 text-white" : "border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"}`}
+            ${active.metaOpen ? "bg-fg/[0.06] border-fg/20 text-fg" : "border-fg/10 text-fg/50 hover:border-fg/30 hover:text-fg/80"}`}
         >
-          {(active.description || active.imageUrl) && <span className="w-1.5 h-1.5 rounded-full bg-[#FFFF00]" />}
+          {(active.description || active.imageUrl) && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
           หมายเหตุ / รูปชุด
           {active.metaOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>
@@ -203,7 +203,7 @@ export const AddSetsModal = ({ onClose }: Props): JSX.Element => {
           <button
             type="button"
             onClick={() => removeDraft(active.id)}
-            className="h-9 px-3 rounded-lg text-xs font-medium border border-white/10 text-white/50 hover:border-red-500/40 hover:text-red-400 flex items-center gap-1.5 flex-shrink-0 transition-colors"
+            className="h-9 px-3 rounded-lg text-xs font-medium border border-fg/10 text-fg/50 hover:border-red-500/40 hover:text-red-400 flex items-center gap-1.5 flex-shrink-0 transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />ลบชุดนี้
           </button>
@@ -211,14 +211,14 @@ export const AddSetsModal = ({ onClose }: Props): JSX.Element => {
       </div>
 
       {active.metaOpen && (
-        <div className="px-6 py-3 border-b border-white/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
+        <div className="px-6 py-3 border-b border-fg/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
           <div className="flex-1">
-            <label className="block text-[11px] font-bold text-white/70 mb-1">หมายเหตุ</label>
+            <label className="block text-[11px] font-bold text-fg/70 mb-1">หมายเหตุ</label>
             <input
               value={active.description}
               onChange={(e) => patchActive((d) => ({ ...d, description: e.target.value }))}
               placeholder="เช่น Chery Wood Lacquer (CWL)"
-              className="w-full h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/50"
+              className="w-full h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/50"
             />
           </div>
           <div className="w-full md:w-56 flex-shrink-0">

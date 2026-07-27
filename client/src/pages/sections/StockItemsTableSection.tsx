@@ -71,24 +71,24 @@ const ActionIcons = ({ onView, onEdit, onAccessories, onDelete }: { onView?: () 
   return (
     <div className="flex items-center gap-1">
       <button onClick={(e) => { e.stopPropagation(); onView?.(); }}
-        className="p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors" title={t("viewDetails")}>
+        className="p-1.5 rounded-md text-fg/60 hover:text-fg hover:bg-fg/10 transition-colors" title={t("viewDetails")}>
         <Eye className="w-4 h-4" />
       </button>
       <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-        className="p-1.5 rounded-md text-white hover:text-[#FFFF00] hover:bg-white/10 transition-colors" title={tc("edit")}
+        className="p-1.5 rounded-md text-fg hover:text-brand hover:bg-fg/10 transition-colors" title={tc("edit")}
       >
         <Pencil className="w-4 h-4" />
       </button>
       {onAccessories && (
         <button onClick={(e) => { e.stopPropagation(); onAccessories(); }}
-          className="p-1.5 rounded-md text-white/60 hover:text-[#FFFF00] hover:bg-white/10 transition-colors" title={t("tabAccessories")}
+          className="p-1.5 rounded-md text-fg/60 hover:text-brand hover:bg-fg/10 transition-colors" title={t("tabAccessories")}
         >
           <Link2 className="w-4 h-4" />
         </button>
       )}
       {onDelete && (
         <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-1.5 rounded-md text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title={tc("delete")}>
+          className="p-1.5 rounded-md text-fg/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title={tc("delete")}>
           <Trash2 className="w-4 h-4" />
         </button>
       )}
@@ -116,7 +116,7 @@ type SaveError = { message: string; duplicateItemId?: string; duplicateItemName?
 const YellowCheck = ({ checked, indeterminate, onClick, title }: { checked: boolean; indeterminate?: boolean; onClick: (e: React.MouseEvent) => void; title?: string }) => (
   <button onClick={onClick} title={title}
     className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors
-      ${checked || indeterminate ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/25 hover:border-white/50"}`}>
+      ${checked || indeterminate ? "border-brand bg-brand" : "border-fg/25 hover:border-fg/50"}`}>
     {checked && <svg className="w-2.5 h-2.5 text-black" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
     {!checked && indeterminate && <span className="w-2 h-0.5 bg-black rounded" />}
   </button>
@@ -144,12 +144,12 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
   });
 
   const anyEnabled = en.location || en.status || en.purchasedAt || en.warrantyExpiresAt;
-  const inputCls = "h-8 w-full bg-black/50 border border-white/10 rounded px-2 text-sm text-white focus:outline-none focus:border-[#FFFF00]/40";
+  const inputCls = "h-8 w-full bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg focus:outline-none focus:border-brand/40";
   // เรียกเป็นฟังก์ชัน (ไม่ใช่ <Row/>) — กัน React remount ทำให้ช่องพิมพ์โฟกัสหลุดทุกตัวอักษร
   const row = (k: keyof typeof en, label: string, children: React.ReactNode) => (
     <div className="flex items-center gap-3">
       <YellowCheck checked={en[k]} onClick={() => setEn((p) => ({ ...p, [k]: !p[k] }))} />
-      <span className="text-xs text-white/60 w-28 flex-shrink-0">{label}</span>
+      <span className="text-xs text-fg/60 w-28 flex-shrink-0">{label}</span>
       <div className={`flex-1 ${en[k] ? "" : "opacity-40 pointer-events-none"}`}>{children}</div>
     </div>
   );
@@ -157,22 +157,22 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-[#0f0f0f] border border-white/10 rounded-xl shadow-2xl p-5">
+      <div className="relative w-full max-w-md bg-surface-1 border border-fg/10 rounded-xl shadow-2xl p-5">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-base font-bold text-white">{t("bulkEditTitle", { defaultValue: "แก้ไขหลายหน่วยพร้อมกัน" })}</h3>
-          <button onClick={onClose} className="text-white/50 hover:text-white"><XIcon className="w-4 h-4" /></button>
+          <h3 className="text-base font-bold text-fg">{t("bulkEditTitle", { defaultValue: "แก้ไขหลายหน่วยพร้อมกัน" })}</h3>
+          <button onClick={onClose} className="text-fg/50 hover:text-fg"><XIcon className="w-4 h-4" /></button>
         </div>
-        <p className="text-xs text-white/50 mb-4">{t("bulkEditHint", { defaultValue: "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก" })} · {unitIds.length} {tc("units")}</p>
+        <p className="text-xs text-fg/50 mb-4">{t("bulkEditHint", { defaultValue: "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก" })} · {unitIds.length} {tc("units")}</p>
         <div className="flex flex-col gap-3">
           {row("location", tc("location"),
             <input className={inputCls} value={val.location} onChange={(e) => setVal((p) => ({ ...p, location: e.target.value }))} placeholder={tc("location")} />
           )}
           {row("status", tc("status"),
             <select className={`${inputCls} appearance-none cursor-pointer`} value={val.status} onChange={(e) => setVal((p) => ({ ...p, status: e.target.value }))}>
-              <option value="available" className="bg-[#111]">{tc("statusEnum.available")}</option>
-              <option value="out" className="bg-[#111]">{tc("statusEnum.out")}</option>
-              <option value="maintenance" className="bg-[#111]">{tc("statusEnum.maintenance")}</option>
-              <option value="retired" className="bg-[#111]">{tc("statusEnum.retired")}</option>
+              <option value="available" className="bg-surface-1">{tc("statusEnum.available")}</option>
+              <option value="out" className="bg-surface-1">{tc("statusEnum.out")}</option>
+              <option value="maintenance" className="bg-surface-1">{tc("statusEnum.maintenance")}</option>
+              <option value="retired" className="bg-surface-1">{tc("statusEnum.retired")}</option>
             </select>
           )}
           {row("purchasedAt", t("colPurchased"),
@@ -183,9 +183,9 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
           )}
         </div>
         <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} className="h-9 px-4 rounded text-sm text-white/60 hover:text-white border border-white/10">{tc("cancel")}</button>
+          <button onClick={onClose} className="h-9 px-4 rounded text-sm text-fg/60 hover:text-fg border border-fg/10">{tc("cancel")}</button>
           <button onClick={() => save.mutate()} disabled={!anyEnabled || save.isPending}
-            className="h-9 px-4 rounded text-sm font-bold text-black flex items-center gap-2 disabled:opacity-40" style={{ backgroundColor: "#FFFF00" }}>
+            className="h-9 px-4 rounded text-sm font-bold text-black flex items-center gap-2 disabled:opacity-40" style={{ backgroundColor: "var(--brand)" }}>
             {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{tc("save")}
           </button>
         </div>
@@ -221,6 +221,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["stock", itemId] });
     qc.invalidateQueries({ queryKey: ["stock"] });
+    qc.invalidateQueries({ queryKey: ["containers"] });
   };
 
   const deleteUnit = useMutation({
@@ -268,6 +269,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock", itemId] });
       qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
       setSaveError(null);
       setEditingId(null);
     },
@@ -322,9 +324,9 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
 
   if (isLoading) {
     return (
-      <TableRow className="bg-[#0e0e0e] hover:bg-[#0e0e0e]">
+      <TableRow className="bg-surface-1 hover:bg-surface-1">
         <TableCell colSpan={6} className="py-3 pl-16">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-white/60" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-fg/60" />
         </TableCell>
       </TableRow>
     );
@@ -334,23 +336,23 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
 
   if (units.length === 0) {
     return (
-      <TableRow className="bg-[#0e0e0e] hover:bg-[#0e0e0e]">
+      <TableRow className="bg-surface-1 hover:bg-surface-1">
         <TableCell colSpan={6} className="py-2.5 pl-16 pr-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-xs text-white/60 italic">{t("noUnitsRow")}</span>
+            <span className="text-xs text-fg/60 italic">{t("noUnitsRow")}</span>
             {canManage && (showAdd ? (
               <div className="flex items-center gap-2">
                 <input type="number" min={1} value={addQty} onChange={(e) => setAddQty(e.target.value)}
-                  className="h-7 w-20 bg-black/50 border border-white/10 rounded px-2 text-sm text-white text-center focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]" />
+                  className="h-7 w-20 bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg text-center focus:outline-none focus:border-brand/40 [color-scheme:dark]" />
                 <button onClick={() => addUnits.mutate(Math.max(1, parseInt(addQty) || 1))} disabled={addUnits.isPending}
-                  className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: "#FFFF00" }}>
+                  className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
                   {addUnits.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}{tc("add")}
                 </button>
-                <button onClick={() => setShowAdd(false)} className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10">{tc("cancel")}</button>
+                <button onClick={() => setShowAdd(false)} className="h-7 px-3 rounded text-xs text-fg/60 hover:text-fg border border-fg/10">{tc("cancel")}</button>
               </div>
             ) : (
               <button onClick={() => setShowAdd(true)}
-                className="h-7 px-3 rounded-lg border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/50 hover:text-[#FFFF00] text-xs font-medium flex items-center gap-1.5 transition-all">
+                className="h-7 px-3 rounded-lg border border-dashed border-fg/15 hover:border-brand/50 text-fg/50 hover:text-brand text-xs font-medium flex items-center gap-1.5 transition-all">
                 <Plus className="w-3.5 h-3.5" />{t("addUnitsToItem", { defaultValue: "เพิ่มหน่วย" })}
               </button>
             ))}
@@ -360,7 +362,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
     );
   }
 
-  const inputCls = "h-7 w-full bg-black/50 border border-white/10 rounded px-2 text-xs text-white focus:outline-none focus:border-[#FFFF00]/40 transition-colors";
+  const inputCls = "h-7 w-full bg-black/50 border border-fg/10 rounded px-2 text-xs text-fg focus:outline-none focus:border-brand/40 transition-colors";
   const allSelected  = units.length > 0 && units.every((u) => selected.has(u.id));
   const someSelected = selected.size > 0 && !allSelected;
   const selectAllToggle = () => setSelected(allSelected ? new Set() : new Set(units.map((u) => u.id)));
@@ -368,11 +370,11 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
   return (
     <>
       {/* Sub-header */}
-      <TableRow className="bg-[#0b0b0b] hover:bg-[#0b0b0b] border-b-0">
+      <TableRow className="bg-surface-1 hover:bg-surface-1 border-b-0">
         <TableCell colSpan={6} className="py-1.5 pl-16 pr-4">
           <div className="flex items-center gap-2">
             {canManage && <YellowCheck checked={allSelected} indeterminate={someSelected} onClick={selectAllToggle} title={tc("selectAll")} />}
-            <div className="grid gap-x-3 flex-1 text-[10px] font-bold text-white/60 uppercase tracking-wider pr-[60px]"
+            <div className="grid gap-x-3 flex-1 text-[10px] font-bold text-fg/60 uppercase tracking-wider pr-[60px]"
               style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
               <span>{t("colUnitName")}</span>
               <span>{t("colSerialNo")}</span>
@@ -388,19 +390,19 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
 
       {/* Bulk action bar */}
       {canManage && selected.size > 0 && (
-        <TableRow className="bg-[#161600] hover:bg-[#161600] border-b border-[#FFFF00]/10">
+        <TableRow className="bg-brand/[0.06] hover:bg-brand/[0.06] border-b border-brand/10">
           <TableCell colSpan={6} className="py-2 pl-16 pr-4">
             <div className="flex items-center gap-3">
-              <span className="text-xs text-[#FFFF00] font-bold">{t("selectedUnitsCount", { count: selected.size, defaultValue: `เลือก ${selected.size}` })}</span>
+              <span className="text-xs text-brand font-bold">{t("selectedUnitsCount", { count: selected.size, defaultValue: `เลือก ${selected.size}` })}</span>
               <button onClick={() => setBulkEditOpen(true)}
-                className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 hover:opacity-80" style={{ backgroundColor: "#FFFF00" }}>
+                className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 hover:opacity-80" style={{ backgroundColor: "var(--brand)" }}>
                 <Pencil className="w-3 h-3" />{tc("edit")}
               </button>
               <button onClick={() => { setDeleteErr(null); setBulkDeleteOpen(true); }}
                 className="h-7 px-3 rounded text-xs font-bold text-red-400 border border-red-500/30 hover:bg-red-500/10 flex items-center gap-1.5">
                 <Trash2 className="w-3 h-3" />{tc("delete")}
               </button>
-              <button onClick={() => setSelected(new Set())} className="text-xs text-white/50 hover:text-white ml-auto">{tc("cancel")}</button>
+              <button onClick={() => setSelected(new Set())} className="text-xs text-fg/50 hover:text-fg ml-auto">{tc("cancel")}</button>
             </div>
           </TableCell>
         </TableRow>
@@ -416,8 +418,8 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
         return (
           <TableRow
             key={unit.id}
-            className={`border-b border-white/[0.06] transition-colors ${
-              isEditing ? "bg-[#161616]" : "bg-[#0f0f0f] hover:bg-[#141414]"
+            className={`border-b border-fg/[0.06] transition-colors ${
+              isEditing ? "bg-surface-2" : "bg-surface-1 hover:bg-surface-1"
             }`}
             style={{ animationDelay: `${i * 20}ms` }}
           >
@@ -436,10 +438,10 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                     <input type="date" className={`${inputCls} [color-scheme:dark]`} value={form.purchasedAt}  onChange={f("purchasedAt")} />
                     <input type="date" className={`${inputCls} [color-scheme:dark]`} value={form.warrantyExpiresAt} onChange={f("warrantyExpiresAt")} />
                     <select className={`${inputCls} appearance-none cursor-pointer`} value={form.status} onChange={f("status")}>
-                      <option value="available"   className="bg-[#111]">{tc("statusEnum.available")}</option>
-                      <option value="out"         className="bg-[#111]">{tc("statusEnum.out")}</option>
-                      <option value="maintenance" className="bg-[#111]">{tc("statusEnum.maintenance")}</option>
-                      <option value="retired"     className="bg-[#111]">{tc("statusEnum.retired")}</option>
+                      <option value="available"   className="bg-surface-1">{tc("statusEnum.available")}</option>
+                      <option value="out"         className="bg-surface-1">{tc("statusEnum.out")}</option>
+                      <option value="maintenance" className="bg-surface-1">{tc("statusEnum.maintenance")}</option>
+                      <option value="retired"     className="bg-surface-1">{tc("statusEnum.retired")}</option>
                     </select>
                   </div>
                   </div>
@@ -462,14 +464,14 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                       </span>
                     )}
                     <button onClick={() => { setEditingId(null); setSaveError(null); }}
-                      className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-colors">
+                      className="h-7 px-3 rounded text-xs text-fg/60 hover:text-fg border border-fg/10 hover:border-fg/20 transition-colors">
                       {tc("cancel")}
                     </button>
                     <button
                       onClick={() => { setSaveError(null); saveEdit(unit.id); }}
                       disabled={updateUnit.isPending}
                       className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50 transition-opacity hover:opacity-80"
-                      style={{ backgroundColor: "#FFFF00" }}
+                      style={{ backgroundColor: "var(--brand)" }}
                     >
                       {updateUnit.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                       {tc("save")}
@@ -482,26 +484,26 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                   {canManage && <YellowCheck checked={selected.has(unit.id)} onClick={() => toggleSel(unit.id)} />}
                   <div className="grid gap-x-3 items-center flex-1"
                     style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
-                    <span className="text-white/85 text-sm font-medium truncate">{unit.name}</span>
-                    <span className="text-white/50 font-mono text-xs truncate">{unit.serialNumber ?? "—"}</span>
-                    <span className="text-white/50 font-mono text-xs truncate">{unit.barcode ?? "—"}</span>
-                    <span className="text-white/50 text-xs truncate">{unit.location ?? "—"}</span>
-                    <span className="text-white/60 text-xs">{fmtDate(wExp ? wExp : null) ? fmtDate((unit as any).purchasedAt) : <span className="text-white/60">—</span>}</span>
-                    <span className={`text-xs ${expired ? "text-red-400 font-semibold" : soon ? "text-amber-400 font-semibold" : "text-white/60"}`}>
+                    <span className="text-fg/85 text-sm font-medium truncate">{unit.name}</span>
+                    <span className="text-fg/50 font-mono text-xs truncate">{unit.serialNumber ?? "—"}</span>
+                    <span className="text-fg/50 font-mono text-xs truncate">{unit.barcode ?? "—"}</span>
+                    <span className="text-fg/50 text-xs truncate">{unit.location ?? "—"}</span>
+                    <span className="text-fg/60 text-xs">{fmtDate(wExp ? wExp : null) ? fmtDate((unit as any).purchasedAt) : <span className="text-fg/60">—</span>}</span>
+                    <span className={`text-xs ${expired ? "text-red-400 font-semibold" : soon ? "text-amber-400 font-semibold" : "text-fg/60"}`}>
                       {wDate ? (
                         <>{fmtDate(wExp)}{expired && " ⚠"}{soon && " !"}</>
-                      ) : <span className="text-white/60">—</span>}
+                      ) : <span className="text-fg/60">—</span>}
                     </span>
                     <div className="flex flex-col gap-0.5">
                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold w-fit
                         ${unit.status === "available"  ? "bg-emerald-950/60 text-emerald-400" :
                           unit.status === "maintenance" ? "bg-amber-950/60 text-amber-400" :
                           unit.status === "out"         ? "bg-blue-950/60 text-blue-400" :
-                          "bg-white/[0.06] text-white/60"}`}>
+                          "bg-fg/[0.06] text-fg/60"}`}>
                         <span className={`w-1 h-1 rounded-full ${
                           unit.status === "available"  ? "bg-emerald-400" :
                           unit.status === "maintenance" ? "bg-amber-400" :
-                          unit.status === "out"         ? "bg-blue-400" : "bg-white/30"}`} />
+                          unit.status === "out"         ? "bg-blue-400" : "bg-fg/30"}`} />
                         {tc(`statusEnum.${unit.status}`, { defaultValue: unit.status }).toUpperCase()}
                       </span>
                       {(unit as StockUnitWithPlan).plannedJob && (
@@ -516,7 +518,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                   {/* Edit button */}
                   <button
                     onClick={() => startEdit(unit)}
-                    className="flex-shrink-0 p-1.5 rounded text-white/60 hover:text-[#FFFF00] hover:bg-[#FFFF00]/10 transition-colors"
+                    className="flex-shrink-0 p-1.5 rounded text-fg/60 hover:text-brand hover:bg-brand/10 transition-colors"
                     title={t("editUnit")}
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -524,7 +526,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                   {canManage && (
                     <button
                       onClick={() => { setDeleteErr(null); setDeleteUnitId(unit.id); }}
-                      className="flex-shrink-0 p-1.5 rounded text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="flex-shrink-0 p-1.5 rounded text-fg/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       title={t("deleteUnit", { defaultValue: "ลบหน่วยนี้" })}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -533,10 +535,10 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                 </div>
               )}
               {!isEditing && (
-                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-white/40 pl-0 flex-wrap">
+                <div className="mt-0.5 flex items-center gap-2 text-[10px] text-fg/40 pl-0 flex-wrap">
                   <span>{t("addedOn", { date: fmtDate(unit.createdAt) ?? "—" })}</span>
                   {unit.containerName && (
-                    <span className="inline-flex items-center gap-1 text-[#FFFF00]/40">
+                    <span className="inline-flex items-center gap-1 text-brand/40">
                       <Layers className="w-2.5 h-2.5" /> {t("inContainer", { name: unit.containerName })}
                     </span>
                   )}
@@ -558,29 +560,29 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
 
       {/* + เพิ่มหน่วยให้ของเดิม (Admin/Manager) */}
       {canManage && (
-        <TableRow className="bg-[#0d0d0d] hover:bg-[#0d0d0d] border-b border-white/[0.03]">
+        <TableRow className="bg-surface-1 hover:bg-surface-1 border-b border-fg/[0.03]">
           <TableCell colSpan={6} className="py-2 pl-16 pr-4">
             {showAdd ? (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-white/60">{t("addUnitsQtyLabel", { defaultValue: "เพิ่มกี่หน่วย" })}</span>
+                <span className="text-xs text-fg/60">{t("addUnitsQtyLabel", { defaultValue: "เพิ่มกี่หน่วย" })}</span>
                 <input
                   type="number" min={1} value={addQty}
                   onChange={(e) => setAddQty(e.target.value)}
-                  className="h-7 w-20 bg-black/50 border border-white/10 rounded px-2 text-sm text-white text-center focus:outline-none focus:border-[#FFFF00]/40 [color-scheme:dark]"
+                  className="h-7 w-20 bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg text-center focus:outline-none focus:border-brand/40 [color-scheme:dark]"
                 />
                 <button
                   onClick={() => addUnits.mutate(Math.max(1, parseInt(addQty) || 1))}
                   disabled={addUnits.isPending}
-                  className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: "#FFFF00" }}
+                  className="h-7 px-3 rounded text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}
                 >
                   {addUnits.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}{tc("add")}
                 </button>
-                <button onClick={() => setShowAdd(false)} className="h-7 px-3 rounded text-xs text-white/60 hover:text-white border border-white/10">{tc("cancel")}</button>
+                <button onClick={() => setShowAdd(false)} className="h-7 px-3 rounded text-xs text-fg/60 hover:text-fg border border-fg/10">{tc("cancel")}</button>
               </div>
             ) : (
               <button
                 onClick={() => setShowAdd(true)}
-                className="w-full h-8 rounded-lg border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/50 hover:text-[#FFFF00] text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
+                className="w-full h-8 rounded-lg border border-dashed border-fg/15 hover:border-brand/50 text-fg/50 hover:text-brand text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
                 {t("addUnitsToItem", { defaultValue: "เพิ่มหน่วย" })}
@@ -602,20 +604,20 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
               />
             )}
             <AlertDialog open={!!deleteUnitId} onOpenChange={(open) => { if (!open) { setDeleteUnitId(null); setDeleteErr(null); } }}>
-              <AlertDialogContent className="bg-[#0f0f0f] border border-white/[0.08]">
+              <AlertDialogContent className="bg-surface-1 border border-fg/[0.08]">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">{tc("areYouSure")}</AlertDialogTitle>
-                  <AlertDialogDescription className="text-white/60">
+                  <AlertDialogTitle className="text-fg">{tc("areYouSure")}</AlertDialogTitle>
+                  <AlertDialogDescription className="text-fg/60">
                     {t("deleteUnitConfirm", { defaultValue: "ลบหน่วยนี้ถาวร — ย้อนกลับไม่ได้" })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 {deleteErr && <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{deleteErr}</p>}
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">{tc("cancel")}</AlertDialogCancel>
+                  <AlertDialogCancel className="border-fg/10 text-fg/60 hover:text-fg bg-transparent">{tc("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={(e) => { e.preventDefault(); if (deleteUnitId) deleteUnit.mutate(deleteUnitId); }}
                     disabled={deleteUnit.isPending}
-                    className="bg-red-600 hover:bg-red-700 text-white border-0"
+                    className="bg-red-600 hover:bg-red-700 text-fg border-0"
                   >
                     {deleteUnit.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : tc("delete")}
                   </AlertDialogAction>
@@ -623,20 +625,20 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
               </AlertDialogContent>
             </AlertDialog>
             <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => { if (!open) { setBulkDeleteOpen(false); setDeleteErr(null); } }}>
-              <AlertDialogContent className="bg-[#0f0f0f] border border-white/[0.08]">
+              <AlertDialogContent className="bg-surface-1 border border-fg/[0.08]">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">{t("deleteUnitsTitle", { count: selected.size, defaultValue: `ลบ ${selected.size} หน่วย?` })}</AlertDialogTitle>
-                  <AlertDialogDescription className="text-white/60">
+                  <AlertDialogTitle className="text-fg">{t("deleteUnitsTitle", { count: selected.size, defaultValue: `ลบ ${selected.size} หน่วย?` })}</AlertDialogTitle>
+                  <AlertDialogDescription className="text-fg/60">
                     {t("deleteUnitConfirm", { defaultValue: "ลบหน่วยที่เลือกถาวร — ย้อนกลับไม่ได้" })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 {deleteErr && <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{deleteErr}</p>}
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">{tc("cancel")}</AlertDialogCancel>
+                  <AlertDialogCancel className="border-fg/10 text-fg/60 hover:text-fg bg-transparent">{tc("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={(e) => { e.preventDefault(); deleteBatch.mutate(Array.from(selected)); }}
                     disabled={deleteBatch.isPending}
-                    className="bg-red-600 hover:bg-red-700 text-white border-0"
+                    className="bg-red-600 hover:bg-red-700 text-fg border-0"
                   >
                     {deleteBatch.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : tc("delete")}
                   </AlertDialogAction>
@@ -776,17 +778,17 @@ export const StockItemsTableSection = ({
   const isCategoryOpen = (cat: string) => isFiltering ? true : expandedCategories.has(cat);
 
   return (
-    <section className="w-full bg-[#0f0f0f] rounded-xl border border-white/10 overflow-hidden animate-fade-in">
+    <section className="w-full bg-surface-1 rounded-xl border border-fg/10 overflow-hidden animate-fade-in">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
-        <Package className="w-5 h-5 text-[#FFFF00]" />
-        <h2 className="font-bold text-[#FFFF00] text-base tracking-widest uppercase">{t("stockItems")}</h2>
-        <div className="ml-auto flex items-center gap-3 text-xs text-white/60 font-medium">
-          {isFiltering && <span className="text-[#FFFF00]/50">{t("filteredLabel")} ·</span>}
+      <div className="px-6 py-4 border-b border-fg/10 flex items-center gap-3">
+        <Package className="w-5 h-5 text-brand" />
+        <h2 className="font-bold text-brand text-base tracking-widest uppercase">{t("stockItems")}</h2>
+        <div className="ml-auto flex items-center gap-3 text-xs text-fg/60 font-medium">
+          {isFiltering && <span className="text-brand/50">{t("filteredLabel")} ·</span>}
           <span>{t("categoryCount", { count: grouped.length })}</span>
-          <span className="text-white/40">·</span>
+          <span className="text-fg/40">·</span>
           <span>{t("modelsCount", { count: totalItems })}</span>
-          <span className="text-white/40">·</span>
+          <span className="text-fg/40">·</span>
           <span>{t("unitsCount", { count: totalUnits })}</span>
         </div>
       </div>
@@ -803,13 +805,13 @@ export const StockItemsTableSection = ({
           </colgroup>
 
           <TableHeader>
-            <TableRow className="border-white/10 hover:bg-transparent">
-              <TableHead className="py-3 pl-6 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("name")}</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("brand")}</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{t("colSubCategory")}</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{t("colQty")}</TableHead>
-              <TableHead className="py-3 font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("status")}</TableHead>
-              <TableHead className="py-3 pr-6 text-right font-bold text-[#FFFF00] text-xs uppercase tracking-wider">{tc("actions")}</TableHead>
+            <TableRow className="border-fg/10 hover:bg-transparent">
+              <TableHead className="py-3 pl-6 font-bold text-brand text-xs uppercase tracking-wider">{tc("name")}</TableHead>
+              <TableHead className="py-3 font-bold text-brand text-xs uppercase tracking-wider">{tc("brand")}</TableHead>
+              <TableHead className="py-3 font-bold text-brand text-xs uppercase tracking-wider">{t("colSubCategory")}</TableHead>
+              <TableHead className="py-3 font-bold text-brand text-xs uppercase tracking-wider">{t("colQty")}</TableHead>
+              <TableHead className="py-3 font-bold text-brand text-xs uppercase tracking-wider">{tc("status")}</TableHead>
+              <TableHead className="py-3 pr-6 text-right font-bold text-brand text-xs uppercase tracking-wider">{tc("actions")}</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -818,25 +820,25 @@ export const StockItemsTableSection = ({
             {isLoading && Array.from({ length: 4 }).map((_, ci) => (
               <React.Fragment key={`skg-${ci}`}>
                 {/* category header skeleton */}
-                <TableRow className="animate-pulse bg-[#141414] border-b border-white/[0.08]">
+                <TableRow className="animate-pulse bg-surface-1 border-b border-fg/[0.08]">
                   <TableCell colSpan={6} className="py-3 pl-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded bg-white/[0.08]" />
-                      <div className="h-3.5 rounded bg-white/[0.08] w-32" />
-                      <div className="h-5 rounded-full bg-white/[0.05] w-20 ml-2" />
+                      <div className="w-4 h-4 rounded bg-fg/[0.08]" />
+                      <div className="h-3.5 rounded bg-fg/[0.08] w-32" />
+                      <div className="h-5 rounded-full bg-fg/[0.05] w-20 ml-2" />
                     </div>
                   </TableCell>
                 </TableRow>
                 {/* item skeletons inside */}
                 {Array.from({ length: 3 }).map((_, ii) => (
-                  <TableRow key={`ski-${ci}-${ii}`} className="animate-pulse bg-[#1a1a1a] border-b border-white/[0.05]">
+                  <TableRow key={`ski-${ci}-${ii}`} className="animate-pulse bg-surface-2 border-b border-fg/[0.05]">
                     <TableCell className="py-3 pl-10">
-                      <div className="h-3 rounded bg-white/[0.06]" style={{ width: `${50 + (ii * 19) % 40}%` }} />
+                      <div className="h-3 rounded bg-fg/[0.06]" style={{ width: `${50 + (ii * 19) % 40}%` }} />
                     </TableCell>
-                    <TableCell><div className="h-3 rounded bg-white/[0.04] w-20" /></TableCell>
-                    <TableCell><div className="h-3 rounded bg-white/[0.04] w-16" /></TableCell>
-                    <TableCell><div className="h-3 rounded bg-white/[0.04] w-6" /></TableCell>
-                    <TableCell><div className="h-5 rounded-full bg-white/[0.04] w-24" /></TableCell>
+                    <TableCell><div className="h-3 rounded bg-fg/[0.04] w-20" /></TableCell>
+                    <TableCell><div className="h-3 rounded bg-fg/[0.04] w-16" /></TableCell>
+                    <TableCell><div className="h-3 rounded bg-fg/[0.04] w-6" /></TableCell>
+                    <TableCell><div className="h-5 rounded-full bg-fg/[0.04] w-24" /></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}
@@ -848,8 +850,8 @@ export const StockItemsTableSection = ({
               <TableRow>
                 <TableCell colSpan={6} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <Package className="w-8 h-8 text-white/40" />
-                    <p className="text-white/60 text-sm">{t("noItemsMatchFilters")}</p>
+                    <Package className="w-8 h-8 text-fg/40" />
+                    <p className="text-fg/60 text-sm">{t("noItemsMatchFilters")}</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -867,19 +869,19 @@ export const StockItemsTableSection = ({
                 <React.Fragment key={category}>
                   {/* Category header */}
                   <TableRow
-                    className="cursor-pointer bg-[#141414] hover:bg-[#1a1a1a] border-b border-white/[0.08] transition-colors select-none"
+                    className="cursor-pointer bg-surface-1 hover:bg-surface-2 border-b border-fg/[0.08] transition-colors select-none"
                     onClick={() => !isFiltering && toggleCategory(category)}
                   >
                     <TableCell colSpan={6} className="py-2.5 pl-4 pr-6">
                       <div className="flex items-center gap-2.5">
                         {!isFiltering && (
                           <ChevronRightIcon
-                            className={`w-4 h-4 flex-shrink-0 text-[#FFFF00]/60 transition-transform duration-200 ${catOpen ? "rotate-90" : ""}`}
+                            className={`w-4 h-4 flex-shrink-0 text-brand/60 transition-transform duration-200 ${catOpen ? "rotate-90" : ""}`}
                           />
                         )}
-                        <Boxes className="w-3.5 h-3.5 text-[#FFFF00]/40 flex-shrink-0" />
-                        <span className="font-bold text-sm text-[#FFFF00]">{category}</span>
-                        <span className="text-xs text-white/60 ml-1">
+                        <Boxes className="w-3.5 h-3.5 text-brand/40 flex-shrink-0" />
+                        <span className="font-bold text-sm text-brand">{category}</span>
+                        <span className="text-xs text-fg/60 ml-1">
                           {t("modelsCount", { count: items.length })} · {t("unitsCount", { count: catTotalUnits })}
                         </span>
                         <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold
@@ -906,10 +908,10 @@ export const StockItemsTableSection = ({
                             isBulk ? "" : "cursor-pointer"
                           } ${
                             isSelected
-                              ? "bg-[#FFFF00]/[0.05] border-l-2 border-l-[#FFFF00]/50 border-b-white/10"
+                              ? "bg-brand/[0.05] border-l-2 border-l-brand/50 border-b-fg/10"
                               : isBulk
                               ? "bg-amber-500/[0.05] hover:bg-amber-500/[0.09] border-l-2 border-l-amber-400/50 border-b-amber-400/20"
-                              : "bg-[#1a1a1a] hover:bg-[#242424] border-b-white/10"
+                              : "bg-surface-2 hover:bg-surface-2 border-b-fg/10"
                           }`}
                           onClick={isBulk ? undefined : () => toggleRow(item.id)}
                         >
@@ -922,11 +924,11 @@ export const StockItemsTableSection = ({
                               ) : (
                                 <ChevronRightIcon
                                   className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${
-                                    isExpanded ? "rotate-90 text-[#FFFF00]" : "text-white/60"
+                                    isExpanded ? "rotate-90 text-brand" : "text-fg/60"
                                   }`}
                                 />
                               )}
-                              <span className={`font-medium text-sm truncate ${isBulk ? "text-amber-100/90" : isSelected ? "text-[#FFFF00]" : "text-white/90"}`}>
+                              <span className={`font-medium text-sm truncate ${isBulk ? "text-amber-100/90" : isSelected ? "text-brand" : "text-fg/90"}`}>
                                 {item.name}
                               </span>
                               {isBulk && (
@@ -936,7 +938,7 @@ export const StockItemsTableSection = ({
                               )}
                               {item.sets && item.sets.length > 0 && (
                                 <span
-                                  className="ml-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[#FFFF00]/10 text-[#FFFF00]/90 font-semibold flex-shrink-0 max-w-[220px]"
+                                  className="ml-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-brand/10 text-brand/90 font-semibold flex-shrink-0 max-w-[220px]"
                                   title={`อยู่ในชุด: ${item.sets.map((s) => s.name).join(", ")}`}
                                 >
                                   <Boxes className="w-2.5 h-2.5 flex-shrink-0" />
@@ -945,17 +947,17 @@ export const StockItemsTableSection = ({
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="py-2.5 text-white/60 text-sm truncate align-middle">
+                          <TableCell className="py-2.5 text-fg/60 text-sm truncate align-middle">
                             {item.brand}
                           </TableCell>
-                          <TableCell className="py-2.5 text-white/60 text-sm truncate align-middle">
+                          <TableCell className="py-2.5 text-fg/60 text-sm truncate align-middle">
                             {item.subCategory || "—"}
                           </TableCell>
                           <TableCell className="py-2.5 text-sm align-middle">
                             {isBulk ? (
                               <span className="font-bold text-amber-400">{totalForBadge}<span className="ml-0.5 text-[10px] font-normal text-amber-400/60">ชิ้น</span></span>
                             ) : (
-                              <span className="font-bold text-white/80">{totalForBadge}</span>
+                              <span className="font-bold text-fg/80">{totalForBadge}</span>
                             )}
                           </TableCell>
                           <TableCell className="py-2.5 align-middle">
@@ -982,10 +984,10 @@ export const StockItemsTableSection = ({
       </div>
 
       <AlertDialog open={!!deleteItemId} onOpenChange={(open) => { if (!open) { setDeleteItemId(null); setDeleteError(null); } }}>
-        <AlertDialogContent className="bg-[#0f0f0f] border border-white/[0.08]">
+        <AlertDialogContent className="bg-surface-1 border border-fg/[0.08]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">{tc("areYouSure")}</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/60">
+            <AlertDialogTitle className="text-fg">{tc("areYouSure")}</AlertDialogTitle>
+            <AlertDialogDescription className="text-fg/60">
               {t("deleteItemConfirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -993,13 +995,13 @@ export const StockItemsTableSection = ({
             <p className="text-sm text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{deleteError}</p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white/60 hover:text-white bg-transparent">
+            <AlertDialogCancel className="border-fg/10 text-fg/60 hover:text-fg bg-transparent">
               {tc("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); if (deleteItemId) deleteMutation.mutate(deleteItemId); }}
               disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white border-0"
+              className="bg-red-600 hover:bg-red-700 text-fg border-0"
             >
               {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : tc("delete")}
             </AlertDialogAction>

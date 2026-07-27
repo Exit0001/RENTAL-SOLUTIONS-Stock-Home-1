@@ -123,22 +123,22 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
       style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-3xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-3xl bg-surface-1 border border-fg/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-fg/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center flex-shrink-0">
-              <Briefcase className="w-5 h-5 text-[#FFFF00]" />
+            <div className="w-9 h-9 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0">
+              <Briefcase className="w-5 h-5 text-brand" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-bold text-white text-base truncate">{job.name}</h2>
-              <div className="flex items-center gap-4 mt-1 text-xs text-white/60 flex-wrap">
+              <h2 className="font-bold text-fg text-base truncate">{job.name}</h2>
+              <div className="flex items-center gap-4 mt-1 text-xs text-fg/60 flex-wrap">
                 <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{start} → {end}</span>
                 {job.location && <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{job.location}</span>}
                 <span className="flex items-center gap-1.5">
-                  <Package className="w-3.5 h-3.5 text-[#FFFF00]/50" />
-                  <span className="text-[#FFFF00]/70 font-semibold">{assignedUnits.length}</span> {t("unitsAssigned")}
+                  <Package className="w-3.5 h-3.5 text-brand/50" />
+                  <span className="text-brand/70 font-semibold">{assignedUnits.length}</span> {t("unitsAssigned")}
                 </span>
                 {checkedOutCount > 0 && (
                   <span className="text-blue-400/70 font-medium">{t("checkedOutCount", { count: checkedOutCount })}</span>
@@ -147,7 +147,7 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
             </div>
           </div>
           <button onClick={onClose}
-            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors flex-shrink-0">
+            className="p-1.5 rounded-lg text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors flex-shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -156,38 +156,38 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
         <div className="flex-1 overflow-y-auto">
 
           {/* Racks / Containers */}
-          <div className="px-6 py-4 border-b border-white/[0.06]">
+          <div className="px-6 py-4 border-b border-fg/[0.06]">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2">
+              <p className="text-xs font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2">
                 <Layers className="w-4 h-4" /> {t("racksLabel")}
               </p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setRackBuildOpen(true)}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10 transition-colors"
                 >
                   <ScanLine className="w-3.5 h-3.5" /> Build Racks
                 </button>
               </div>
             </div>
             {containersLoading ? (
-              <div className="flex items-center gap-2 text-white/60 text-sm py-1">
+              <div className="flex items-center gap-2 text-fg/60 text-sm py-1">
                 <Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}
               </div>
             ) : jobContainers.length === 0 ? (
-              <p className="text-sm text-white/60 italic">{t("noRacksAssigned")}</p>
+              <p className="text-sm text-fg/60 italic">{t("noRacksAssigned")}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {(jobContainers as any[]).map((c) => (
-                  <div key={c.id} className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03]">
-                    <Layers className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
-                    <span className="text-sm text-white/80">{c.name}</span>
-                    <span className="text-xs text-white/50">{t("itemsCount", { count: c.itemCount })}</span>
+                  <div key={c.id} className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-lg border border-fg/[0.08] bg-fg/[0.03]">
+                    <Layers className="w-4 h-4 text-brand/60 flex-shrink-0" />
+                    <span className="text-sm text-fg/80">{c.name}</span>
+                    <span className="text-xs text-fg/50">{t("itemsCount", { count: c.itemCount })}</span>
                     <button
                       onClick={() => removeContainer.mutate(c.id)}
                       disabled={removeContainer.isPending}
                       title={t("checkIn")}
-                      className="p-1 rounded text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+                      className="p-1 rounded text-fg/60 hover:text-red-400 hover:bg-fg/[0.06] transition-colors disabled:opacity-40"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -198,47 +198,47 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
           </div>
 
           {/* Crew */}
-          <div className="px-6 py-4 border-b border-white/[0.06]">
+          <div className="px-6 py-4 border-b border-fg/[0.06]">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2">
+              <p className="text-xs font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2">
                 <Users className="w-4 h-4" /> {t("crewLabel")}
               </p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setExpensesOpen(true)}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10 transition-colors"
                 >
                   <Wallet className="w-3.5 h-3.5" /> {t("outsourceExpenses")}
                 </button>
                 <button
                   onClick={() => setAssignCrewOpen(true)}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10 transition-colors"
                 >
                   <UserPlus className="w-3.5 h-3.5" /> {t("assignCrew")}
                 </button>
               </div>
             </div>
             {crewLoading ? (
-              <div className="flex items-center gap-2 text-white/60 text-sm py-1">
+              <div className="flex items-center gap-2 text-fg/60 text-sm py-1">
                 <Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}
               </div>
             ) : jobCrew.length === 0 ? (
-              <p className="text-sm text-white/60 italic">{t("noCrewAssigned")}</p>
+              <p className="text-sm text-fg/60 italic">{t("noCrewAssigned")}</p>
             ) : (
               <div className="space-y-1">
                 {jobCrew.map((c) => (
-                  <div key={c.crewMemberId} className="group/crew flex items-center gap-3 -mx-1 px-1 py-2 rounded-lg hover:bg-white/[0.03] transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-xs font-bold text-[#FFFF00]/80 flex-shrink-0">
+                  <div key={c.crewMemberId} className="group/crew flex items-center gap-3 -mx-1 px-1 py-2 rounded-lg hover:bg-fg/[0.03] transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center text-xs font-bold text-brand/80 flex-shrink-0">
                       {c.initials}
                     </div>
-                    <span className="text-sm font-medium text-white/85 flex-1 min-w-0 truncate">{c.name}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-white/60 bg-white/[0.06] flex-shrink-0">{CREW_TYPE_LABEL[c.type]}</span>
+                    <span className="text-sm font-medium text-fg/85 flex-1 min-w-0 truncate">{c.name}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-fg/60 bg-fg/[0.06] flex-shrink-0">{CREW_TYPE_LABEL[c.type]}</span>
                     {canManage && (
                       <button
                         onClick={() => removeCrew.mutate(c.crewMemberId)}
                         disabled={removeCrew.isPending}
                         title={t("removeFromJob")}
-                        className="opacity-0 group-hover/crew:opacity-100 p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
+                        className="opacity-0 group-hover/crew:opacity-100 p-1.5 rounded text-fg/40 hover:text-red-400 hover:bg-fg/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -250,59 +250,59 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
           </div>
 
           {/* Sub-Rentals */}
-          <div className="px-6 py-4 border-b border-white/[0.06]">
+          <div className="px-6 py-4 border-b border-fg/[0.06]">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2">
+              <p className="text-xs font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2">
                 <ArrowRightLeft className="w-4 h-4" /> {t("subRentalsLabel")}
               </p>
               <button
                 onClick={() => setSubRentalsOpen(true)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> {t("manageSubRentals")}
               </button>
             </div>
-            <p className="text-sm text-white/60 italic">
+            <p className="text-sm text-fg/60 italic">
               {jobSubRentals.length === 0 ? t("noSubRentalsAssigned") : t("subRentalsCount", { count: jobSubRentals.length })}
             </p>
           </div>
 
           {/* Vehicles */}
-          <div className="px-6 py-4 border-b border-white/[0.06]">
+          <div className="px-6 py-4 border-b border-fg/[0.06]">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2">
+              <p className="text-xs font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2">
                 <Truck className="w-4 h-4" /> {t("vehiclesLabel")}
               </p>
               <button
                 onClick={() => setAddVehicleOpen(true)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10 transition-colors"
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> {t("addVehicle")}
               </button>
             </div>
             {vehiclesLoading ? (
-              <div className="flex items-center gap-2 text-white/60 text-sm py-1">
+              <div className="flex items-center gap-2 text-fg/60 text-sm py-1">
                 <Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}
               </div>
             ) : jobVehicles.length === 0 ? (
-              <p className="text-sm text-white/60 italic">{t("noVehiclesAssigned")}</p>
+              <p className="text-sm text-fg/60 italic">{t("noVehiclesAssigned")}</p>
             ) : (
               <div className="space-y-1">
                 {jobVehicles.map((v) => (
-                  <div key={v.id} className="group/veh flex items-center gap-3 -mx-1 px-1 py-2 rounded-lg hover:bg-white/[0.03] transition-colors">
-                    <Truck className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
-                    <span className="text-sm font-medium text-white/85 flex-1 min-w-0 truncate">
+                  <div key={v.id} className="group/veh flex items-center gap-3 -mx-1 px-1 py-2 rounded-lg hover:bg-fg/[0.03] transition-colors">
+                    <Truck className="w-4 h-4 text-brand/50 flex-shrink-0" />
+                    <span className="text-sm font-medium text-fg/85 flex-1 min-w-0 truncate">
                       {v.vehicleType}
-                      {v.plate && <span className="text-white/40 font-normal"> · {v.plate}</span>}
+                      {v.plate && <span className="text-fg/40 font-normal"> · {v.plate}</span>}
                     </span>
-                    {v.driverName && <span className="text-xs text-white/50 truncate max-w-[120px]">🧑‍✈️ {v.driverName}</span>}
-                    {v.note && <span className="text-xs text-white/50 truncate max-w-[120px]">{v.note}</span>}
+                    {v.driverName && <span className="text-xs text-fg/50 truncate max-w-[120px]">🧑‍✈️ {v.driverName}</span>}
+                    {v.note && <span className="text-xs text-fg/50 truncate max-w-[120px]">{v.note}</span>}
                     {canManage && (
                       <button
                         onClick={() => removeVehicle.mutate(v.id)}
                         disabled={removeVehicle.isPending}
                         title={t("removeVehicle")}
-                        className="opacity-0 group-hover/veh:opacity-100 p-1.5 rounded text-white/40 hover:text-red-400 hover:bg-white/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
+                        className="opacity-0 group-hover/veh:opacity-100 p-1.5 rounded text-fg/40 hover:text-red-400 hover:bg-fg/[0.06] transition-colors disabled:opacity-40 flex-shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -316,11 +316,11 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
           {/* Stock — Phase Checklist */}
           <div className="px-6 py-5">
             {isLoading ? (
-              <div className="flex items-center gap-2 text-white/60 text-sm py-4">
+              <div className="flex items-center gap-2 text-fg/60 text-sm py-4">
                 <Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}
               </div>
             ) : grouped.length === 0 ? (
-              <p className="text-sm text-white/60 italic py-4 text-center">
+              <p className="text-sm text-fg/60 italic py-4 text-center">
                 {t("noUnitsAssignedHint", { editUnits: t("editUnits") })}
               </p>
             ) : (
@@ -333,21 +333,21 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
                   const dispatched = all.filter((u) => u.phase === "dispatched").length;
                   const returned   = all.filter((u) => u.phase === "returned").length;
                   return (
-                    <div className="flex items-center gap-3 mb-5 pb-4 border-b border-white/[0.06]">
+                    <div className="flex items-center gap-3 mb-5 pb-4 border-b border-fg/[0.06]">
                       <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${planned > 0 ? "bg-white/10 text-white/70" : "bg-white/5 text-white/30"}`}>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${planned > 0 ? "bg-fg/10 text-fg/70" : "bg-fg/5 text-fg/30"}`}>
                           {t("phasePlanned")} {planned}
                         </span>
-                        <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${prepared > 0 ? "bg-amber-500/20 text-amber-400" : "bg-white/5 text-white/30"}`}>
+                        <ChevronRight className="w-3.5 h-3.5 text-fg/30 flex-shrink-0" />
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${prepared > 0 ? "bg-amber-500/20 text-amber-400" : "bg-fg/5 text-fg/30"}`}>
                           {t("phasePrepared")} {prepared}
                         </span>
-                        <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${dispatched > 0 ? "bg-blue-500/20 text-blue-400" : "bg-white/5 text-white/30"}`}>
+                        <ChevronRight className="w-3.5 h-3.5 text-fg/30 flex-shrink-0" />
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${dispatched > 0 ? "bg-blue-500/20 text-blue-400" : "bg-fg/5 text-fg/30"}`}>
                           {t("phaseDispatched")} {dispatched}
                         </span>
-                        <ChevronRight className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${returned > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-white/5 text-white/30"}`}>
+                        <ChevronRight className="w-3.5 h-3.5 text-fg/30 flex-shrink-0" />
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${returned > 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-fg/5 text-fg/30"}`}>
                           {t("phaseReturned")} {returned}
                         </span>
                       </div>
@@ -359,25 +359,25 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
                 <div className="space-y-5">
                   {grouped.map(([itemName, units]) => (
                     <div key={itemName}>
-                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/[0.06]">
-                        <p className="text-xs font-bold text-[#FFFF00]/60 uppercase tracking-wider flex-1 truncate">{itemName}</p>
-                        <span className="text-xs text-white/50 flex-shrink-0">{units.length}</span>
+                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-fg/[0.06]">
+                        <p className="text-xs font-bold text-brand/60 uppercase tracking-wider flex-1 truncate">{itemName}</p>
+                        <span className="text-xs text-fg/50 flex-shrink-0">{units.length}</span>
                       </div>
                       {(units as any[]).map((u) => {
                         const phase = u.phase ?? "planned";
                         const nextPhase = phase === "prepared" ? "dispatched" : null;
                         return (
-                          <div key={u.id} className="flex items-center gap-3 py-2 border-b border-white/[0.03] last:border-0">
+                          <div key={u.id} className="flex items-center gap-3 py-2 border-b border-fg/[0.03] last:border-0">
                             <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                               phase === "returned"   ? "bg-emerald-400" :
                               phase === "dispatched" ? "bg-blue-400" :
                               phase === "prepared"   ? "bg-amber-400" :
-                              "bg-white/20"
+                              "bg-fg/20"
                             }`} />
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-white/80 truncate">{u.name}</p>
+                              <p className="text-sm text-fg/80 truncate">{u.name}</p>
                               {u.serialNumber && (
-                                <p className="text-xs text-white/45 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>
+                                <p className="text-xs text-fg/45 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -385,7 +385,7 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
                                 phase === "returned"   ? "bg-emerald-500/15 text-emerald-400" :
                                 phase === "dispatched" ? "bg-blue-500/15 text-blue-400" :
                                 phase === "prepared"   ? "bg-amber-500/15 text-amber-400" :
-                                "bg-white/5 text-white/40"
+                                "bg-fg/5 text-fg/40"
                               }`}>
                                 {t(`phase_${phase}`)}
                               </span>
@@ -394,7 +394,7 @@ export const JobDetailModal = ({ job, onClose }: Props): JSX.Element => {
                                   onClick={() => updatePhase.mutate({ unitIds: [u.id], phase: nextPhase as any })}
                                   disabled={updatePhase.isPending}
                                   title={`Override: ${t(`advanceTo_${nextPhase}`)}`}
-                                  className="p-1.5 rounded text-white/25 hover:text-amber-400 hover:bg-amber-400/10 transition-colors disabled:opacity-30"
+                                  className="p-1.5 rounded text-fg/25 hover:text-amber-400 hover:bg-amber-400/10 transition-colors disabled:opacity-30"
                                 >
                                   <ChevronRight className="w-3.5 h-3.5" />
                                 </button>

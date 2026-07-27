@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Home, Boxes, Briefcase, DollarSign, Clock, Settings, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { StockManagementHeaderSection } from "./sections/StockManagementHeaderSection";
@@ -11,20 +12,26 @@ import { SettingsPage } from "./sections/SettingsPage";
 import { useAppStore } from "@/store/appStore";
 import { useIsFetching } from "@tanstack/react-query";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 
 const GlobalLoadingBar = () => {
   const n = useIsFetching();
   if (!n) return null;
   return (
-    <div className="fixed top-0 left-0 right-0 h-[2px] z-[9999] overflow-hidden bg-[#FFFF00]/10">
+    <div className="fixed top-0 left-0 right-0 h-[2px] z-[9999] overflow-hidden bg-brand/10">
       <div className="animate-loading-bar" />
     </div>
   );
 };
 
 export const StockHome = (): JSX.Element => {
-  const { activePage, setActivePage, userRole } = useAppStore();
+  const { activePage, setActivePage, userRole, theme } = useAppStore();
   const { t } = useTranslation("nav");
+
+  // sync ธีมที่เลือกไว้ (persist ใน localStorage) เข้า <html data-theme="..."> ทุกครั้งที่เปลี่ยน/โหลดแอป
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme === "red" ? "red" : "";
+  }, [theme]);
 
   // กำหนด nav items ตาม role
   // crew เห็นแค่ Home + Jobs
@@ -53,12 +60,12 @@ export const StockHome = (): JSX.Element => {
   };
 
   return (
-    <div className="h-screen w-full bg-[#0a0a0a] flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-surface-0 flex flex-col overflow-hidden">
       <GlobalLoadingBar />
       <StockManagementHeaderSection activeSection={activePage} />
 
       <div className="flex flex-row flex-1 overflow-hidden">
-        <aside className="flex-shrink-0 w-16 bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col items-center pt-3 pb-4 z-10">
+        <aside className="flex-shrink-0 w-16 bg-surface-1 border-r border-fg/[0.06] flex flex-col items-center pt-3 pb-4 z-10">
           <nav className="flex flex-col gap-1 w-full px-2">
             {navItems.map(({ key, labelKey, Icon }) => {
               const isActive = activePage === key;
@@ -66,10 +73,10 @@ export const StockHome = (): JSX.Element => {
               return (
                 <button key={key} onClick={() => setActivePage(key)}
                   className={`group relative flex flex-col items-center gap-1 py-2.5 rounded-lg w-full transition-colors duration-200
-                    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFFF00]/50
-                    ${isActive ? "bg-[#FFFF00]/10 text-[#FFFF00]" : "text-white/60 hover:text-white hover:bg-white/[0.04]"}`}
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50
+                    ${isActive ? "bg-brand/10 text-brand" : "text-fg/60 hover:text-fg hover:bg-fg/[0.04]"}`}
                   title={label} data-testid={`nav-${key.toLowerCase()}`}>
-                  {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-[#FFFF00] rounded-r-full" />}
+                  {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-brand rounded-r-full" />}
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   <span className="text-[10px] font-medium leading-none">{label}</span>
                 </button>
@@ -78,10 +85,11 @@ export const StockHome = (): JSX.Element => {
           </nav>
 
           <div className="mt-auto w-full px-2">
-            <div className="border-t border-white/[0.06] pt-2 flex flex-col gap-1">
+            <div className="border-t border-fg/[0.06] pt-2 flex flex-col gap-1">
               <LanguageSwitcher variant="sidebar" />
-              <div className="border-t border-white/[0.06] pt-2 flex justify-center">
-                <p className="text-[8px] text-white/40 tracking-widest uppercase">v2.0</p>
+              <ThemeSwitcher variant="sidebar" />
+              <div className="border-t border-fg/[0.06] pt-2 flex justify-center">
+                <p className="text-[8px] text-fg/40 tracking-widest uppercase">v2.0</p>
               </div>
             </div>
           </div>

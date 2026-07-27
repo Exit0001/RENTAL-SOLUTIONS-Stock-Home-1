@@ -41,6 +41,12 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
         brand: "rgb(var(--brand-rgb) / <alpha-value>)",
+        fg: "rgb(var(--fg-rgb) / <alpha-value>)",
+        surface: {
+          0: "var(--surface-0)",
+          1: "var(--surface-1)",
+          2: "var(--surface-2)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

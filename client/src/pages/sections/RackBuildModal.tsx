@@ -170,17 +170,17 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
         {/* ── Body ── */}
         <div className="flex flex-1 min-h-0">
           {/* LEFT — Rack List */}
-          <div className="w-64 flex-shrink-0 border-r border-white/10 flex flex-col">
+          <div className="w-64 flex-shrink-0 border-r border-fg/10 flex flex-col">
             {/* Search */}
-            <div className="px-3 py-2 border-b border-white/[0.06]">
-              <div className="flex items-center gap-2 bg-white/[0.04] rounded-lg px-3 py-1.5">
-                <Search className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
+            <div className="px-3 py-2 border-b border-fg/[0.06]">
+              <div className="flex items-center gap-2 bg-fg/[0.04] rounded-lg px-3 py-1.5">
+                <Search className="w-3.5 h-3.5 text-fg/40 flex-shrink-0" />
                 <input
                   type="text"
                   placeholder="ค้นหาแร็ค..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bg-transparent text-sm text-white placeholder-white/30 outline-none w-full"
+                  className="bg-transparent text-sm text-fg placeholder-fg/30 outline-none w-full"
                 />
               </div>
             </div>
@@ -189,10 +189,10 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
             <div className="flex-1 overflow-y-auto py-1">
               {isLoading ? (
                 <div className="flex items-center justify-center h-20">
-                  <Loader2 className="w-5 h-5 text-white/30 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-fg/30 animate-spin" />
                 </div>
               ) : filteredRacks.length === 0 ? (
-                <div className="px-4 py-8 text-center text-white/30 text-sm">
+                <div className="px-4 py-8 text-center text-fg/30 text-sm">
                   {jobId ? "ยังไม่มีแร็คใน job นี้" : "ไม่มีแร็ค"}
                 </div>
               ) : (
@@ -204,17 +204,17 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                       onClick={() => setActiveRackId(rack.id)}
                       className={`w-full text-left px-3 py-2.5 flex items-center gap-2 transition-colors
                         ${isActive
-                          ? "bg-[#FFFF00]/10 border-l-2 border-[#FFFF00]"
-                          : "border-l-2 border-transparent hover:bg-white/[0.04]"
+                          ? "bg-brand/10 border-l-2 border-brand"
+                          : "border-l-2 border-transparent hover:bg-fg/[0.04]"
                         }`}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${isActive ? "text-[#FFFF00]" : "text-white"}`}>
+                        <p className={`text-sm font-medium truncate ${isActive ? "text-brand" : "text-fg"}`}>
                           {rack.name}
                         </p>
-                        <p className="text-[11px] text-white/40 truncate">{rack.type}</p>
+                        <p className="text-[11px] text-fg/40 truncate">{rack.type}</p>
                       </div>
-                      <span className={`text-xs font-mono flex-shrink-0 ${isActive ? "text-[#FFFF00]/70" : "text-white/40"}`}>
+                      <span className={`text-xs font-mono flex-shrink-0 ${isActive ? "text-brand/70" : "text-fg/40"}`}>
                         {rack.items.length}
                       </span>
                     </button>
@@ -227,13 +227,13 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                 ถ้าเปิดจากในงาน ให้โหลด packing sheet จากปุ่ม "PDF" ในแท็บ Pack (Job Operations) แทน
                 เพราะเป็นไฟล์เดียวกัน — Rack Build Mode มีหน้าที่จัดแร็คทิ้งไว้อย่างเดียว */}
             {!jobId && (
-              <div className="border-t border-white/10 p-3">
+              <div className="border-t border-fg/10 p-3">
                 <button
                   onClick={handleDownload}
                   disabled={downloading || racks.length === 0}
                   className="w-full flex items-center justify-center gap-2 h-9 px-4 text-sm font-bold rounded-lg
                     disabled:opacity-40 hover:opacity-90"
-                  style={{ backgroundColor: "#FFFF00", color: "#000" }}
+                  style={{ backgroundColor: "var(--brand)", color: "#000" }}
                 >
                   {downloading
                     ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -249,10 +249,10 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
           <div className="flex-1 flex flex-col min-w-0">
             {!activeRack ? (
               /* ยังไม่เลือก rack */
-              <div className="flex-1 flex flex-col items-center justify-center gap-4 text-white/30">
+              <div className="flex-1 flex flex-col items-center justify-center gap-4 text-fg/30">
                 <ScanLine className="w-16 h-16" />
                 <div className="text-center">
-                  <p className="text-base font-medium text-white/40">เลือกแร็คก่อน</p>
+                  <p className="text-base font-medium text-fg/40">เลือกแร็คก่อน</p>
                   <p className="text-sm mt-1">คลิกที่รายการซ้ายมือ หรือสแกน barcode แร็ค</p>
                 </div>
                 {/* Scan input สำหรับ switch rack ด้วย barcode */}
@@ -266,22 +266,22 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                       if (e.key === "Enter") handleScan(value);
                     }}
                     placeholder="สแกน barcode แร็ค..."
-                    className="w-full bg-white/[0.06] border border-white/10 rounded-lg px-4 py-2.5 text-sm
-                      text-white placeholder-white/30 outline-none focus:border-[#FFFF00]/50"
+                    className="w-full bg-fg/[0.06] border border-fg/10 rounded-lg px-4 py-2.5 text-sm
+                      text-fg placeholder-fg/30 outline-none focus:border-brand/50"
                   />
                 </div>
               </div>
             ) : (
               <>
                 {/* Rack Info Header */}
-                <div className="px-5 py-3 border-b border-white/10 flex-shrink-0 bg-white/[0.02]">
+                <div className="px-5 py-3 border-b border-fg/10 flex-shrink-0 bg-fg/[0.02]">
                   <div className="flex items-center gap-3">
                     <div>
-                      <p className="font-bold text-[#FFFF00]">{activeRack.name}</p>
-                      <p className="text-xs text-white/40">
+                      <p className="font-bold text-brand">{activeRack.name}</p>
+                      <p className="text-xs text-fg/40">
                         {activeRack.type}
                         {activeRack.location ? ` — ${activeRack.location}` : ""}
-                        <span className="ml-2 text-white/30">{activeRack.items.length} รายการ</span>
+                        <span className="ml-2 text-fg/30">{activeRack.items.length} รายการ</span>
                       </p>
                     </div>
                     {activeRack.isOut && (
@@ -293,13 +293,13 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                 </div>
 
                 {/* Scan Input */}
-                <div className="px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
-                  <label className="text-[11px] text-white/40 font-bold uppercase tracking-wider mb-2 block">
+                <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
+                  <label className="text-[11px] text-fg/40 font-bold uppercase tracking-wider mb-2 block">
                     สแกน barcode อุปกรณ์
                   </label>
                   <div className="flex items-center gap-3">
                     <div className="relative flex-1">
-                      <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                      <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
                       <input
                         ref={inputRef}
                         type="text"
@@ -309,11 +309,11 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                           if (e.key === "Enter") handleScan(value);
                         }}
                         placeholder="สแกนหรือพิมพ์ barcode แล้วกด Enter..."
-                        className="w-full bg-white/[0.06] border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm
-                          text-white placeholder-white/30 outline-none focus:border-[#FFFF00]/50"
+                        className="w-full bg-fg/[0.06] border border-fg/10 rounded-lg pl-10 pr-4 py-2.5 text-sm
+                          text-fg placeholder-fg/30 outline-none focus:border-brand/50"
                       />
                     </div>
-                    {scanning && <Loader2 className="w-5 h-5 text-white/40 animate-spin flex-shrink-0" />}
+                    {scanning && <Loader2 className="w-5 h-5 text-fg/40 animate-spin flex-shrink-0" />}
                   </div>
 
                   {/* Feedback */}
@@ -321,7 +321,7 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                     <div
                       className={`mt-2 flex items-start gap-2 text-sm rounded-lg px-3 py-2
                         ${feedback.type === "success" ? "bg-green-500/10 text-green-400" :
-                          feedback.type === "switch"  ? "bg-[#FFFF00]/10 text-[#FFFF00]" :
+                          feedback.type === "switch"  ? "bg-brand/10 text-brand" :
                                                         "bg-red-500/10 text-red-400"}`}
                     >
                       {feedback.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /> :
@@ -338,19 +338,19 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                 {/* Items List */}
                 <div className="flex-1 overflow-y-auto">
                   {sortedItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
+                    <div className="flex flex-col items-center justify-center h-40 gap-2 text-fg/30">
                       <Package className="w-10 h-10" />
                       <p className="text-sm">ยังไม่มีของในแร็คนี้</p>
                     </div>
                   ) : (
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-white/[0.06]">
-                          <th className="text-left px-5 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-wider">Category</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-wider">อุปกรณ์</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-wider">S/N</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-wider">Barcode</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-white/30 uppercase tracking-wider">Status</th>
+                        <tr className="border-b border-fg/[0.06]">
+                          <th className="text-left px-5 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Category</th>
+                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">อุปกรณ์</th>
+                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">S/N</th>
+                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Barcode</th>
+                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Status</th>
                           <th className="px-3 py-2.5 w-10" />
                         </tr>
                       </thead>
@@ -358,25 +358,25 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                         {sortedItems.map((item, idx) => (
                           <tr
                             key={item.id}
-                            className={`border-b border-white/[0.04] ${idx % 2 === 0 ? "" : "bg-white/[0.015]"}`}
+                            className={`border-b border-fg/[0.04] ${idx % 2 === 0 ? "" : "bg-fg/[0.015]"}`}
                           >
-                            <td className="px-5 py-2.5 text-xs text-white/50">{item.category || "—"}</td>
-                            <td className="px-3 py-2.5 font-medium text-white">{item.itemName || item.name || "—"}</td>
-                            <td className="px-3 py-2.5 text-xs text-white/50 font-mono">{item.serialNumber || "—"}</td>
-                            <td className="px-3 py-2.5 text-xs text-white/50 font-mono">{item.barcode || "—"}</td>
+                            <td className="px-5 py-2.5 text-xs text-fg/50">{item.category || "—"}</td>
+                            <td className="px-3 py-2.5 font-medium text-fg">{item.itemName || item.name || "—"}</td>
+                            <td className="px-3 py-2.5 text-xs text-fg/50 font-mono">{item.serialNumber || "—"}</td>
+                            <td className="px-3 py-2.5 text-xs text-fg/50 font-mono">{item.barcode || "—"}</td>
                             <td className="px-3 py-2.5">
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium
                                 ${item.status === "available" ? "bg-green-500/15 text-green-400" :
                                   item.status === "out"       ? "bg-amber-500/15 text-amber-400" :
                                   item.status === "maintenance" ? "bg-red-500/15 text-red-400" :
-                                                                 "bg-white/10 text-white/50"}`}>
+                                                                 "bg-fg/10 text-fg/50"}`}>
                                 {item.status}
                               </span>
                             </td>
                             <td className="px-3 py-2.5">
                               <button
                                 onClick={() => handleRemoveUnit(item.id)}
-                                className="p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                className="p-1 rounded text-fg/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                                 title="ลบออกจากแร็ค"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

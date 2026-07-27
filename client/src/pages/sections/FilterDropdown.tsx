@@ -23,7 +23,7 @@ export const FilterDropdown = ({ label, options, activeKey, onSelect }: Props): 
       <PopoverTrigger asChild>
         <button
           className={`h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border flex items-center gap-1.5
-            ${active ? "bg-white text-black border-white" : "text-white/60 border-white/10 hover:border-white/30"}`}
+            ${active ? "bg-fg text-black border-fg" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
         >
           <span className="truncate max-w-[110px]">{active ? active.label : label}</span>
           {active ? (
@@ -40,21 +40,21 @@ export const FilterDropdown = ({ label, options, activeKey, onSelect }: Props): 
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-56 max-h-64 overflow-y-auto bg-[#161616] border border-white/10 rounded-xl p-1.5 shadow-2xl"
+        className="w-56 max-h-64 overflow-y-auto bg-surface-2 border border-fg/10 rounded-xl p-1.5 shadow-2xl"
       >
         {options.map((opt) => (
           <button
             key={opt.key}
             onClick={() => { onSelect(activeKey === opt.key ? null : opt.key); setOpen(false); }}
             className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-left transition-colors
-              ${activeKey === opt.key ? "bg-[#FFFF00]/10 text-[#FFFF00]" : "text-white/70 hover:bg-white/[0.06]"}`}
+              ${activeKey === opt.key ? "bg-brand/10 text-brand" : "text-fg/70 hover:bg-fg/[0.06]"}`}
           >
             <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0
-              ${activeKey === opt.key ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20"}`}>
+              ${activeKey === opt.key ? "border-brand bg-brand" : "border-fg/20"}`}>
               {activeKey === opt.key && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
             </span>
             <span className="flex-1 truncate">{opt.label}</span>
-            <span className="text-white/40">{opt.count}</span>
+            <span className="text-fg/40">{opt.count}</span>
           </button>
         ))}
       </PopoverContent>

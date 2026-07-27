@@ -31,15 +31,25 @@ export async function markUnitsInMaintenance(stockUnitIds: string[]) {
 
 // ปิดบันทึกซ่อมบำรุง (เสร็จ/ลบ) — คืน unit เป็น "available" ถ้าไม่มีบันทึกซ่อมที่ยัง in_progress เหลืออยู่
 export async function revertUnitIfNoOpenMaintenance(stockUnitId: string) {
-  const [openLog] = await db
-    .select({ id: maintenanceLogs.id })
-    .from(maintenanceLogs)
-    .where(and(eq(maintenanceLogs.stockUnitId, stockUnitId), eq(maintenanceLogs.status, "in_progress")));
+  await revertUnitsIfNoOpenMaintenance([stockUnitId]);
+}
 
-  if (!openLog) {
-    await db
-      .update(stockUnits)
-      .set({ status: "available" })
-      .where(and(eq(stockUnits.id, stockUnitId), eq(stockUnits.status, "maintenance")));
-  }
+// เวอร์ชัน batch — ใช้ 2 query รวมแทนการวน await ทีละ unit (round-trip ไปยัง Supabase pooler
+// คือต้นทุนหลักที่ทำให้ปิดงานซ่อมทีละหลายรายการช้า)
+export async function revertUnitsIfNoOpenMaintenance(stockUnitIds: string[]) {
+  if (stockUnitIds.length === 0) return;
+
+  const openLogs = await db
+    .select({ stockUnitId: maintenanceLogs.stockUnitId })
+    .from(maintenanceLogs)
+    .where(and(inArray(maintenanceLogs.stockUnitId, stockUnitIds), eq(maintenanceLogs.status, "in_progress")));
+  const stillOpen = new Set(openLogs.map((l) => l.stockUnitId));
+
+  const revertable = stockUnitIds.filter((id) => !stillOpen.has(id));
+  if (revertable.length === 0) return;
+
+  await db
+    .update(stockUnits)
+    .set({ status: "available" })
+    .where(and(inArray(stockUnits.id, revertable), eq(stockUnits.status, "maintenance")));
 }

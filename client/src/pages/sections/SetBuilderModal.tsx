@@ -134,29 +134,29 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
       }
     >
         {/* Meta: name always visible (compact); note/image tucked behind a toggle */}
-        <div className="px-6 py-2.5 border-b border-white/[0.06] flex-shrink-0 flex items-center gap-2.5">
+        <div className="px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0 flex items-center gap-2.5">
           <input value={name} onChange={(e) => setName(e.target.value)}
             placeholder="ชื่อชุด * เช่น ชุดกลอง Yamaha BG2"
-            className="flex-1 h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/50" />
+            className="flex-1 h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/50" />
           <button
             type="button"
             onClick={() => setMetaOpen((v) => !v)}
             className={`h-9 px-3 rounded-lg text-xs font-medium border flex items-center gap-1.5 flex-shrink-0 transition-colors
-              ${metaOpen ? "bg-white/[0.06] border-white/20 text-white" : "border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"}`}
+              ${metaOpen ? "bg-fg/[0.06] border-fg/20 text-fg" : "border-fg/10 text-fg/50 hover:border-fg/30 hover:text-fg/80"}`}
           >
-            {(description || imageUrl) && <span className="w-1.5 h-1.5 rounded-full bg-[#FFFF00]" />}
+            {(description || imageUrl) && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
             หมายเหตุ / รูปชุด
             {metaOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
 
         {metaOpen && (
-          <div className="px-6 py-3 border-b border-white/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
+          <div className="px-6 py-3 border-b border-fg/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <label className="block text-[11px] font-bold text-white/70 mb-1">หมายเหตุ</label>
+              <label className="block text-[11px] font-bold text-fg/70 mb-1">หมายเหตุ</label>
               <input value={description} onChange={(e) => setDescription(e.target.value)}
                 placeholder="เช่น Chery Wood Lacquer (CWL)"
-                className="w-full h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/50" />
+                className="w-full h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/50" />
             </div>
             <div className="w-full md:w-56 flex-shrink-0">
               <FileUploadField label="รูปชุด" folder="sets" companyId={companyId ?? ""}

@@ -33,8 +33,8 @@ export const FilterChipRow = ({
   const hiddenCount = ordered.length - visible.length;
 
   const activeCls = variant === "primary"
-    ? "bg-[#FFFF00] text-black border-[#FFFF00]"
-    : "bg-white text-black border-white";
+    ? "bg-brand text-black border-brand"
+    : "bg-fg text-black border-fg";
   const sizeCls = variant === "primary" ? "h-7 px-2.5 text-[11px]" : "h-6 px-2 text-[10px]";
 
   return (
@@ -44,7 +44,7 @@ export const FilterChipRow = ({
           key={opt.key}
           onClick={() => onSelect(activeKey === opt.key ? null : opt.key)}
           className={`${sizeCls} rounded-full font-semibold transition-colors border
-            ${activeKey === opt.key ? activeCls : "text-white/60 border-white/10 hover:border-white/30"}`}
+            ${activeKey === opt.key ? activeCls : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
         >
           {opt.label} <span className="opacity-60">{opt.count}</span>
         </button>
@@ -52,7 +52,7 @@ export const FilterChipRow = ({
       {hiddenCount > 0 && (
         <button
           onClick={() => setExpanded(true)}
-          className="h-6 px-2 rounded-full text-[10px] text-white/40 border border-white/10 hover:border-white/30 hover:text-white/70 transition-colors"
+          className="h-6 px-2 rounded-full text-[10px] text-fg/40 border border-fg/10 hover:border-fg/30 hover:text-fg/70 transition-colors"
         >
           {moreLabel(hiddenCount)}
         </button>
@@ -60,7 +60,7 @@ export const FilterChipRow = ({
       {expanded && ordered.length > maxVisible && (
         <button
           onClick={() => setExpanded(false)}
-          className="h-6 px-2 rounded-full text-[10px] text-white/40 border border-white/10 hover:border-white/30 hover:text-white/70 transition-colors"
+          className="h-6 px-2 rounded-full text-[10px] text-fg/40 border border-fg/10 hover:border-fg/30 hover:text-fg/70 transition-colors"
         >
           {lessLabel}
         </button>

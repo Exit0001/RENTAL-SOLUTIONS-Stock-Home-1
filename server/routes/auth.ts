@@ -172,6 +172,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
         role:        users.role,
         companyId:   users.companyId,
         companyName: companies.name,
+        companyLogoUrl: companies.companyLogoUrl,
         avatarUrl:   users.avatarUrl,
       })
       .from(users)
@@ -207,6 +208,7 @@ authRouter.put("/me", requireAuth, async (req, res) => {
         role:        users.role,
         companyId:   users.companyId,
         companyName: companies.name,
+        companyLogoUrl: companies.companyLogoUrl,
         avatarUrl:   users.avatarUrl,
       })
       .from(users)
@@ -235,10 +237,11 @@ authRouter.put("/company", requireAuth, async (req, res) => {
     return res.status(403).json({ message: "เฉพาะ Admin เท่านั้น" });
   }
 
-  const { name, lineChannelAccessToken, lineGroupId }: {
+  const { name, lineChannelAccessToken, lineGroupId, companyLogoUrl }: {
     name?: string;
     lineChannelAccessToken?: string;
     lineGroupId?: string;
+    companyLogoUrl?: string | null;
   } = req.body;
 
   const updates: Partial<typeof companies.$inferInsert> = {};
@@ -251,6 +254,7 @@ authRouter.put("/company", requireAuth, async (req, res) => {
   }
   if (lineChannelAccessToken !== undefined) updates.lineChannelAccessToken = lineChannelAccessToken.trim() || null;
   if (lineGroupId !== undefined) updates.lineGroupId = lineGroupId.trim() || null;
+  if (companyLogoUrl !== undefined) updates.companyLogoUrl = companyLogoUrl || null;
 
   try {
     const [company] = await db

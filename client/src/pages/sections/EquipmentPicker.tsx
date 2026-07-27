@@ -19,7 +19,7 @@ const statusDot: Record<string, string> = {
   available:   "bg-emerald-400",
   out:         "bg-blue-400",
   maintenance: "bg-amber-400",
-  retired:     "bg-white/20",
+  retired:     "bg-fg/20",
 };
 
 export const maxAvailFor = (item: StockItemWithUnits): number =>
@@ -119,25 +119,25 @@ export const EquipmentCatalogPane = ({
     Array.from(pinned.values()).filter((sid) => sid === itemId).length;
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col border-r border-white/[0.06]">
+    <div className="flex-1 min-w-0 flex flex-col border-r border-fg/[0.06]">
       {/* Search + filter chips */}
       <div className="px-4 pt-4 pb-2 flex-shrink-0 space-y-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60" />
           <input
             autoFocus
             placeholder="ค้นหารุ่น / serial / บาร์โค้ด…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white
-              placeholder-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-all"
+            className="w-full h-9 pl-9 pr-3 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg
+              placeholder-fg/20 focus:outline-none focus:border-brand/40 transition-all"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => handleCategoryClick(null)}
             className={`h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border
-              ${!categoryFilter ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}
+              ${!categoryFilter ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
           >
             ทั้งหมด
           </button>
@@ -177,15 +177,15 @@ export const EquipmentCatalogPane = ({
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
         {isLoading && (
-          <div className="flex items-center justify-center gap-2 py-12 text-white/60">
+          <div className="flex items-center justify-center gap-2 py-12 text-fg/60">
             <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">กำลังโหลด…</span>
           </div>
         )}
 
         {!isLoading && groupedByCategory.map(([category, groups]) => (
           <div key={category}>
-            <div className="px-1 py-1.5 sticky top-0 bg-[#0f0f0f]/95 backdrop-blur-sm z-10">
-              <span className="text-xs font-bold text-[#FFFF00] uppercase tracking-wider">{category}</span>
+            <div className="px-1 py-1.5 sticky top-0 bg-surface-1/95 backdrop-blur-sm z-10">
+              <span className="text-xs font-bold text-brand uppercase tracking-wider">{category}</span>
             </div>
 
             <div className="space-y-2">
@@ -200,9 +200,9 @@ export const EquipmentCatalogPane = ({
                 const allSelected   = !isBulk && maxAvail > 0 && pinnedN === maxAvail;
 
                 return (
-                  <div key={group.id} className={`rounded-xl border overflow-hidden ${selected > 0 ? "border-[#FFFF00]/25 bg-[#FFFF00]/[0.03]" : "border-white/[0.06] bg-white/[0.02]"}`}>
+                  <div key={group.id} className={`rounded-xl border overflow-hidden ${selected > 0 ? "border-brand/25 bg-brand/[0.03]" : "border-fg/[0.06] bg-fg/[0.02]"}`}>
                     <div
-                      className={`flex items-center gap-3 px-3 py-2.5 ${isBulk ? "" : "cursor-pointer hover:bg-white/[0.02] transition-colors"}`}
+                      className={`flex items-center gap-3 px-3 py-2.5 ${isBulk ? "" : "cursor-pointer hover:bg-fg/[0.02] transition-colors"}`}
                       onClick={() => !isBulk && toggleModel(group.id)}
                     >
                       {isBulk ? (
@@ -210,23 +210,23 @@ export const EquipmentCatalogPane = ({
                       ) : (
                         <div
                           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
-                            ${allSelected ? "border-[#FFFF00] bg-[#FFFF00]" : pinnedN > 0 ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" : "border-white/20"}`}
+                            ${allSelected ? "border-brand bg-brand" : pinnedN > 0 ? "border-brand/60 bg-brand/20" : "border-fg/20"}`}
                           onClick={(e) => { e.stopPropagation(); if (availableUnits.length) onToggleSelectAll(availableUnits, group.id); }}
                         >
                           {allSelected && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
-                          {!allSelected && pinnedN > 0 && <div className="w-2 h-0.5 bg-[#FFFF00] rounded-full" />}
+                          {!allSelected && pinnedN > 0 && <div className="w-2 h-0.5 bg-brand rounded-full" />}
                         </div>
                       )}
 
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white/80 truncate">{group.name}</p>
-                        <p className="text-[10px] text-white/60">
+                        <p className="text-sm font-semibold text-fg/80 truncate">{group.name}</p>
+                        <p className="text-[10px] text-fg/60">
                           {group.brand} · ว่าง {maxAvail}{isBulk ? " (นับจำนวน)" : ""}
                         </p>
                       </div>
 
                       {selected > 0 && (
-                        <span className="text-[10px] font-bold text-[#FFFF00] bg-[#FFFF00]/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        <span className="text-[10px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full whitespace-nowrap">
                           เลือก {selected}
                         </span>
                       )}
@@ -238,30 +238,30 @@ export const EquipmentCatalogPane = ({
                             type="button"
                             onClick={() => onAdjustAuto(group.id, -1, maxAvail)}
                             disabled={qty === 0}
-                            className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors disabled:opacity-30"
+                            className="w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors disabled:opacity-30"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className={`w-6 text-center text-sm font-bold tabular-nums ${qty > 0 ? "text-[#FFFF00]" : "text-white/60"}`}>{qty}</span>
+                          <span className={`w-6 text-center text-sm font-bold tabular-nums ${qty > 0 ? "text-brand" : "text-fg/60"}`}>{qty}</span>
                           <button
                             type="button"
                             onClick={() => onAdjustAuto(group.id, 1, maxAvail)}
                             disabled={qty >= maxAvail}
-                            className="w-7 h-7 rounded-lg border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors disabled:opacity-30"
+                            className="w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors disabled:opacity-30"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
                       ) : (
                         isExpanded
-                          ? <ChevronDown className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
-                          : <ChevronRight className="w-3.5 h-3.5 text-white/60 flex-shrink-0" />
+                          ? <ChevronDown className="w-3.5 h-3.5 text-fg/60 flex-shrink-0" />
+                          : <ChevronRight className="w-3.5 h-3.5 text-fg/60 flex-shrink-0" />
                       )}
                     </div>
 
                     {/* unit rows — ปักหมุด serial เฉพาะ */}
                     {isExpanded && group.units.length === 0 && (
-                      <div className="px-10 py-3 text-xs text-white/60 italic border-t border-white/[0.04]">ยังไม่มี unit</div>
+                      <div className="px-10 py-3 text-xs text-fg/60 italic border-t border-fg/[0.04]">ยังไม่มี unit</div>
                     )}
                     {isExpanded && group.units.map((unit) => {
                       const isPinned = pinned.has(unit.id);
@@ -270,19 +270,19 @@ export const EquipmentCatalogPane = ({
                         <div
                           key={unit.id}
                           onClick={() => avail && onTogglePin(unit.id, group.id)}
-                          className={`flex items-center gap-3 pl-10 pr-3 py-1.5 border-t border-white/[0.04] transition-colors
-                            ${isPinned ? "bg-[#FFFF00]/[0.06]" : "hover:bg-white/[0.02]"} ${avail ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
+                          className={`flex items-center gap-3 pl-10 pr-3 py-1.5 border-t border-fg/[0.04] transition-colors
+                            ${isPinned ? "bg-brand/[0.06]" : "hover:bg-fg/[0.02]"} ${avail ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
                         >
                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                            ${isPinned ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20"}`}>
+                            ${isPinned ? "border-brand bg-brand" : "border-fg/20"}`}>
                             {isPinned && <Pin className="w-2.5 h-2.5 text-black" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs truncate ${isPinned ? "text-white/90" : "text-white/50"}`}>{unit.name}</p>
-                            <p className="text-[10px] text-white/60 font-mono">{unit.serialNumber ? `SN: ${unit.serialNumber}` : "—"}</p>
+                            <p className={`text-xs truncate ${isPinned ? "text-fg/90" : "text-fg/50"}`}>{unit.name}</p>
+                            <p className="text-[10px] text-fg/60 font-mono">{unit.serialNumber ? `SN: ${unit.serialNumber}` : "—"}</p>
                           </div>
-                          <span className="flex items-center gap-1.5 text-[10px] text-white/60 flex-shrink-0">
-                            <span className={`w-1.5 h-1.5 rounded-full ${statusDot[unit.status] ?? "bg-white/20"}`} />
+                          <span className="flex items-center gap-1.5 text-[10px] text-fg/60 flex-shrink-0">
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusDot[unit.status] ?? "bg-fg/20"}`} />
                             {unit.status}
                           </span>
                         </div>
@@ -297,8 +297,8 @@ export const EquipmentCatalogPane = ({
 
         {!isLoading && filteredGroups.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <Package className="w-8 h-8 text-white/40" />
-            <p className="text-xs text-white/60">ไม่พบอุปกรณ์</p>
+            <Package className="w-8 h-8 text-fg/40" />
+            <p className="text-xs text-fg/60">ไม่พบอุปกรณ์</p>
           </div>
         )}
       </div>
@@ -339,16 +339,16 @@ export const EquipmentCartPane = ({
   const totalPieces = Array.from(autoQty.values()).reduce((s, q) => s + q, 0) + pinned.size;
 
   return (
-    <div className="w-72 lg:w-80 flex-shrink-0 flex flex-col bg-[#0c0c0c]">
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2 flex-shrink-0">
-        <Boxes className="w-4 h-4 text-[#FFFF00]/70" />
-        <span className="text-sm font-bold text-white">ของในชุด</span>
-        {totalPieces > 0 && <span className="ml-auto text-[11px] font-bold text-[#FFFF00] bg-[#FFFF00]/10 px-2 py-0.5 rounded-full">{totalPieces} ชิ้น</span>}
+    <div className="w-72 lg:w-80 flex-shrink-0 flex flex-col bg-surface-1">
+      <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2 flex-shrink-0">
+        <Boxes className="w-4 h-4 text-brand/70" />
+        <span className="text-sm font-bold text-fg">ของในชุด</span>
+        {totalPieces > 0 && <span className="ml-auto text-[11px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">{totalPieces} ชิ้น</span>}
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {lines.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-center text-white/30">
+          <div className="flex flex-col items-center gap-2 py-12 text-center text-fg/30">
             <Boxes className="w-8 h-8" />
             <p className="text-xs">เลือกของจากด้านซ้าย<br />เพื่อเพิ่มเข้าชุด</p>
           </div>
@@ -356,13 +356,13 @@ export const EquipmentCartPane = ({
           const max = maxAvailFor(item!);
           const units = item!.units;
           return (
-            <div key={item!.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5">
+            <div key={item!.id} className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] p-2.5">
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-white/90 truncate">{item!.name}</p>
-                  <p className="text-[10px] text-white/40">{item!.brand}</p>
+                  <p className="text-xs font-semibold text-fg/90 truncate">{item!.name}</p>
+                  <p className="text-[10px] text-fg/40">{item!.brand}</p>
                 </div>
-                <button onClick={() => onClearItem(item!.id)} className="p-0.5 text-white/30 hover:text-red-400 transition-colors">
+                <button onClick={() => onClearItem(item!.id)} className="p-0.5 text-fg/30 hover:text-red-400 transition-colors">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -370,14 +370,14 @@ export const EquipmentCartPane = ({
               {/* auto qty line */}
               {qty > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-[10px] text-white/50 flex-1">จำนวน (auto-pick)</span>
+                  <span className="text-[10px] text-fg/50 flex-1">จำนวน (auto-pick)</span>
                   <button onClick={() => onAdjustAuto(item!.id, -1, max)}
-                    className="w-6 h-6 rounded-md border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30">
+                    className="w-6 h-6 rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30">
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className="w-6 text-center text-sm font-bold text-[#FFFF00] tabular-nums">{qty}</span>
+                  <span className="w-6 text-center text-sm font-bold text-brand tabular-nums">{qty}</span>
                   <button onClick={() => onAdjustAuto(item!.id, 1, max)} disabled={qty + pinnedUnits.length >= max}
-                    className="w-6 h-6 rounded-md border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 disabled:opacity-30">
+                    className="w-6 h-6 rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 disabled:opacity-30">
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
@@ -389,10 +389,10 @@ export const EquipmentCartPane = ({
                   {pinnedUnits.map((uid) => {
                     const u = units.find((x) => x.id === uid);
                     return (
-                      <div key={uid} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#FFFF00]/[0.06] border border-[#FFFF00]/20">
-                        <Pin className="w-2.5 h-2.5 text-[#FFFF00]/70 flex-shrink-0" />
-                        <span className="text-[10px] text-white/70 truncate flex-1">{u?.serialNumber || u?.name || uid}</span>
-                        <button onClick={() => onTogglePin(uid, item!.id)} className="text-white/30 hover:text-red-400">
+                      <div key={uid} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-brand/[0.06] border border-brand/20">
+                        <Pin className="w-2.5 h-2.5 text-brand/70 flex-shrink-0" />
+                        <span className="text-[10px] text-fg/70 truncate flex-1">{u?.serialNumber || u?.name || uid}</span>
+                        <button onClick={() => onTogglePin(uid, item!.id)} className="text-fg/30 hover:text-red-400">
                           <X className="w-3 h-3" />
                         </button>
                       </div>

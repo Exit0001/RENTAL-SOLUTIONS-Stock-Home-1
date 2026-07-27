@@ -76,18 +76,18 @@ export const ManageJobStockSetPane = ({ jobId, onApplied }: Props): JSX.Element 
   });
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col border-r border-white/[0.06]">
+    <div className="flex-1 min-w-0 flex flex-col border-r border-fg/[0.06]">
       {/* Search */}
       <div className="px-4 pt-4 pb-2 flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60" />
           <input
             autoFocus
             placeholder={t("addSetToJob.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white
-              placeholder-white/20 focus:outline-none focus:border-[#FFFF00]/40 transition-all"
+            className="w-full h-9 pl-9 pr-3 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg
+              placeholder-fg/20 focus:outline-none focus:border-brand/40 transition-all"
           />
         </div>
       </div>
@@ -101,14 +101,14 @@ export const ManageJobStockSetPane = ({ jobId, onApplied }: Props): JSX.Element 
               <div className="space-y-1 mt-1.5">
                 {shortfallInfo.shortfall.map((s) => (
                   <div key={s.stockItemId} className="flex items-center justify-between">
-                    <span className="text-[11px] text-white/70 truncate">{nameById[s.stockItemId] ?? "?"}</span>
+                    <span className="text-[11px] text-fg/70 truncate">{nameById[s.stockItemId] ?? "?"}</span>
                     <span className="text-[10px] text-amber-300/90 font-mono whitespace-nowrap ml-2">{t("addSetToJob.shortfallGot", { got: s.got, wanted: s.wanted })}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-white/50 mt-2">{t("addSetToJob.shortfallHint")}</p>
+              <p className="text-[10px] text-fg/50 mt-2">{t("addSetToJob.shortfallHint")}</p>
             </div>
-            <button onClick={() => setShortfallInfo(null)} className="text-white/40 hover:text-white transition-colors flex-shrink-0">
+            <button onClick={() => setShortfallInfo(null)} className="text-fg/40 hover:text-fg transition-colors flex-shrink-0">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -129,7 +129,7 @@ export const ManageJobStockSetPane = ({ jobId, onApplied }: Props): JSX.Element 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
         {isLoading && (
-          <div className="flex items-center justify-center gap-2 py-12 text-white/60">
+          <div className="flex items-center justify-center gap-2 py-12 text-fg/60">
             <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">{tc("loading")}</span>
           </div>
         )}
@@ -138,24 +138,24 @@ export const ManageJobStockSetPane = ({ jobId, onApplied }: Props): JSX.Element 
           <button key={s.id}
             onClick={() => { setError(null); applyMutation.mutate(s.id); }}
             disabled={applyMutation.isPending}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:border-[#FFFF00]/30 hover:bg-[#FFFF00]/[0.04] transition-all text-left disabled:opacity-40">
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-fg/[0.06] bg-fg/[0.02] hover:border-brand/30 hover:bg-brand/[0.04] transition-all text-left disabled:opacity-40">
             {s.imageUrl
               ? <img src={s.imageUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
-              : <div className="w-9 h-9 rounded-lg bg-[#FFFF00]/10 flex items-center justify-center flex-shrink-0"><Layers className="w-4 h-4 text-[#FFFF00]/60" /></div>}
+              : <div className="w-9 h-9 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0"><Layers className="w-4 h-4 text-brand/60" /></div>}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white/80 truncate">{s.name}</p>
-              <p className="text-[10px] text-white/60 mt-0.5">
+              <p className="text-sm font-semibold text-fg/80 truncate">{s.name}</p>
+              <p className="text-[10px] text-fg/60 mt-0.5">
                 {t("addSetToJob.itemsSummary", { count: s.itemCount, qty: s.totalQty })}{s.description ? ` · ${s.description}` : ""}
               </p>
             </div>
-            {applyMutation.isPending && applyMutation.variables === s.id && <Loader2 className="w-4 h-4 animate-spin text-[#FFFF00]/60" />}
+            {applyMutation.isPending && applyMutation.variables === s.id && <Loader2 className="w-4 h-4 animate-spin text-brand/60" />}
           </button>
         ))}
 
         {!isLoading && filtered.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <Boxes className="w-8 h-8 text-white/40" />
-            <p className="text-xs text-white/60">{sets.length === 0 ? t("addSetToJob.noSetsYet") : t("addSetToJob.noSetsFound")}</p>
+            <Boxes className="w-8 h-8 text-fg/40" />
+            <p className="text-xs text-fg/60">{sets.length === 0 ? t("addSetToJob.noSetsYet") : t("addSetToJob.noSetsFound")}</p>
           </div>
         )}
       </div>

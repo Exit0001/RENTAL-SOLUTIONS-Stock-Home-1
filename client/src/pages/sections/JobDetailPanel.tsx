@@ -34,8 +34,8 @@ interface Props {
 type DetailTab = "overview" | "stock" | "crew" | "pullsheets" | "incidents" | "finance";
 
 const statusStyles: Record<string, string> = {
-  draft: "bg-white/5 text-white/60", scheduled: "bg-blue-950/60 text-blue-400",
-  active: "bg-emerald-950/60 text-emerald-400", completed: "bg-white/5 text-white/60",
+  draft: "bg-fg/5 text-fg/60", scheduled: "bg-blue-950/60 text-blue-400",
+  active: "bg-emerald-950/60 text-emerald-400", completed: "bg-fg/5 text-fg/60",
   cancelled: "bg-red-950/60 text-red-400",
 };
 
@@ -84,12 +84,12 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
       await jobsApi.updatePhase(job.id, unitIds, phase);
       if (phase === "dispatched") await Promise.all(unitIds.map((id) => stockApi.updateUnit(id, { status: "out" })));
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["job-units", job.id] }); qc.invalidateQueries({ queryKey: ["stock"] }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["job-units", job.id] }); qc.invalidateQueries({ queryKey: ["stock"] }); qc.invalidateQueries({ queryKey: ["containers"] }); },
   });
   const updateStatus = useMutation({ mutationFn: (status: string) => jobsApi.update(job.id, { status: status as any }), onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }) });
   const updateImage = useMutation({ mutationFn: (url: string | null) => jobsApi.update(job.id, { imageUrl: url } as any), onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }) });
   const duplicateJob = useMutation({ mutationFn: () => jobsApi.duplicate(job.id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["stock"] }); toast({ title: t("jobDuplicated") }); }, onError: (e: any) => toast({ title: t("jobDuplicateFailed"), description: e?.message, variant: "destructive" }) });
-  const deleteJob = useMutation({ mutationFn: () => jobsApi.delete(job.id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["pull-sheets"] }); qc.invalidateQueries({ queryKey: ["stock"] }); setDeleteOpen(false); onDeleted(); } });
+  const deleteJob = useMutation({ mutationFn: () => jobsApi.delete(job.id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["pull-sheets"] }); qc.invalidateQueries({ queryKey: ["stock"] }); qc.invalidateQueries({ queryKey: ["containers"] }); setDeleteOpen(false); onDeleted(); } });
   const saveTemplate = useMutation({ mutationFn: (name: string) => jobTemplatesApi.saveFromJob(job.id, { name }), onSuccess: (res) => { qc.invalidateQueries({ queryKey: ["job-templates"] }); setTplOpen(false); setTplName(""); toast({ title: t("templateSaved"), description: t("templateSavedDesc", { count: res.itemCount }) }); } });
   const createPullSheet = useMutation({ mutationFn: (data: any) => jobsApi.createPullSheet(job.id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ["pull-sheets"] }) });
   const createIncident = useMutation({ mutationFn: (data: any) => jobsApi.createIncident(job.id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }) });
@@ -112,48 +112,48 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
     { key: "finance", label: "การเงิน" },
   ];
 
-  const SectionHint = ({ children }: { children: ReactNode }) => <p className="text-sm text-white/50 italic">{children}</p>;
+  const SectionHint = ({ children }: { children: ReactNode }) => <p className="text-sm text-fg/50 italic">{children}</p>;
 
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+      <div className="px-5 py-3 border-b border-fg/[0.06] flex-shrink-0">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="font-bold text-white text-base truncate">{job.name}</h2>
-            <div className="flex items-center gap-3 mt-1 text-xs text-white/60 flex-wrap">
+            <h2 className="font-bold text-fg text-base truncate">{job.name}</h2>
+            <div className="flex items-center gap-3 mt-1 text-xs text-fg/60 flex-wrap">
               <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{start} → {end}</span>
               {job.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.location}</span>}
-              <span className="text-white/50">{job.client}</span>
+              <span className="text-fg/50">{job.client}</span>
               {checkedOutCount > 0 && <span className="text-blue-400/70">{t("checkedOutCount", { count: checkedOutCount })}</span>}
             </div>
           </div>
           {canManage ? (
             <select value={job.status} onChange={(e) => updateStatus.mutate(e.target.value)}
-              className={`px-2 py-1 rounded-full text-[11px] font-semibold border-0 cursor-pointer focus:outline-none ${statusStyles[job.status] ?? "bg-white/5 text-white/60"}`}>
-              {["draft", "scheduled", "active", "completed", "cancelled"].map((s) => <option key={s} value={s} className="bg-[#111] text-white">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>)}
+              className={`px-2 py-1 rounded-full text-[11px] font-semibold border-0 cursor-pointer focus:outline-none ${statusStyles[job.status] ?? "bg-fg/5 text-fg/60"}`}>
+              {["draft", "scheduled", "active", "completed", "cancelled"].map((s) => <option key={s} value={s} className="bg-surface-1 text-fg">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>)}
             </select>
           ) : <span className={`px-2 py-1 rounded-full text-[11px] font-semibold ${statusStyles[job.status]}`}>{tc(`statusEnum.${job.status}`, { defaultValue: job.status })}</span>}
         </div>
 
         {/* Quick actions */}
         <div className="flex items-center gap-2 mt-3 flex-wrap">
-          <button onClick={() => setOpsOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-bold text-black hover:opacity-80" style={{ backgroundColor: "#FFFF00" }}><Layers className="w-3.5 h-3.5" /> Operations</button>
-          <button onClick={() => setManageStockOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white/70 border border-white/[0.12] hover:text-white hover:border-white/25"><Package className="w-3.5 h-3.5" /> {t("editUnits")}</button>
+          <button onClick={() => setOpsOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-bold text-black hover:opacity-80" style={{ backgroundColor: "var(--brand)" }}><Layers className="w-3.5 h-3.5" /> Operations</button>
+          <button onClick={() => setManageStockOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-fg/70 border border-fg/[0.12] hover:text-fg hover:border-fg/25"><Package className="w-3.5 h-3.5" /> {t("editUnits")}</button>
           {canManage && <>
-            <button onClick={() => { setTplName(job.name); setTplOpen(true); }} title={t("saveAsTemplate")} className="p-1.5 rounded-lg text-white/50 hover:text-[#FFFF00] hover:bg-white/[0.06]"><LayoutTemplate className="w-4 h-4" /></button>
-            <button onClick={() => duplicateJob.mutate()} disabled={duplicateJob.isPending} title={t("duplicateJob")} className="p-1.5 rounded-lg text-white/50 hover:text-[#FFFF00] hover:bg-white/[0.06] disabled:opacity-40">{duplicateJob.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}</button>
-            <button onClick={() => setDeleteOpen(true)} title={t("deleteJob")} className="p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-white/[0.06]"><Trash2 className="w-4 h-4" /></button>
+            <button onClick={() => { setTplName(job.name); setTplOpen(true); }} title={t("saveAsTemplate")} className="p-1.5 rounded-lg text-fg/50 hover:text-brand hover:bg-fg/[0.06]"><LayoutTemplate className="w-4 h-4" /></button>
+            <button onClick={() => duplicateJob.mutate()} disabled={duplicateJob.isPending} title={t("duplicateJob")} className="p-1.5 rounded-lg text-fg/50 hover:text-brand hover:bg-fg/[0.06] disabled:opacity-40">{duplicateJob.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}</button>
+            <button onClick={() => setDeleteOpen(true)} title={t("deleteJob")} className="p-1.5 rounded-lg text-fg/50 hover:text-red-400 hover:bg-fg/[0.06]"><Trash2 className="w-4 h-4" /></button>
           </>}
         </div>
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex items-center gap-1 px-4 border-b border-white/[0.06] flex-shrink-0 overflow-x-auto">
+      <div className="flex items-center gap-1 px-4 border-b border-fg/[0.06] flex-shrink-0 overflow-x-auto">
         {tabs.map((tb) => (
           <button key={tb.key} onClick={() => setTab(tb.key)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${tab === tb.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"}`}>
-            {tb.label}{tb.badge ? <span className="text-[10px] text-white/40">{tb.badge}</span> : null}
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${tab === tb.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"}`}>
+            {tb.label}{tb.badge ? <span className="text-[10px] text-fg/40">{tb.badge}</span> : null}
           </button>
         ))}
       </div>
@@ -170,9 +170,9 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
                 { label: "สถานที่", value: job.location || "—" },
                 { label: "วันซ้อม", value: job.rehearsalDate ? new Date(job.rehearsalDate).toLocaleDateString("th-TH") : "—" },
               ].map((f) => (
-                <div key={f.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">{f.label}</p>
-                  <p className="text-sm text-white/85 truncate mt-0.5">{f.value}</p>
+                <div key={f.label} className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] px-3 py-2.5">
+                  <p className="text-[10px] text-fg/40 uppercase tracking-wider">{f.label}</p>
+                  <p className="text-sm text-fg/85 truncate mt-0.5">{f.value}</p>
                 </div>
               ))}
             </div>
@@ -184,10 +184,10 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
                 { label: "รถ", n: jobVehicles.length, icon: Truck },
                 { label: "เช่านอก", n: jobSubRentals.length, icon: ArrowRightLeft },
               ].map((s) => (
-                <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-center">
-                  <s.icon className="w-4 h-4 text-[#FFFF00]/50 mx-auto" />
-                  <p className="text-lg font-bold text-white mt-1 tabular-nums">{s.n}</p>
-                  <p className="text-[10px] text-white/40">{s.label}</p>
+                <div key={s.label} className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] px-3 py-2.5 text-center">
+                  <s.icon className="w-4 h-4 text-brand/50 mx-auto" />
+                  <p className="text-lg font-bold text-fg mt-1 tabular-nums">{s.n}</p>
+                  <p className="text-[10px] text-fg/40">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -204,48 +204,48 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         {tab === "stock" && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => setRackBuildOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><ScanLine className="w-3.5 h-3.5" /> Build Racks</button>
+              <button onClick={() => setRackBuildOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><ScanLine className="w-3.5 h-3.5" /> Build Racks</button>
             </div>
             {/* Racks */}
             <div>
-              <p className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Layers className="w-3.5 h-3.5" /> {t("racksLabel")}</p>
-              {containersLoading ? <Loader2 className="w-4 h-4 animate-spin text-white/40" /> : jobContainers.length === 0 ? <SectionHint>{t("noRacksAssigned")}</SectionHint> : (
+              <p className="text-[10px] font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Layers className="w-3.5 h-3.5" /> {t("racksLabel")}</p>
+              {containersLoading ? <Loader2 className="w-4 h-4 animate-spin text-fg/40" /> : jobContainers.length === 0 ? <SectionHint>{t("noRacksAssigned")}</SectionHint> : (
                 <div className="flex flex-wrap gap-2">
                   {(jobContainers as any[]).map((c) => (
-                    <div key={c.id} className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03]">
-                      <Layers className="w-4 h-4 text-[#FFFF00]/60" /><span className="text-sm text-white/80">{c.name}</span><span className="text-xs text-white/50">{t("itemsCount", { count: c.itemCount })}</span>
-                      <button onClick={() => removeContainer.mutate(c.id)} disabled={removeContainer.isPending} className="p-1 rounded text-white/50 hover:text-red-400 disabled:opacity-40"><X className="w-3.5 h-3.5" /></button>
+                    <div key={c.id} className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-lg border border-fg/[0.08] bg-fg/[0.03]">
+                      <Layers className="w-4 h-4 text-brand/60" /><span className="text-sm text-fg/80">{c.name}</span><span className="text-xs text-fg/50">{t("itemsCount", { count: c.itemCount })}</span>
+                      <button onClick={() => removeContainer.mutate(c.id)} disabled={removeContainer.isPending} className="p-1 rounded text-fg/50 hover:text-red-400 disabled:opacity-40"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
             {/* Stock phase checklist */}
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-white/40" /> : grouped.length === 0 ? <SectionHint>{t("noUnitsAssignedHint", { editUnits: t("editUnits") })}</SectionHint> : (
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-fg/40" /> : grouped.length === 0 ? <SectionHint>{t("noUnitsAssignedHint", { editUnits: t("editUnits") })}</SectionHint> : (
               <div>
                 {(() => {
                   const all = assignedUnits as any[];
                   const c = (p: string) => all.filter((u) => (u.phase ?? "planned") === p).length;
-                  const cells = [["phasePlanned", c("planned"), "bg-white/10 text-white/70"], ["phasePrepared", c("prepared"), "bg-amber-500/20 text-amber-400"], ["phaseDispatched", c("dispatched"), "bg-blue-500/20 text-blue-400"], ["phaseReturned", c("returned"), "bg-emerald-500/20 text-emerald-400"]] as const;
+                  const cells = [["phasePlanned", c("planned"), "bg-fg/10 text-fg/70"], ["phasePrepared", c("prepared"), "bg-amber-500/20 text-amber-400"], ["phaseDispatched", c("dispatched"), "bg-blue-500/20 text-blue-400"], ["phaseReturned", c("returned"), "bg-emerald-500/20 text-emerald-400"]] as const;
                   return (
-                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/[0.06] flex-wrap">
-                      {cells.map(([k, n, cls], i) => (<span key={k} className="flex items-center gap-2">{i > 0 && <ChevronRight className="w-3 h-3 text-white/25" />}<span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${n > 0 ? cls : "bg-white/5 text-white/30"}`}>{t(k)} {n}</span></span>))}
+                    <div className="flex items-center gap-2 mb-4 pb-3 border-b border-fg/[0.06] flex-wrap">
+                      {cells.map(([k, n, cls], i) => (<span key={k} className="flex items-center gap-2">{i > 0 && <ChevronRight className="w-3 h-3 text-fg/25" />}<span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${n > 0 ? cls : "bg-fg/5 text-fg/30"}`}>{t(k)} {n}</span></span>))}
                     </div>
                   );
                 })()}
                 <div className="space-y-4">
                   {grouped.map(([itemName, units]) => (
                     <div key={itemName}>
-                      <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-white/[0.06]"><p className="text-xs font-bold text-[#FFFF00]/60 uppercase tracking-wider flex-1 truncate">{itemName}</p><span className="text-xs text-white/50">{units.length}</span></div>
+                      <div className="flex items-center gap-2 mb-1.5 pb-1 border-b border-fg/[0.06]"><p className="text-xs font-bold text-brand/60 uppercase tracking-wider flex-1 truncate">{itemName}</p><span className="text-xs text-fg/50">{units.length}</span></div>
                       {units.map((u: any) => {
                         const phase = u.phase ?? "planned";
                         const next = phase === "prepared" ? "dispatched" : null;
                         return (
-                          <div key={u.id} className="flex items-center gap-3 py-1.5 border-b border-white/[0.03] last:border-0">
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${phase === "returned" ? "bg-emerald-400" : phase === "dispatched" ? "bg-blue-400" : phase === "prepared" ? "bg-amber-400" : "bg-white/20"}`} />
-                            <div className="flex-1 min-w-0"><p className="text-sm text-white/80 truncate">{u.name}</p>{u.serialNumber && <p className="text-[11px] text-white/45 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>}</div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${phase === "returned" ? "bg-emerald-500/15 text-emerald-400" : phase === "dispatched" ? "bg-blue-500/15 text-blue-400" : phase === "prepared" ? "bg-amber-500/15 text-amber-400" : "bg-white/5 text-white/40"}`}>{t(`phase_${phase}`)}</span>
-                            {next && canManage && <button onClick={() => updatePhase.mutate({ unitIds: [u.id], phase: next as any })} disabled={updatePhase.isPending} className="p-1 rounded text-white/25 hover:text-amber-400 disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5" /></button>}
+                          <div key={u.id} className="flex items-center gap-3 py-1.5 border-b border-fg/[0.03] last:border-0">
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${phase === "returned" ? "bg-emerald-400" : phase === "dispatched" ? "bg-blue-400" : phase === "prepared" ? "bg-amber-400" : "bg-fg/20"}`} />
+                            <div className="flex-1 min-w-0"><p className="text-sm text-fg/80 truncate">{u.name}</p>{u.serialNumber && <p className="text-[11px] text-fg/45 font-mono truncate">{t("snLabel", { serial: u.serialNumber })}</p>}</div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${phase === "returned" ? "bg-emerald-500/15 text-emerald-400" : phase === "dispatched" ? "bg-blue-500/15 text-blue-400" : phase === "prepared" ? "bg-amber-500/15 text-amber-400" : "bg-fg/5 text-fg/40"}`}>{t(`phase_${phase}`)}</span>
+                            {next && canManage && <button onClick={() => updatePhase.mutate({ unitIds: [u.id], phase: next as any })} disabled={updatePhase.isPending} className="p-1 rounded text-fg/25 hover:text-amber-400 disabled:opacity-30"><ChevronRight className="w-3.5 h-3.5" /></button>}
                           </div>
                         );
                       })}
@@ -256,7 +256,7 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
             )}
             {/* Unit event history */}
             <div>
-              <p className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Clock className="w-3.5 h-3.5" /> {t("unitEventsLabel")}</p>
+              <p className="text-[10px] font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Clock className="w-3.5 h-3.5" /> {t("unitEventsLabel")}</p>
               <JobUnitEventsSection jobId={job.id} startDate={job.startDate} endDate={job.endDate} />
             </div>
           </div>
@@ -267,39 +267,39 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
           <div className="space-y-5">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2"><Users className="w-3.5 h-3.5" /> {t("crewLabel")}</p>
-                <button onClick={() => setAssignCrewOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><UserPlus className="w-3.5 h-3.5" /> {t("assignCrew")}</button>
+                <p className="text-[10px] font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2"><Users className="w-3.5 h-3.5" /> {t("crewLabel")}</p>
+                <button onClick={() => setAssignCrewOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><UserPlus className="w-3.5 h-3.5" /> {t("assignCrew")}</button>
               </div>
-              {crewLoading ? <Loader2 className="w-4 h-4 animate-spin text-white/40" /> : jobCrew.length === 0 ? <SectionHint>{t("noCrewAssigned")}</SectionHint> : (
+              {crewLoading ? <Loader2 className="w-4 h-4 animate-spin text-fg/40" /> : jobCrew.length === 0 ? <SectionHint>{t("noCrewAssigned")}</SectionHint> : (
                 <div className="space-y-1">{jobCrew.map((c) => (
-                  <div key={c.crewMemberId} className="group/c flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/[0.03]">
-                    <div className="w-7 h-7 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-[10px] font-bold text-[#FFFF00]/80 flex-shrink-0">{c.initials}</div>
-                    <span className="text-sm text-white/85 flex-1 truncate">{c.name}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-white/60 bg-white/[0.06]">{CREW_TYPE_LABEL[c.type]}</span>
-                    {canManage && <button onClick={() => removeCrew.mutate(c.crewMemberId)} disabled={removeCrew.isPending} className="opacity-0 group-hover/c:opacity-100 p-1 text-white/40 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>}
+                  <div key={c.crewMemberId} className="group/c flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-fg/[0.03]">
+                    <div className="w-7 h-7 rounded-full bg-brand/10 flex items-center justify-center text-[10px] font-bold text-brand/80 flex-shrink-0">{c.initials}</div>
+                    <span className="text-sm text-fg/85 flex-1 truncate">{c.name}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold text-fg/60 bg-fg/[0.06]">{CREW_TYPE_LABEL[c.type]}</span>
+                    {canManage && <button onClick={() => removeCrew.mutate(c.crewMemberId)} disabled={removeCrew.isPending} className="opacity-0 group-hover/c:opacity-100 p-1 text-fg/40 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>}
                   </div>
                 ))}</div>
               )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2"><Truck className="w-3.5 h-3.5" /> {t("vehiclesLabel")}</p>
-                <button onClick={() => setAddVehicleOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><Plus className="w-3.5 h-3.5" /> {t("addVehicle")}</button>
+                <p className="text-[10px] font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2"><Truck className="w-3.5 h-3.5" /> {t("vehiclesLabel")}</p>
+                <button onClick={() => setAddVehicleOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><Plus className="w-3.5 h-3.5" /> {t("addVehicle")}</button>
               </div>
-              {vehiclesLoading ? <Loader2 className="w-4 h-4 animate-spin text-white/40" /> : jobVehicles.length === 0 ? <SectionHint>{t("noVehiclesAssigned")}</SectionHint> : (
+              {vehiclesLoading ? <Loader2 className="w-4 h-4 animate-spin text-fg/40" /> : jobVehicles.length === 0 ? <SectionHint>{t("noVehiclesAssigned")}</SectionHint> : (
                 <div className="space-y-1">{jobVehicles.map((v) => (
-                  <div key={v.id} className="group/v flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/[0.03]">
-                    <Truck className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
-                    <span className="text-sm text-white/85 flex-1 truncate">{v.vehicleType}{v.plate && <span className="text-white/40"> · {v.plate}</span>}</span>
-                    {v.driverName && <span className="text-xs text-white/50 truncate max-w-[120px]">🧑‍✈️ {v.driverName}</span>}
-                    {canManage && <button onClick={() => removeVehicle.mutate(v.id)} disabled={removeVehicle.isPending} className="opacity-0 group-hover/v:opacity-100 p-1 text-white/40 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>}
+                  <div key={v.id} className="group/v flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-fg/[0.03]">
+                    <Truck className="w-4 h-4 text-brand/50 flex-shrink-0" />
+                    <span className="text-sm text-fg/85 flex-1 truncate">{v.vehicleType}{v.plate && <span className="text-fg/40"> · {v.plate}</span>}</span>
+                    {v.driverName && <span className="text-xs text-fg/50 truncate max-w-[120px]">🧑‍✈️ {v.driverName}</span>}
+                    {canManage && <button onClick={() => removeVehicle.mutate(v.id)} disabled={removeVehicle.isPending} className="opacity-0 group-hover/v:opacity-100 p-1 text-fg/40 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>}
                   </div>
                 ))}</div>
               )}
-              <p className="text-[11px] text-white/30 mt-2">จัดทีม/รถแบบละเอียด (ตำแหน่ง/คนขับ/เหมา) ได้ที่เมนู "ทีมงาน"</p>
+              <p className="text-[11px] text-fg/30 mt-2">จัดทีม/รถแบบละเอียด (ตำแหน่ง/คนขับ/เหมา) ได้ที่เมนู "ทีมงาน"</p>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Calendar className="w-3.5 h-3.5" /> {t("dailyScheduleLabel")}</p>
+              <p className="text-[10px] font-bold text-brand/60 uppercase tracking-wider flex items-center gap-2 mb-2"><Calendar className="w-3.5 h-3.5" /> {t("dailyScheduleLabel")}</p>
               <JobDailyScheduleSection jobId={job.id} startDate={job.startDate} endDate={job.endDate} jobCrew={jobCrew} canManage={canManage} />
             </div>
           </div>
@@ -308,14 +308,14 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         {/* ── PULL SHEETS ── */}
         {tab === "pullsheets" && (
           <div className="space-y-3">
-            <button onClick={() => setPullSheetOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><Plus className="w-3.5 h-3.5" /> {t("createPullSheet")}</button>
+            <button onClick={() => setPullSheetOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><Plus className="w-3.5 h-3.5" /> {t("createPullSheet")}</button>
             {pullSheets.length === 0 ? <SectionHint>{t("noPullSheetsYet")}</SectionHint> : (
               <div className="space-y-1.5">{pullSheets.map((ps) => (
-                <div key={ps.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <FileText className="w-4 h-4 text-[#FFFF00]/50 flex-shrink-0" />
-                  <span className="font-mono text-[#FFFF00]/70 text-xs flex-shrink-0">{ps.id.slice(0, 8)}</span>
-                  <span className="text-sm text-white/80 flex-1 min-w-0 truncate">{ps.items} รายการ</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[ps.status] ?? "bg-white/5 text-white/60"}`}>{tc(`statusEnum.${ps.status}`, { defaultValue: ps.status })}</span>
+                <div key={ps.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-fg/[0.06] bg-fg/[0.02]">
+                  <FileText className="w-4 h-4 text-brand/50 flex-shrink-0" />
+                  <span className="font-mono text-brand/70 text-xs flex-shrink-0">{ps.id.slice(0, 8)}</span>
+                  <span className="text-sm text-fg/80 flex-1 min-w-0 truncate">{ps.items} รายการ</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[ps.status] ?? "bg-fg/5 text-fg/60"}`}>{tc(`statusEnum.${ps.status}`, { defaultValue: ps.status })}</span>
                 </div>
               ))}</div>
             )}
@@ -325,11 +325,11 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         {/* ── INCIDENTS ── */}
         {tab === "incidents" && (
           <div className="space-y-3">
-            <button onClick={() => setIncidentOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><Camera className="w-3.5 h-3.5" /> {t("reportIncident")}</button>
+            <button onClick={() => setIncidentOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><Camera className="w-3.5 h-3.5" /> {t("reportIncident")}</button>
             {incidents.length === 0 ? <SectionHint>{t("noIncidentsYet", { defaultValue: "ยังไม่มีเหตุการณ์สำหรับงานนี้" })}</SectionHint> : (
               <div className="space-y-1.5">{incidents.map((inc: any) => (
-                <div key={inc.id} className="px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <div className="flex items-center gap-2"><span className="text-sm text-white/85 flex-1 truncate">{inc.description || inc.title || "—"}</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${inc.status === "resolved" ? "bg-emerald-950/60 text-emerald-400" : "bg-red-950/60 text-red-400"}`}>{tc(`statusEnum.${inc.status}`, { defaultValue: inc.status })}</span></div>
+                <div key={inc.id} className="px-3 py-2 rounded-lg border border-fg/[0.06] bg-fg/[0.02]">
+                  <div className="flex items-center gap-2"><span className="text-sm text-fg/85 flex-1 truncate">{inc.description || inc.title || "—"}</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${inc.status === "resolved" ? "bg-emerald-950/60 text-emerald-400" : "bg-red-950/60 text-red-400"}`}>{tc(`statusEnum.${inc.status}`, { defaultValue: inc.status })}</span></div>
                 </div>
               ))}</div>
             )}
@@ -340,13 +340,13 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         {tab === "finance" && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => setExpensesOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><Wallet className="w-3.5 h-3.5" /> {t("outsourceExpenses")}</button>
-              <button onClick={() => setSubRentalsOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-[#FFFF00]/80 border border-[#FFFF00]/25 hover:bg-[#FFFF00]/10"><ArrowRightLeft className="w-3.5 h-3.5" /> {t("manageSubRentals")}</button>
+              <button onClick={() => setExpensesOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><Wallet className="w-3.5 h-3.5" /> {t("outsourceExpenses")}</button>
+              <button onClick={() => setSubRentalsOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><ArrowRightLeft className="w-3.5 h-3.5" /> {t("manageSubRentals")}</button>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 flex items-center gap-2">
-              <ArrowRightLeft className="w-4 h-4 text-[#FFFF00]/50" />
-              <span className="text-sm text-white/70 flex-1">{t("subRentalsLabel")}</span>
-              <span className="text-sm text-white/50">{jobSubRentals.length === 0 ? t("noSubRentalsAssigned") : t("subRentalsCount", { count: jobSubRentals.length })}</span>
+            <div className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] px-3 py-2.5 flex items-center gap-2">
+              <ArrowRightLeft className="w-4 h-4 text-brand/50" />
+              <span className="text-sm text-fg/70 flex-1">{t("subRentalsLabel")}</span>
+              <span className="text-sm text-fg/50">{jobSubRentals.length === 0 ? t("noSubRentalsAssigned") : t("subRentalsCount", { count: jobSubRentals.length })}</span>
             </div>
           </div>
         )}
@@ -368,7 +368,7 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
           <AlertDialogHeader><AlertDialogTitle>{t("confirmDeleteJobTitle")}</AlertDialogTitle><AlertDialogDescription>{t("confirmDeleteJobDesc")}</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteJob.isPending}>{tc("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteJob.mutate()} disabled={deleteJob.isPending} className="bg-red-600 hover:bg-red-700 text-white">{deleteJob.isPending ? tc("deleting") : tc("delete")}</AlertDialogAction>
+            <AlertDialogAction onClick={() => deleteJob.mutate()} disabled={deleteJob.isPending} className="bg-red-600 hover:bg-red-700 text-fg">{deleteJob.isPending ? tc("deleting") : tc("delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -377,10 +377,10 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>{t("saveAsTemplate")}</AlertDialogTitle><AlertDialogDescription>{t("saveTemplateDesc", { defaultValue: "บันทึกรายการอุปกรณ์ของงานนี้เป็นเทมเพลตเพื่อใช้ซ้ำในงานถัดไป" })}</AlertDialogDescription></AlertDialogHeader>
           <input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t("templateNamePlaceholder")}
-            className="w-full h-9 px-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm text-white focus:outline-none focus:border-[#FFFF00]/50" />
+            className="w-full h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/10 text-sm text-fg focus:outline-none focus:border-brand/50" />
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saveTemplate.isPending}>{tc("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => tplName.trim() && saveTemplate.mutate(tplName.trim())} disabled={saveTemplate.isPending || !tplName.trim()} className="bg-[#FFFF00] text-black hover:opacity-80">{saveTemplate.isPending ? tc("saving") : tc("save")}</AlertDialogAction>
+            <AlertDialogAction onClick={() => tplName.trim() && saveTemplate.mutate(tplName.trim())} disabled={saveTemplate.isPending || !tplName.trim()} className="bg-brand text-black hover:opacity-80">{saveTemplate.isPending ? tc("saving") : tc("save")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

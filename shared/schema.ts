@@ -61,6 +61,9 @@ export const companies = pgTable("companies", {
   // LINE group push notifications — ส่งข้อความเข้ากลุ่ม LINE เมื่อมีงานใหม่
   lineChannelAccessToken: text("line_channel_access_token"),
   lineGroupId:            text("line_group_id"),
+
+  // โลโก้บริษัท — แสดงใน header แทนตัวอักษร "STAK" (ต่อบริษัท, อัปโหลดได้ที่ Settings → ทั่วไป)
+  companyLogoUrl: text("company_logo_url"),
 });
 
 // ─────────────────────────────────────────────

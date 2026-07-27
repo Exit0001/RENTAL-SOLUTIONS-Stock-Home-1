@@ -23,9 +23,9 @@ type JobRow = {
 };
 
 const inputCls =
-  "w-full h-9 px-3 rounded-lg bg-black/40 border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/40 transition-colors";
+  "w-full h-9 px-3 rounded-lg bg-black/40 border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/40 transition-colors";
 const dateCls = `${inputCls} [color-scheme:dark]`;
-const labelCls = "text-[10px] text-white/50 uppercase tracking-wider font-medium";
+const labelCls = "text-[10px] text-fg/50 uppercase tracking-wider font-medium";
 
 interface Props {
   onClose: () => void;
@@ -158,7 +158,7 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
           <div className="flex flex-col gap-1.5">
             <label className={labelCls}>ลูกค้า (ค่าเริ่มต้น)</label>
             <input value={defClient} onChange={(e) => setDefClient(e.target.value)} placeholder="เช่น Event Co. Ltd." className={inputCls} />
-            <p className="text-[9px] text-white/30">ใส่ต่อแถวได้ถ้าลูกค้าต่างกัน</p>
+            <p className="text-[9px] text-fg/30">ใส่ต่อแถวได้ถ้าลูกค้าต่างกัน</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className={labelCls}>สถานที่</label>
@@ -171,7 +171,7 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
                 <button
                   key={s}
                   onClick={() => setStatus(s)}
-                  className={`flex-1 h-8 rounded-lg text-xs font-bold capitalize transition-colors ${status === s ? "bg-[#FFFF00] text-black" : "bg-white/5 text-white/60 hover:text-white"}`}
+                  className={`flex-1 h-8 rounded-lg text-xs font-bold capitalize transition-colors ${status === s ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}
                 >
                   {s === "draft" ? "ฉบับร่าง" : "กำหนดการแล้ว"}
                 </button>
@@ -181,7 +181,7 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
           {templates.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <label className={`${labelCls} flex items-center gap-1.5`}>
-                <LayoutTemplate className="w-3 h-3 text-[#FFFF00]/60" /> จากเทมเพลต
+                <LayoutTemplate className="w-3 h-3 text-brand/60" /> จากเทมเพลต
               </label>
               <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={`${inputCls} [color-scheme:dark]`}>
                 <option value="">ไม่ใช้เทมเพลต</option>
@@ -192,14 +192,14 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
             </div>
           )}
           {templateId && (
-            <p className="text-[10px] text-[#FFFF00]/70">อุปกรณ์จากเทมเพลตจะถูกเพิ่มให้ทุกงานที่สร้าง</p>
+            <p className="text-[10px] text-brand/70">อุปกรณ์จากเทมเพลตจะถูกเพิ่มให้ทุกงานที่สร้าง</p>
           )}
         </div>
       }
       footer={
         <>
           <div className="flex flex-col gap-1">
-            <div className="text-sm text-white/70 font-medium">รวม {validRows.length} งาน</div>
+            <div className="text-sm text-fg/70 font-medium">รวม {validRows.length} งาน</div>
             {shortfallWarn !== null && shortfallWarn > 0 && (
               <span className="text-[11px] text-amber-400">อุปกรณ์ไม่พอ {shortfallWarn} รายการ (สร้างงานแล้ว)</span>
             )}
@@ -213,11 +213,11 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
         </>
       }
     >
-      <div className="flex items-center gap-2 px-6 py-2.5 border-b border-white/[0.06] flex-shrink-0">
-        <span className="text-xs font-bold text-white/50">รายการงานที่จะสร้าง</span>
+      <div className="flex items-center gap-2 px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
+        <span className="text-xs font-bold text-fg/50">รายการงานที่จะสร้าง</span>
         <button
           onClick={addRow}
-          className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 flex items-center gap-1.5 transition-colors"
+          className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold text-brand border border-brand/30 hover:bg-brand/10 flex items-center gap-1.5 transition-colors"
         >
           <Plus className="w-3 h-3" />เพิ่มงาน
         </button>
@@ -227,12 +227,12 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
 
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3">
         {rows.map((r, i) => (
-          <div key={r.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 flex flex-col gap-2">
+          <div key={r.id} className="rounded-xl border border-fg/[0.08] bg-fg/[0.02] p-3 flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-white/30">#{i + 1}</span>
+              <span className="text-[11px] text-fg/30">#{i + 1}</span>
               <button
                 onClick={() => rmRow(r.id)}
-                className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-fg/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -243,15 +243,15 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] text-white/40">วันซ้อม</span>
+                <span className="text-[9px] text-fg/40">วันซ้อม</span>
                 <input type="date" value={r.rehearsalDate} onChange={(e) => setRow(r.id, { rehearsalDate: e.target.value })} className={dateCls} />
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] text-white/40">วันที่เริ่ม *</span>
+                <span className="text-[9px] text-fg/40">วันที่เริ่ม *</span>
                 <input type="date" value={r.startDate} onChange={(e) => setRow(r.id, { startDate: e.target.value })} className={dateCls} />
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] text-white/40">วันที่สิ้นสุด *</span>
+                <span className="text-[9px] text-fg/40">วันที่สิ้นสุด *</span>
                 <input type="date" value={r.endDate} onChange={(e) => setRow(r.id, { endDate: e.target.value })} className={dateCls} />
               </div>
             </div>
@@ -259,25 +259,25 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
             <button
               type="button"
               onClick={() => setRow(r.id, { detailsOpen: !r.detailsOpen })}
-              className="flex items-center gap-1.5 text-[11px] font-semibold text-[#FFFF00]/70 hover:text-[#FFFF00] self-start mt-0.5"
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-brand/70 hover:text-brand self-start mt-0.5"
             >
               {r.detailsOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               ทีมงาน / รถ / ตารางรายวัน
               {!r.detailsOpen && (r.crewMemberIds.length + r.vehicleIds.length > 0) && (
-                <span className="text-white/40 font-normal">({r.crewMemberIds.length} คน · {r.vehicleIds.length} รถ)</span>
+                <span className="text-fg/40 font-normal">({r.crewMemberIds.length} คน · {r.vehicleIds.length} รถ)</span>
               )}
             </button>
 
             {r.detailsOpen && (
-              <div className="mt-1 pt-2 border-t border-white/[0.06] flex flex-col gap-3">
+              <div className="mt-1 pt-2 border-t border-fg/[0.06] flex flex-col gap-3">
                 <div>
-                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">ทีมงาน</p>
+                  <p className="text-[9px] text-fg/40 uppercase tracking-wider mb-1">ทีมงาน</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {namedCrew.length === 0 ? <span className="text-[11px] text-white/30">ไม่มีทีมงานในคลัง</span> : namedCrew.map((c) => {
+                    {namedCrew.length === 0 ? <span className="text-[11px] text-fg/30">ไม่มีทีมงานในคลัง</span> : namedCrew.map((c) => {
                       const on = r.crewMemberIds.includes(c.id);
                       return (
                         <button key={c.id} type="button" onClick={() => toggleRowCrew(r.id, c.id)}
-                          className={`h-6 px-2 rounded-full text-[11px] font-semibold border transition-colors ${on ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}>
+                          className={`h-6 px-2 rounded-full text-[11px] font-semibold border transition-colors ${on ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}>
                           {c.name}
                         </button>
                       );
@@ -285,13 +285,13 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
                   </div>
                 </div>
                 <div>
-                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">รถ</p>
+                  <p className="text-[9px] text-fg/40 uppercase tracking-wider mb-1">รถ</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {activeVehicles.length === 0 ? <span className="text-[11px] text-white/30">ไม่มีรถในคลัง</span> : activeVehicles.map((v) => {
+                    {activeVehicles.length === 0 ? <span className="text-[11px] text-fg/30">ไม่มีรถในคลัง</span> : activeVehicles.map((v) => {
                       const on = r.vehicleIds.includes(v.id);
                       return (
                         <button key={v.id} type="button" onClick={() => toggleRowVehicle(r.id, v.id)}
-                          className={`h-6 px-2 rounded-full text-[11px] font-semibold border transition-colors ${on ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}>
+                          className={`h-6 px-2 rounded-full text-[11px] font-semibold border transition-colors ${on ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}>
                           {v.name}
                         </button>
                       );
@@ -299,7 +299,7 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
                   </div>
                 </div>
                 <div>
-                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">ตารางรายวัน</p>
+                  <p className="text-[9px] text-fg/40 uppercase tracking-wider mb-1">ตารางรายวัน</p>
                   <JobDailyScheduleDraftEditor
                     startDate={r.startDate}
                     endDate={r.endDate}
@@ -317,7 +317,7 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
 
         <button
           onClick={addRow}
-          className="w-full h-10 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/60 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
+          className="w-full h-10 rounded-xl border border-dashed border-fg/15 hover:border-brand/50 text-fg/60 hover:text-brand text-sm font-medium flex items-center justify-center gap-2 transition-all"
         >
           <Plus className="w-4 h-4" />เพิ่มงาน
         </button>

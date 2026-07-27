@@ -117,16 +117,16 @@ const InputField = ({
   const Icon = icon;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
+      <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">{label}</label>
       <div className="relative">
-        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60 pointer-events-none" />}
+        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60 pointer-events-none" />}
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/60
-            focus:outline-none focus:border-[#FFFF00]/40 transition-colors ${Icon ? "pl-9 pr-3" : "px-3"}`}
+          className={`w-full h-9 bg-black/40 border border-fg/10 rounded-lg text-sm text-fg placeholder:text-fg/60
+            focus:outline-none focus:border-brand/40 transition-colors ${Icon ? "pl-9 pr-3" : "px-3"}`}
         />
       </div>
     </div>
@@ -141,15 +141,15 @@ const SelectField = ({
   const { t: tc } = useTranslation("common");
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
+      <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3
-          focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
+        className="w-full h-9 bg-black/40 border border-fg/10 rounded-lg text-sm text-fg px-3
+          focus:outline-none focus:border-brand/40 transition-colors appearance-none cursor-pointer"
       >
-        <option value="" className="bg-[#111]">{tc("selectPlaceholder")}</option>
-        {options.map((o) => <option key={o} value={o} className="bg-[#111]">{o}</option>)}
+        <option value="" className="bg-surface-1">{tc("selectPlaceholder")}</option>
+        {options.map((o) => <option key={o} value={o} className="bg-surface-1">{o}</option>)}
       </select>
     </div>
   );
@@ -168,9 +168,9 @@ const SearchableSelectField = ({
   const filtered = query.trim() ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase())) : options;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{label}</label>
+      <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">{label}</label>
       <div className="relative">
-        {open && !disabled && <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60 pointer-events-none" />}
+        {open && !disabled && <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60 pointer-events-none" />}
         <input
           value={open ? query : value}
           onChange={(e) => { setQuery(e.target.value); if (!open) setOpen(true); }}
@@ -178,20 +178,20 @@ const SearchableSelectField = ({
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           disabled={disabled}
           placeholder={disabled ? disabledHint : (value || tc("selectPlaceholder"))}
-          className={`w-full h-9 bg-black/40 border border-white/10 rounded-lg text-sm text-white
-            placeholder:text-white/40 focus:outline-none focus:border-[#FFFF00]/40 transition-colors
+          className={`w-full h-9 bg-black/40 border border-fg/10 rounded-lg text-sm text-fg
+            placeholder:text-fg/40 focus:outline-none focus:border-brand/40 transition-colors
             disabled:opacity-50 disabled:cursor-not-allowed ${open && !disabled ? "pl-9 pr-8" : "px-3 pr-8"}`}
         />
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40 pointer-events-none" />
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/40 pointer-events-none" />
         {open && !disabled && (
-          <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-[#111] border border-white/10 rounded-lg shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-surface-1 border border-fg/10 rounded-lg shadow-xl overflow-hidden max-h-52 overflow-y-auto">
             {filtered.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-white/50 italic">{tc("noResults")}</div>
+              <div className="px-3 py-2 text-xs text-fg/50 italic">{tc("noResults")}</div>
             ) : filtered.map((o) => (
               <button
                 key={o}
                 onMouseDown={() => { onChange(o); setQuery(""); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${o === value ? "text-[#FFFF00] bg-[#FFFF00]/10" : "text-white/70 hover:bg-[#FFFF00]/10 hover:text-[#FFFF00]"}`}
+                className={`w-full text-left px-3 py-2 text-sm transition-colors ${o === value ? "text-brand bg-brand/10" : "text-fg/70 hover:bg-brand/10 hover:text-brand"}`}
               >
                 {o}
               </button>
@@ -204,8 +204,8 @@ const SearchableSelectField = ({
 };
 
 const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5">
-    <h4 className="text-xs font-bold text-[#FFFF00]/80 uppercase tracking-widest mb-4">{title}</h4>
+  <div className="bg-fg/[0.02] border border-fg/[0.06] rounded-xl p-5">
+    <h4 className="text-xs font-bold text-brand/80 uppercase tracking-widest mb-4">{title}</h4>
     {children}
   </div>
 );
@@ -254,13 +254,13 @@ const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, 
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{tc("description")}</label>
+        <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">{tc("description")}</label>
         <textarea
           value={data.description}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
           placeholder={t("addNewItem.descriptionPlaceholder")}
           rows={3}
-          className="w-full bg-black/40 border border-white/10 rounded-lg text-sm text-white px-3 py-2.5 placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40 transition-colors resize-none"
+          className="w-full bg-black/40 border border-fg/10 rounded-lg text-sm text-fg px-3 py-2.5 placeholder:text-fg/60 focus:outline-none focus:border-brand/40 transition-colors resize-none"
         />
       </div>
       <FileUploadField label={t("addNewItem.itemImage")} folder="stock-items" companyId={companyId}
@@ -268,7 +268,7 @@ const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, 
 
       {/* Tracking mode */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">
+        <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">
           {t("addNewItem.trackingModeLabel")}
         </label>
         <div className="flex gap-2">
@@ -279,10 +279,10 @@ const GeneralTab = ({ data, onChange, companyId, brandOptions, categoryOptions, 
               onClick={() => onChange({ ...data, trackingMode: mode })}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                 data.trackingMode === mode
-                  ? "border-[#FFFF00] text-black"
-                  : "border-white/10 text-white/60 hover:border-white/30 hover:text-white"
+                  ? "border-brand text-black"
+                  : "border-fg/10 text-fg/60 hover:border-fg/30 hover:text-fg"
               }`}
-              style={data.trackingMode === mode ? { backgroundColor: "#FFFF00" } : undefined}
+              style={data.trackingMode === mode ? { backgroundColor: "var(--brand)" } : undefined}
             >
               {mode === "unit" ? t("addNewItem.trackingModeUnit") : t("addNewItem.trackingModeBulk")}
             </button>
@@ -392,7 +392,7 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
       <SectionCard title={t("addNewItem.dynamicAttributesTitle")}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("addNewItem.selectSpecTemplate")}</label>
+            <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">{t("addNewItem.selectSpecTemplate")}</label>
             <div className="grid grid-cols-4 gap-2">
               {Object.entries(SPEC_TEMPLATES).map(([key, tmpl]) => {
                 const Icon = tmpl.icon;
@@ -400,7 +400,7 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
                 return (
                   <button key={key} onClick={() => onChange({ ...data, template: key })}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                      active ? "border-[#FFFF00]/50 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white"}`}>
+                      active ? "border-brand/50 bg-brand/10 text-brand" : "border-fg/10 bg-fg/[0.02] text-fg/60 hover:border-fg/20 hover:text-fg"}`}>
                     <Icon className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="truncate">{tmpl.label}</span>
                   </button>
@@ -431,15 +431,15 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
             <input value={newCustomLabel} onChange={(e) => setNewCustomLabel(e.target.value)}
               placeholder={t("addNewItem.addCustomSpecPlaceholder")}
               onKeyDown={(e) => e.key === "Enter" && addCustomField()}
-              className="flex-1 h-8 bg-black/40 border border-dashed border-white/10 rounded-lg text-sm text-white px-3 placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/30 transition-colors" />
+              className="flex-1 h-8 bg-black/40 border border-dashed border-fg/10 rounded-lg text-sm text-fg px-3 placeholder:text-fg/60 focus:outline-none focus:border-brand/30 transition-colors" />
             <button onClick={addCustomField}
-              className="h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/60 hover:text-[#FFFF00] text-xs flex items-center gap-1.5 transition-all">
+              className="h-8 px-3 rounded-lg border border-dashed border-fg/10 hover:border-brand/30 text-fg/60 hover:text-brand text-xs flex items-center gap-1.5 transition-all">
               <Plus className="w-3 h-3" /> {t("addNewItem.addField")}
             </button>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] text-white/60 uppercase tracking-wider font-medium">{t("addNewItem.protocolTags")}</label>
+            <label className="text-[10px] text-fg/60 uppercase tracking-wider font-medium">{t("addNewItem.protocolTags")}</label>
             <div className="flex flex-wrap gap-2">
               {allProtocolOptions.map((tag) => {
                 const active = data.protocolTags.includes(tag);
@@ -447,10 +447,10 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
                 return (
                   <button key={tag} onClick={() => toggleTag(tag)}
                     className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${
-                      active ? "border-[#FFFF00]/50 bg-[#FFFF00]/10 text-[#FFFF00]" : "border-white/10 text-white/60 hover:border-white/20 hover:text-white"}`}>
+                      active ? "border-brand/50 bg-brand/10 text-brand" : "border-fg/10 text-fg/60 hover:border-fg/20 hover:text-fg"}`}>
                     {isCustom && <span className="text-[8px] opacity-60">★</span>}
                     {tag}
-                    {active && <span className="text-[#FFFF00]/60">×</span>}
+                    {active && <span className="text-brand/60">×</span>}
                   </button>
                 );
               })}
@@ -461,10 +461,10 @@ const SpecsTab = ({ data, onChange }: { data: SpecsData; onChange: (d: SpecsData
                 onChange={(e) => setNewTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addProtocolTag()}
                 placeholder={t("addNewItem.addCustomProtocolPlaceholder")}
-                className="flex-1 h-8 bg-black/40 border border-dashed border-white/10 rounded-lg text-xs text-white px-3 placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/30 transition-colors"
+                className="flex-1 h-8 bg-black/40 border border-dashed border-fg/10 rounded-lg text-xs text-fg px-3 placeholder:text-fg/60 focus:outline-none focus:border-brand/30 transition-colors"
               />
               <button onClick={addProtocolTag}
-                className="h-8 px-3 rounded-lg border border-dashed border-white/10 hover:border-[#FFFF00]/30 text-white/60 hover:text-[#FFFF00] text-xs flex items-center gap-1.5 transition-all flex-shrink-0">
+                className="h-8 px-3 rounded-lg border border-dashed border-fg/10 hover:border-brand/30 text-fg/60 hover:text-brand text-xs flex items-center gap-1.5 transition-all flex-shrink-0">
                 <Plus className="w-3 h-3" /> {t("addNewItem.addTag")}
               </button>
             </div>
@@ -510,7 +510,7 @@ const DocsTab = ({ data, onChange, companyId }: { data: DocsData; onChange: (d: 
           <FileUploadField label={t("addNewItem.purchaseInvoice")} folder="stock-items" companyId={companyId}
             value={data.invoiceUrl} onChange={(url) => onChange({ ...data, invoiceUrl: url })} />
         </div>
-        <p className="text-[10px] text-white/60 mt-3">{t("addNewItem.acceptedFormatsHint")}</p>
+        <p className="text-[10px] text-fg/60 mt-3">{t("addNewItem.acceptedFormatsHint")}</p>
       </SectionCard>
     </div>
   );
@@ -615,29 +615,29 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
       style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-3xl bg-[#0f0f0f] border border-white/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-3xl bg-surface-1 border border-fg/[0.08] rounded-2xl shadow-2xl animate-modal-up flex flex-col max-h-[92vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-fg/[0.06] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFFF00" }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
               {isEdit ? <Pencil className="w-4 h-4 text-black" /> : <Plus className="w-4 h-4 text-black" />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">
+              <h2 className="text-base font-bold text-fg">
                 {isEdit ? t("addNewItem.editTitle", { name: initialItem!.name }) : t("addNewItem.addTitle")}
               </h2>
-              <p className="text-[10px] text-white/60 capitalize">{t(TAB_LABEL_KEYS[activeTab])}</p>
+              <p className="text-[10px] text-fg/60 capitalize">{t(TAB_LABEL_KEYS[activeTab])}</p>
             </div>
           </div>
           <button onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors">
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab nav */}
-        <div className="flex items-center px-6 border-b border-white/[0.06] flex-shrink-0 overflow-x-auto">
+        <div className="flex items-center px-6 border-b border-fg/[0.06] flex-shrink-0 overflow-x-auto">
           {TABS.map((tab, i) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
@@ -645,7 +645,7 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
             return (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className={`flex items-center gap-1.5 px-3 py-3 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  isActive ? "border-[#FFFF00] text-[#FFFF00]" : isDone ? "border-transparent text-white/60 hover:text-white" : "border-transparent text-white/60 hover:text-white"}`}>
+                  isActive ? "border-brand text-brand" : isDone ? "border-transparent text-fg/60 hover:text-fg" : "border-transparent text-fg/60 hover:text-fg"}`}>
                 <Icon className="w-3.5 h-3.5" />
                 {t(TAB_LABEL_KEYS[tab.key])}
               </button>
@@ -667,24 +667,24 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-fg/[0.06] flex-shrink-0">
           <button
             onClick={() => canGoPrev && setActiveTab(tabOrder[currentIdx - 1])}
             disabled={!canGoPrev}
-            className="h-9 px-4 rounded-lg border border-white/10 text-sm text-white/60 hover:text-white hover:border-white/20 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+            className="h-9 px-4 rounded-lg border border-fg/10 text-sm text-fg/60 hover:text-fg hover:border-fg/20 transition-colors disabled:opacity-0 disabled:pointer-events-none"
           >
             {tc("back")}
           </button>
           <div className="flex items-center gap-1.5">
             {tabOrder.map((k, i) => (
-              <span key={k} className={`w-1.5 h-1.5 rounded-full transition-all ${i === currentIdx ? "bg-[#FFFF00] w-4" : i < currentIdx ? "bg-[#FFFF00]/40" : "bg-white/10"}`} />
+              <span key={k} className={`w-1.5 h-1.5 rounded-full transition-all ${i === currentIdx ? "bg-brand w-4" : i < currentIdx ? "bg-brand/40" : "bg-fg/10"}`} />
             ))}
           </div>
           {canGoNext ? (
             <button
               onClick={() => setActiveTab(tabOrder[currentIdx + 1])}
               className="h-9 px-5 rounded-lg text-sm font-bold text-black flex items-center gap-2 transition-opacity hover:opacity-80"
-              style={{ backgroundColor: "#FFFF00" }}
+              style={{ backgroundColor: "var(--brand)" }}
             >
               {tc("next")} <ChevronRight className="w-4 h-4" />
             </button>
@@ -692,7 +692,7 @@ export const AddNewItemModal = ({ onClose, onSubmit, initialItem }: AddNewItemMo
             <button
               onClick={handleSave}
               className="h-9 px-6 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-80"
-              style={{ backgroundColor: "#FFFF00" }}
+              style={{ backgroundColor: "var(--brand)" }}
             >
               {t("addNewItem.saveItem")}
             </button>

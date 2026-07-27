@@ -74,7 +74,7 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   available:   { bg: "bg-emerald-950/60", text: "text-emerald-400", dot: "bg-emerald-400" },
   out:         { bg: "bg-blue-950/60",    text: "text-blue-400",    dot: "bg-blue-400" },
   maintenance: { bg: "bg-amber-950/60",   text: "text-amber-400",   dot: "bg-amber-400" },
-  retired:     { bg: "bg-white/5",        text: "text-white/60",    dot: "bg-white/20" },
+  retired:     { bg: "bg-fg/5",        text: "text-fg/60",    dot: "bg-fg/20" },
   sold:        { bg: "bg-red-950/60",     text: "text-red-400",     dot: "bg-red-400" },
 };
 
@@ -207,7 +207,12 @@ export const StockPage = (): JSX.Element => {
 
   const createMaintenanceLog = useMutation({
     mutationFn: (data: Parameters<typeof maintenanceApi.createBatch>[0]) => maintenanceApi.createBatch(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["maintenance"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["maintenance"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
+    },
   });
 
   const updateMaintenanceLog = useMutation({
@@ -215,6 +220,9 @@ export const StockPage = (): JSX.Element => {
       maintenanceApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["maintenance"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
       setEditingLogId(null);
     },
   });
@@ -223,6 +231,9 @@ export const StockPage = (): JSX.Element => {
     mutationFn: (id: string) => maintenanceApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["maintenance"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
       setDeleteLogTarget(null);
     },
   });
@@ -231,7 +242,9 @@ export const StockPage = (): JSX.Element => {
     mutationFn: (ids: string[]) => maintenanceApi.updateStatusBatch(ids, "completed"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["maintenance"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
       qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
       setSelectedLogIds(new Set());
     },
   });
@@ -240,7 +253,9 @@ export const StockPage = (): JSX.Element => {
     mutationFn: (ids: string[]) => maintenanceApi.deleteBatch(ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["maintenance"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
       qc.invalidateQueries({ queryKey: ["stock-with-units"] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
       setSelectedLogIds(new Set());
       setBulkDeleteLogsOpen(false);
     },
@@ -355,7 +370,9 @@ export const StockPage = (): JSX.Element => {
     mutationFn: async (p: QuickAddPayload) => {
       const slug = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "") || "ITEM";
       const toIso = (d: string | null) => (d ? new Date(d).toISOString() : null);
-      for (const row of p.rows) {
+      // สร้างแต่ละรุ่นพร้อมกัน (ไม่รอทีละรุ่น) — แต่ละรุ่นไม่ผูกกัน ทำแบบ sequential แล้ว
+      // ช้าโดยไม่จำเป็น เพราะ round-trip ไปยัง Supabase pooler คือต้นทุนหลัก
+      await Promise.all(p.rows.map(async (row) => {
         const item = await stockApi.create({
           name: row.name,
           brand: row.brand,
@@ -384,7 +401,7 @@ export const StockPage = (): JSX.Element => {
           });
           await stockApi.addUnitsBatch(item.id, units as Parameters<typeof stockApi.addUnitsBatch>[1]);
         }
-      }
+      }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stock"] });
@@ -483,9 +500,9 @@ export const StockPage = (): JSX.Element => {
       {addSetsOpen && <AddSetsModal onClose={() => setAddSetsOpen(false)} />}
       {disposeOpen && <DisposeModal onClose={() => setDisposeOpen(false)} />}
 
-      <div className="flex items-center gap-1 px-4 pt-3 border-b border-white/[0.06] bg-[#0f0f0f]">
+      <div className="flex items-center gap-1 px-4 pt-3 border-b border-fg/[0.06] bg-surface-1">
         {stockTabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"}`} data-testid={`tab-stock-${tab.key}`}>
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"}`} data-testid={`tab-stock-${tab.key}`}>
             <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
           </button>
         ))}
@@ -550,18 +567,18 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "containers" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => setRackBuildOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold border border-[#FFFF00]/40 text-[#FFFF00] transition-opacity hover:opacity-90 hover:bg-[#FFFF00]/10"
+                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold border border-brand/40 text-brand transition-opacity hover:opacity-90 hover:bg-brand/10"
               >
                 <ScanLine className="w-4 h-4" /> Rack Build Mode
               </button>
               <button
                 onClick={() => setAddContainerOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "#FFFF00" }}
+                style={{ backgroundColor: "var(--brand)" }}
               >
                 <Plus className="w-4 h-4" /> {t("addContainer")}
               </button>
@@ -570,7 +587,7 @@ export const StockPage = (): JSX.Element => {
 
           <div className="flex-1 overflow-auto p-4">
           {containers.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-16 text-center text-white/40">
+            <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
               <Layers className="w-10 h-10" />
               <p className="text-sm">{t("noContainersYet")}</p>
             </div>
@@ -581,32 +598,32 @@ export const StockPage = (): JSX.Element => {
                 const isOut = c.isOut;
                 const readyCount = c.items.filter((i) => i.status === "available").length;
                 return (
-                  <div key={c.id} className={`rounded-xl border bg-[#111] overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-white/[0.08] hover:border-[#FFFF00]/30"}`} data-testid={`container-${c.id}`}>
+                  <div key={c.id} className={`rounded-xl border bg-surface-1 overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-fg/[0.08] hover:border-brand/30"}`} data-testid={`container-${c.id}`}>
                     <div className="flex">
                       {c.imageUrl
                         ? <img src={c.imageUrl} alt="" className="w-24 h-24 object-cover flex-shrink-0" />
                         : (
-                          <div className={`w-24 h-24 flex items-center justify-center flex-shrink-0 ${isOut ? "bg-blue-500/[0.06]" : "bg-[#FFFF00]/[0.06]"}`}>
-                            <Layers className={`w-6 h-6 ${isOut ? "text-blue-400/40" : "text-[#FFFF00]/40"}`} />
+                          <div className={`w-24 h-24 flex items-center justify-center flex-shrink-0 ${isOut ? "bg-blue-500/[0.06]" : "bg-brand/[0.06]"}`}>
+                            <Layers className={`w-6 h-6 ${isOut ? "text-blue-400/40" : "text-brand/40"}`} />
                           </div>
                         )}
                       <div className="flex-1 min-w-0 p-3 flex flex-col">
                         <div onClick={() => toggleContainer(c.id)} className="cursor-pointer hover:opacity-80 transition-opacity">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-sm font-bold text-white truncate">{c.name}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isOut ? "bg-blue-500/15 text-blue-400" : "bg-[#FFFF00]/10 text-[#FFFF00]/70"}`}>{c.type}</span>
+                            <span className="text-sm font-bold text-fg truncate">{c.name}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isOut ? "bg-blue-500/15 text-blue-400" : "bg-brand/10 text-brand/70"}`}>{c.type}</span>
                             {isOut && (
                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400">
                                 {c.jobName ? t("outOnJob", { jobName: c.jobName }) : t("checkedOut")}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-white/50 mt-0.5">
-                            <ChevronRightIcon className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-90 text-[#FFFF00]" : ""}`} />
+                          <div className="flex items-center gap-1.5 text-[11px] text-fg/50 mt-0.5">
+                            <ChevronRightIcon className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-90 text-brand" : ""}`} />
                             <span className="truncate">{c.location}</span>
                             {c.barcode && <span className="font-mono truncate">{c.barcode}</span>}
                           </div>
-                          <p className="text-[11px] text-white/40 mt-0.5">
+                          <p className="text-[11px] text-fg/40 mt-0.5">
                             {c.items.length > 0
                               ? t("readyOfTotal", { ready: readyCount, total: c.items.length })
                               : <span className="italic">{t("emptyAssignBelow")}</span>}
@@ -616,7 +633,7 @@ export const StockPage = (): JSX.Element => {
                         <div className="mt-auto flex items-center gap-2 pt-2 flex-wrap">
                           <button
                             onClick={() => setAssignContainer(c)}
-                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors"
+                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
                             title={t("assignItemsTooltip")}
                           >
                             <PackagePlus className="w-3 h-3" /> {t("assign")}
@@ -624,7 +641,7 @@ export const StockPage = (): JSX.Element => {
                           {canManage && (
                             <button
                               onClick={() => setEditContainerTarget(c)}
-                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors"
+                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
                               title={t("editContainer")}
                             >
                               <Pencil className="w-3 h-3" /> {tc("edit")}
@@ -643,9 +660,9 @@ export const StockPage = (): JSX.Element => {
                       </div>
                     </div>
                     {expanded && (
-                      <div className="border-t border-white/[0.06]">
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
-                          <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{t("equipmentLabel")}</span>
+                      <div className="border-t border-fg/[0.06]">
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-fg/[0.06]">
+                          <span className="text-[10px] font-bold text-fg/40 uppercase tracking-wider">{t("equipmentLabel")}</span>
                           <button
                             onClick={() => toggleContainerCheckout.mutate(c.id)}
                             disabled={toggleContainerCheckout.isPending}
@@ -659,16 +676,16 @@ export const StockPage = (): JSX.Element => {
                           </button>
                         </div>
                         {c.items.length === 0 ? (
-                          <div className="flex items-center gap-2 px-4 py-3 text-xs text-white/60 italic">
+                          <div className="flex items-center gap-2 px-4 py-3 text-xs text-fg/60 italic">
                             <PackagePlus className="w-3.5 h-3.5" />
                             {t("noItemsAssigned")}
                           </div>
                         ) : (
                           c.items.map((item, i) => (
-                            <div key={item.id} className="animate-slide-down flex items-center gap-2 px-4 py-2 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
-                              <span className="text-xs text-white/60 flex-1 truncate">{item.name}</span>
-                              <span className="text-[10px] text-white/50 flex-shrink-0">{item.category}</span>
-                              <span className="text-[10px] font-mono text-white/50 flex-shrink-0">{item.serialNumber ?? "—"}</span>
+                            <div key={item.id} className="animate-slide-down flex items-center gap-2 px-4 py-2 border-b border-fg/[0.03] last:border-0 hover:bg-fg/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
+                              <span className="text-xs text-fg/60 flex-1 truncate">{item.name}</span>
+                              <span className="text-[10px] text-fg/50 flex-shrink-0">{item.category}</span>
+                              <span className="text-[10px] font-mono text-fg/50 flex-shrink-0">{item.serialNumber ?? "—"}</span>
                               <StatusBadge status={item.status} />
                             </div>
                           ))
@@ -693,7 +710,7 @@ export const StockPage = (): JSX.Element => {
                 <AlertDialogAction
                   onClick={() => deleteContainerTarget && deleteContainer.mutate(deleteContainerTarget.id)}
                   disabled={deleteContainer.isPending}
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  className="bg-red-600 hover:bg-red-700 text-fg"
                 >
                   {deleteContainer.isPending ? tc("deleting") : tc("delete")}
                 </AlertDialogAction>
@@ -706,15 +723,15 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "sets" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
-            <Boxes className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
-            <span className="text-sm font-semibold text-white/50">{t("tabSets")}</span>
-            <span className="text-xs text-white/60">{equipmentSets.length}</span>
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
+            <Boxes className="w-4 h-4 text-brand/60 flex-shrink-0" />
+            <span className="text-sm font-semibold text-fg/50">{t("tabSets")}</span>
+            <span className="text-xs text-fg/60">{equipmentSets.length}</span>
             <div className="ml-auto">
               <button
                 onClick={() => setAddSetsOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "#FFFF00" }}
+                style={{ backgroundColor: "var(--brand)" }}
               >
                 <Plus className="w-4 h-4" /> สร้างชุด
               </button>
@@ -724,26 +741,26 @@ export const StockPage = (): JSX.Element => {
           {/* Grid of sets */}
           <div className="flex-1 overflow-auto p-4">
             {equipmentSets.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-center text-white/40">
+              <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
                 <Boxes className="w-10 h-10" />
                 <p className="text-sm">ยังไม่มีชุดอุปกรณ์ — คลิก "สร้างชุด" เพื่อรวมของที่ใช้ด้วยกันบ่อยๆ เป็นชุดเดียว</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {equipmentSets.map((s) => (
-                  <div key={s.id} className="rounded-xl border border-white/[0.08] bg-[#111] overflow-hidden hover:border-[#FFFF00]/30 transition-colors">
+                  <div key={s.id} className="rounded-xl border border-fg/[0.08] bg-surface-1 overflow-hidden hover:border-brand/30 transition-colors">
                     <div className="flex">
                       {s.imageUrl
                         ? <img src={s.imageUrl} alt="" className="w-24 h-24 object-cover flex-shrink-0" />
-                        : <div className="w-24 h-24 bg-[#FFFF00]/[0.06] flex items-center justify-center flex-shrink-0"><Layers className="w-6 h-6 text-[#FFFF00]/40" /></div>}
+                        : <div className="w-24 h-24 bg-brand/[0.06] flex items-center justify-center flex-shrink-0"><Layers className="w-6 h-6 text-brand/40" /></div>}
                       <div className="flex-1 min-w-0 p-3 flex flex-col">
-                        <p className="text-sm font-bold text-white truncate">{s.name}</p>
-                        <p className="text-[11px] text-white/50 mt-0.5">{s.itemCount} รายการ · {s.totalQty} ชิ้น</p>
-                        {s.description && <p className="text-[11px] text-white/40 mt-1 line-clamp-2">{s.description}</p>}
+                        <p className="text-sm font-bold text-fg truncate">{s.name}</p>
+                        <p className="text-[11px] text-fg/50 mt-0.5">{s.itemCount} รายการ · {s.totalQty} ชิ้น</p>
+                        {s.description && <p className="text-[11px] text-fg/40 mt-1 line-clamp-2">{s.description}</p>}
                         <div className="mt-auto flex items-center gap-2 pt-2">
                           <button
                             onClick={() => { setEditingSetId(s.id); setSetBuilderOpen(true); }}
-                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors"
+                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
                           >
                             <Pencil className="w-3 h-3" /> แก้ไข
                           </button>
@@ -777,7 +794,7 @@ export const StockPage = (): JSX.Element => {
                 <AlertDialogAction
                   onClick={() => deleteSetTarget && deleteSet.mutate(deleteSetTarget.id)}
                   disabled={deleteSet.isPending}
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  className="bg-red-600 hover:bg-red-700 text-fg"
                 >
                   {deleteSet.isPending ? tc("deleting") : tc("delete")}
                 </AlertDialogAction>
@@ -790,13 +807,13 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "maintenance" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
-            <Wrench className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0" />
-            <span className="text-sm font-semibold text-white/50">{t("maintenanceLog")}</span>
-            <span className="text-xs text-white/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
+            <Wrench className="w-4 h-4 text-brand/60 flex-shrink-0" />
+            <span className="text-sm font-semibold text-fg/50">{t("maintenanceLog")}</span>
+            <span className="text-xs text-fg/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
             {canManage && selectedLogIds.size > 0 && (
               <div className="flex items-center gap-2 animate-fade-in">
-                <span className="text-xs text-[#FFFF00]/70 font-semibold">{t("selectedLogsCount", { count: selectedLogIds.size })}</span>
+                <span className="text-xs text-brand/70 font-semibold">{t("selectedLogsCount", { count: selectedLogIds.size })}</span>
                 <button
                   onClick={() => bulkCompleteLogs.mutate(Array.from(selectedLogIds))}
                   disabled={bulkCompleteLogs.isPending}
@@ -817,7 +834,7 @@ export const StockPage = (): JSX.Element => {
               <button
                 onClick={() => setAddMaintenanceLogOpen(true)}
                 className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "#FFFF00" }}
+                style={{ backgroundColor: "var(--brand)" }}
               >
                 <Plus className="w-4 h-4" /> {t("addLog")}
               </button>
@@ -825,15 +842,15 @@ export const StockPage = (): JSX.Element => {
           </div>
 
           <div className="flex-1 overflow-auto p-6">
-          <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-[#FFFF00]" />
-              <span className="font-bold text-[#FFFF00] text-xs tracking-widest uppercase">{t("maintenanceLog")}</span>
-              <span className="text-[10px] text-white/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
+          <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-brand" />
+              <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("maintenanceLog")}</span>
+              <span className="text-[10px] text-fg/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10px] text-[#FFFF00]/50 uppercase tracking-wider">
+                <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                   {canManage && <th className="py-2.5 pl-4 w-8" />}
                   <th className={`py-2.5 text-left font-semibold ${canManage ? "" : "pl-4"}`}>{t("colAsset")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colType")}</th>
@@ -848,16 +865,16 @@ export const StockPage = (): JSX.Element => {
               <tbody>
                 {maintenanceLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={`msk-${i}`} className="animate-pulse border-b border-white/[0.04]">
-                      {canManage && <td className="py-2.5 pl-4"><div className="h-3.5 w-3.5 rounded bg-white/[0.06]" /></td>}
-                      <td className={`py-2.5 ${canManage ? "" : "pl-4"}`}><div className="h-3 rounded bg-white/[0.06] w-28" /></td>
-                      <td className="py-2.5"><div className="h-5 rounded bg-white/[0.05] w-16" /></td>
-                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04]" style={{ width: `${100 + (i * 27) % 100}px` }} /></td>
-                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04] w-20" /></td>
-                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.04] w-16" /></td>
-                      <td className="py-2.5"><div className="h-3 rounded bg-white/[0.05] w-10" /></td>
-                      <td className="py-2.5"><div className="h-5 rounded-full bg-white/[0.06] w-20" /></td>
-                      <td className="py-2.5 pr-4 text-right"><div className="h-3 rounded bg-white/[0.05] w-16 ml-auto" /></td>
+                    <tr key={`msk-${i}`} className="animate-pulse border-b border-fg/[0.04]">
+                      {canManage && <td className="py-2.5 pl-4"><div className="h-3.5 w-3.5 rounded bg-fg/[0.06]" /></td>}
+                      <td className={`py-2.5 ${canManage ? "" : "pl-4"}`}><div className="h-3 rounded bg-fg/[0.06] w-28" /></td>
+                      <td className="py-2.5"><div className="h-5 rounded bg-fg/[0.05] w-16" /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-fg/[0.04]" style={{ width: `${100 + (i * 27) % 100}px` }} /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-fg/[0.04] w-20" /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-fg/[0.04] w-16" /></td>
+                      <td className="py-2.5"><div className="h-3 rounded bg-fg/[0.05] w-10" /></td>
+                      <td className="py-2.5"><div className="h-5 rounded-full bg-fg/[0.06] w-20" /></td>
+                      <td className="py-2.5 pr-4 text-right"><div className="h-3 rounded bg-fg/[0.05] w-16 ml-auto" /></td>
                     </tr>
                   ))
                 ) : groupedMaintenanceLogs.map(([category, logs]) => {
@@ -869,7 +886,7 @@ export const StockPage = (): JSX.Element => {
                   return (
                   <Fragment key={category}>
                     <tr
-                      className="cursor-pointer bg-white/[0.03] hover:bg-white/[0.05] border-b border-white/[0.08] transition-colors select-none"
+                      className="cursor-pointer bg-fg/[0.03] hover:bg-fg/[0.05] border-b border-fg/[0.08] transition-colors select-none"
                       onClick={() => toggleMaintenanceCategory(category)}
                     >
                       <td colSpan={canManage ? 9 : 8} className="py-2.5 px-4">
@@ -880,16 +897,16 @@ export const StockPage = (): JSX.Element => {
                               aria-checked={catAllSelected}
                               onClick={(e) => { e.stopPropagation(); toggleCategorySelection(logs); }}
                               className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
-                                ${catAllSelected ? "border-[#FFFF00] bg-[#FFFF00]" : catSomeSelected ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" : "border-white/20"}`}
+                                ${catAllSelected ? "border-brand bg-brand" : catSomeSelected ? "border-brand/60 bg-brand/20" : "border-fg/20"}`}
                             >
                               {catAllSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
-                              {catSomeSelected && <div className="w-1.5 h-0.5 bg-[#FFFF00] rounded-full" />}
+                              {catSomeSelected && <div className="w-1.5 h-0.5 bg-brand rounded-full" />}
                             </div>
                           )}
-                          <ChevronRightIcon className={`w-3.5 h-3.5 flex-shrink-0 text-[#FFFF00]/60 transition-transform duration-200 ${isCatOpen ? "rotate-90" : ""}`} />
-                          <Wrench className="w-3.5 h-3.5 text-[#FFFF00]/40 flex-shrink-0" />
-                          <span className="font-bold text-xs text-[#FFFF00]">{categoryLabel}</span>
-                          <span className="text-[11px] text-white/60">{t("recordsCount", { count: logs.length })}</span>
+                          <ChevronRightIcon className={`w-3.5 h-3.5 flex-shrink-0 text-brand/60 transition-transform duration-200 ${isCatOpen ? "rotate-90" : ""}`} />
+                          <Wrench className="w-3.5 h-3.5 text-brand/40 flex-shrink-0" />
+                          <span className="font-bold text-xs text-brand">{categoryLabel}</span>
+                          <span className="text-[11px] text-fg/60">{t("recordsCount", { count: logs.length })}</span>
                           <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                             inProgressCount > 0 ? "bg-amber-950/40 text-amber-500" : "bg-emerald-950/40 text-emerald-500"
                           }`}>
@@ -902,7 +919,7 @@ export const StockPage = (): JSX.Element => {
                     {isCatOpen && logs.map((log: any) => {
                   const isEditing = editingLogId === log.id;
                   return (
-                  <tr key={log.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors" data-testid={`maintenance-${log.id}`}>
+                  <tr key={log.id} className="border-b border-fg/[0.04] hover:bg-fg/[0.02] transition-colors" data-testid={`maintenance-${log.id}`}>
                     {canManage && (
                       <td className="py-2.5 pl-4">
                         <div
@@ -910,29 +927,29 @@ export const StockPage = (): JSX.Element => {
                           aria-checked={selectedLogIds.has(log.id)}
                           onClick={() => toggleLogSelection(log.id)}
                           className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
-                            ${selectedLogIds.has(log.id) ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20"}`}
+                            ${selectedLogIds.has(log.id) ? "border-brand bg-brand" : "border-fg/20"}`}
                         >
                           {selectedLogIds.has(log.id) && <Check className="w-2 h-2 text-black" strokeWidth={3} />}
                         </div>
                       </td>
                     )}
-                    <td className={`py-2.5 font-mono text-[#FFFF00]/70 text-xs ${canManage ? "" : "pl-4"}`}>
+                    <td className={`py-2.5 font-mono text-brand/70 text-xs ${canManage ? "" : "pl-4"}`}>
                       {log.stockUnitId ? (unitLookup.get(log.stockUnitId) ?? log.stockUnitId) : t("generalLog")}
                     </td>
                     <td className="py-2.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        log.type === "repair" ? "bg-red-500/10 text-red-400" : log.type === "preventive" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-white/60"
+                        log.type === "repair" ? "bg-red-500/10 text-red-400" : log.type === "preventive" ? "bg-blue-500/10 text-blue-400" : "bg-fg/5 text-fg/60"
                       }`}>{tc(`statusEnum.${log.type}`, { defaultValue: log.type })}</span>
                     </td>
-                    <td className="py-2.5 text-white/50 max-w-[250px] truncate">{log.description}</td>
-                    <td className="py-2.5 text-white/60 text-xs">{new Date(log.date).toLocaleDateString("en-GB")}</td>
-                    <td className="py-2.5 text-white/50">{log.techId ? (crewLookup.get(log.techId) ?? "—") : "—"}</td>
-                    <td className="py-2.5 text-white/60 font-semibold">
+                    <td className="py-2.5 text-fg/50 max-w-[250px] truncate">{log.description}</td>
+                    <td className="py-2.5 text-fg/60 text-xs">{new Date(log.date).toLocaleDateString("en-GB")}</td>
+                    <td className="py-2.5 text-fg/50">{log.techId ? (crewLookup.get(log.techId) ?? "—") : "—"}</td>
+                    <td className="py-2.5 text-fg/60 font-semibold">
                       {isEditing ? (
                         <input
                           type="number"
                           step="0.01"
-                          className="h-7 w-24 bg-black/50 border border-white/10 rounded px-2 text-xs text-white focus:outline-none focus:border-[#FFFF00]/40 transition-colors"
+                          className="h-7 w-24 bg-black/50 border border-fg/10 rounded px-2 text-xs text-fg focus:outline-none focus:border-brand/40 transition-colors"
                           value={logForm.cost}
                           onChange={(e) => setLogForm((f) => ({ ...f, cost: e.target.value }))}
                           placeholder={t("costPlaceholder")}
@@ -942,7 +959,7 @@ export const StockPage = (): JSX.Element => {
                           {log.cost ? `£${log.cost}` : "—"}
                           {log.receiptUrl && (
                             <a href={log.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
-                              className="text-white/60 hover:text-[#FFFF00] transition-colors">
+                              className="text-fg/60 hover:text-brand transition-colors">
                               <Receipt className="w-3 h-3" />
                             </a>
                           )}
@@ -952,12 +969,12 @@ export const StockPage = (): JSX.Element => {
                     <td className="py-2.5 text-right">
                       {isEditing ? (
                         <select
-                          className="h-7 w-full bg-black/50 border border-white/10 rounded px-2 text-xs text-white focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer"
+                          className="h-7 w-full bg-black/50 border border-fg/10 rounded px-2 text-xs text-fg focus:outline-none focus:border-brand/40 transition-colors appearance-none cursor-pointer"
                           value={logForm.status}
                           onChange={(e) => setLogForm((f) => ({ ...f, status: e.target.value }))}
                         >
-                          <option value="in_progress" className="bg-[#111]">{tc("statusEnum.in_progress")}</option>
-                          <option value="completed" className="bg-[#111]">{tc("statusEnum.completed")}</option>
+                          <option value="in_progress" className="bg-surface-1">{tc("statusEnum.in_progress")}</option>
+                          <option value="completed" className="bg-surface-1">{tc("statusEnum.completed")}</option>
                         </select>
                       ) : (
                         <span className={`inline-flex items-center gap-1 text-xs font-medium ${log.status === "completed" ? "text-emerald-400" : "text-amber-400"}`}>
@@ -971,7 +988,7 @@ export const StockPage = (): JSX.Element => {
                         <div className="flex items-center gap-1.5 justify-end">
                           <button
                             onClick={() => setEditingLogId(null)}
-                            className="h-7 px-2 rounded text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-colors"
+                            className="h-7 px-2 rounded text-xs text-fg/60 hover:text-fg border border-fg/10 hover:border-fg/20 transition-colors"
                           >
                             {tc("cancel")}
                           </button>
@@ -979,7 +996,7 @@ export const StockPage = (): JSX.Element => {
                             onClick={() => saveEditLog(log.id)}
                             disabled={updateMaintenanceLog.isPending}
                             className="h-7 px-2 rounded text-xs font-bold text-black flex items-center gap-1 disabled:opacity-50 transition-opacity hover:opacity-80"
-                            style={{ backgroundColor: "#FFFF00" }}
+                            style={{ backgroundColor: "var(--brand)" }}
                           >
                             {updateMaintenanceLog.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                             {tc("save")}
@@ -989,14 +1006,14 @@ export const StockPage = (): JSX.Element => {
                         <div className="flex items-center gap-1 justify-end">
                           <button
                             onClick={() => startEditLog(log)}
-                            className="p-1.5 rounded-lg text-white hover:text-[#FFFF00] hover:bg-white/[0.06] transition-colors"
+                            className="p-1.5 rounded-lg text-fg hover:text-brand hover:bg-fg/[0.06] transition-colors"
                             title={t("editLog")}
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => setDeleteLogTarget(log)}
-                            className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-white/[0.06] transition-colors"
+                            className="p-1.5 rounded-lg text-fg/60 hover:text-red-400 hover:bg-fg/[0.06] transition-colors"
                             title={t("deleteLog")}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1026,7 +1043,7 @@ export const StockPage = (): JSX.Element => {
                 <AlertDialogAction
                   onClick={() => deleteLogTarget && deleteMaintenanceLog.mutate(deleteLogTarget.id)}
                   disabled={deleteMaintenanceLog.isPending}
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  className="bg-red-600 hover:bg-red-700 text-fg"
                 >
                   {deleteMaintenanceLog.isPending ? tc("deleting") : tc("delete")}
                 </AlertDialogAction>
@@ -1045,7 +1062,7 @@ export const StockPage = (): JSX.Element => {
                 <AlertDialogAction
                   onClick={() => bulkDeleteLogs.mutate(Array.from(selectedLogIds))}
                   disabled={bulkDeleteLogs.isPending}
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  className="bg-red-600 hover:bg-red-700 text-fg"
                 >
                   {bulkDeleteLogs.isPending ? tc("deleting") : tc("delete")}
                 </AlertDialogAction>
@@ -1058,39 +1075,39 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "subrentals" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
             <ArrowRightLeft className="w-4 h-4 text-purple-400/70 flex-shrink-0" />
-            <span className="text-sm font-semibold text-white/50">{t("tabSubRentals")}</span>
-            <span className="text-xs text-white/60">{t("activeCount", { count: subRentals.length })}</span>
+            <span className="text-sm font-semibold text-fg/50">{t("tabSubRentals")}</span>
+            <span className="text-xs text-fg/60">{t("activeCount", { count: subRentals.length })}</span>
             <span className="flex items-center gap-1.5 text-xs text-purple-400/50 ml-2">
               <Shield className="w-3 h-3" />
               {t("colorCodedNote")}
             </span>
-            <span className="ml-auto text-[11px] text-white/40 italic">{t("subRentalsManageHint")}</span>
+            <span className="ml-auto text-[11px] text-fg/40 italic">{t("subRentalsManageHint")}</span>
           </div>
 
           <div className="flex-1 overflow-auto p-6">
-          <div className="bg-[#111] border border-purple-500/15 rounded-xl overflow-hidden">
+          <div className="bg-surface-1 border border-purple-500/15 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-purple-500/10 flex items-center gap-2">
               <ArrowRightLeft className="w-4 h-4 text-purple-400" />
               <span className="font-bold text-purple-400 text-xs tracking-widest uppercase">{t("tabSubRentals")}</span>
-              <span className="text-[10px] text-white/60">{t("activeCount", { count: subRentals.length })}</span>
+              <span className="text-[10px] text-fg/60">{t("activeCount", { count: subRentals.length })}</span>
             </div>
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-fg/[0.04]">
               {subRentalsLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <div key={`srsk-${i}`} className="flex items-center gap-4 px-4 py-3 animate-pulse">
                     <div className="w-1 h-8 rounded-full bg-purple-400/20" />
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <div className="h-3.5 rounded bg-white/[0.06]" style={{ width: `${80 + (i * 29) % 60}px` }} />
+                        <div className="h-3.5 rounded bg-fg/[0.06]" style={{ width: `${80 + (i * 29) % 60}px` }} />
                         <div className="h-4 rounded bg-purple-500/15 w-12" />
                       </div>
-                      <div className="h-2.5 rounded bg-white/[0.04] w-40" />
+                      <div className="h-2.5 rounded bg-fg/[0.04] w-40" />
                     </div>
                     <div className="text-right space-y-1.5">
-                      <div className="h-3 rounded bg-white/[0.05] w-16 ml-auto" />
-                      <div className="h-2.5 rounded bg-white/[0.04] w-20 ml-auto" />
+                      <div className="h-3 rounded bg-fg/[0.05] w-16 ml-auto" />
+                      <div className="h-2.5 rounded bg-fg/[0.04] w-20 ml-auto" />
                     </div>
                   </div>
                 ))
@@ -1099,25 +1116,25 @@ export const StockPage = (): JSX.Element => {
                   <div className="w-1 h-8 rounded-full bg-purple-400/60" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white/80">{sr.itemName}</span>
+                      <span className="text-sm font-medium text-fg/80">{sr.itemName}</span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "active" ? "bg-purple-500/15 text-purple-400" : sr.status === "returned" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>{tc(`statusEnum.${sr.status}`, { defaultValue: sr.status })}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-white/60 mt-0.5">
+                    <div className="flex items-center gap-3 text-[11px] text-fg/60 mt-0.5">
                       <span>{t("fromPartner", { partner: sr.partner })}</span>
                       <span className="text-blue-400/60">→ {sr.jobName}</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-white/50 font-medium inline-flex items-center gap-1.5 justify-end">
+                    <p className="text-xs text-fg/50 font-medium inline-flex items-center gap-1.5 justify-end">
                       {sr.dailyRate ? `฿${Number(sr.dailyRate).toLocaleString()}/day` : "—"}
                       {sr.receiptUrl && (
                         <a href={sr.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
-                          className="text-white/60 hover:text-purple-300 transition-colors">
+                          className="text-fg/60 hover:text-purple-300 transition-colors">
                           <Receipt className="w-3 h-3" />
                         </a>
                       )}
                     </p>
-                    <p className="text-[10px] text-white/60 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />{t("dueLabel", { date: new Date(sr.dueBack).toLocaleDateString("en-GB") })}</p>
+                    <p className="text-[10px] text-fg/60 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />{t("dueLabel", { date: new Date(sr.dueBack).toLocaleDateString("en-GB") })}</p>
                   </div>
                   {canManage && sr.status !== "returned" && (
                     <button
@@ -1142,13 +1159,13 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "disposals" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0 animate-fade-in">
+          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
             <PackageMinus className="w-4 h-4 text-red-400/70 flex-shrink-0" />
-            <span className="text-sm font-semibold text-white/50">{t("tabDisposals")}</span>
-            <span className="text-xs text-white/60">{disposals.length}</span>
+            <span className="text-sm font-semibold text-fg/50">{t("tabDisposals")}</span>
+            <span className="text-xs text-fg/60">{disposals.length}</span>
             {canManage && (
               <button onClick={() => setDisposeOpen(true)}
-                className="ml-auto flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors">
+                className="ml-auto flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-fg bg-red-600 hover:bg-red-700 transition-colors">
                 <PackageMinus className="w-4 h-4" /> ขาย / ตัดออก
               </button>
             )}
@@ -1156,15 +1173,15 @@ export const StockPage = (): JSX.Element => {
 
           <div className="flex-1 overflow-auto p-4">
             {disposals.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-center text-white/40">
+              <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
                 <PackageMinus className="w-10 h-10" />
                 <p className="text-sm">ยังไม่มีประวัติการขาย/ตัดออก</p>
               </div>
             ) : (
-              <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.06] text-[10px] text-white/40 uppercase tracking-wider">
+                    <tr className="border-b border-fg/[0.06] text-[10px] text-fg/40 uppercase tracking-wider">
                       <th className="py-2.5 pl-4 text-left font-semibold">วันที่</th>
                       <th className="py-2.5 text-left font-semibold">อุปกรณ์</th>
                       <th className="py-2.5 text-center font-semibold">จำนวน</th>
@@ -1176,16 +1193,16 @@ export const StockPage = (): JSX.Element => {
                   </thead>
                   <tbody>
                     {disposals.map((d) => (
-                      <tr key={d.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
-                        <td className="py-2.5 pl-4 text-white/60 text-xs whitespace-nowrap">{new Date(d.disposedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}</td>
-                        <td className="py-2.5 text-white/85">{d.itemName}</td>
-                        <td className="py-2.5 text-center font-bold text-white/80">{d.quantity}</td>
+                      <tr key={d.id} className="border-b border-fg/[0.04] hover:bg-fg/[0.02]">
+                        <td className="py-2.5 pl-4 text-fg/60 text-xs whitespace-nowrap">{new Date(d.disposedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}</td>
+                        <td className="py-2.5 text-fg/85">{d.itemName}</td>
+                        <td className="py-2.5 text-center font-bold text-fg/80">{d.quantity}</td>
                         <td className="py-2.5">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${d.reason === "sold" ? "bg-emerald-500/15 text-emerald-400" : d.reason === "damaged" ? "bg-amber-500/15 text-amber-400" : d.reason === "lost" ? "bg-red-500/15 text-red-400" : "bg-white/10 text-white/50"}`}>{REASON_LABEL[d.reason]}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${d.reason === "sold" ? "bg-emerald-500/15 text-emerald-400" : d.reason === "damaged" ? "bg-amber-500/15 text-amber-400" : d.reason === "lost" ? "bg-red-500/15 text-red-400" : "bg-fg/10 text-fg/50"}`}>{REASON_LABEL[d.reason]}</span>
                         </td>
-                        <td className="py-2.5 text-right text-white/70 whitespace-nowrap">{d.salePrice ? `฿${Number(d.salePrice).toLocaleString()}` : "—"}</td>
-                        <td className="py-2.5 text-white/50 text-xs">{d.disposedByName ?? "—"}</td>
-                        <td className="py-2.5 pr-4 text-white/50 text-xs truncate max-w-[200px]">{d.note ?? "—"}</td>
+                        <td className="py-2.5 text-right text-fg/70 whitespace-nowrap">{d.salePrice ? `฿${Number(d.salePrice).toLocaleString()}` : "—"}</td>
+                        <td className="py-2.5 text-fg/50 text-xs">{d.disposedByName ?? "—"}</td>
+                        <td className="py-2.5 pr-4 text-fg/50 text-xs truncate max-w-[200px]">{d.note ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>

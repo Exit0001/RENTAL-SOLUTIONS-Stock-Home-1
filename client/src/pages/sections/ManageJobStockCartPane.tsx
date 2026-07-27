@@ -199,9 +199,9 @@ export const ManageJobStockCartPane = ({
       onClick={(e) => e.stopPropagation()}
       onChange={(e) => onChange(e.target.value || null)}
       title={t("manageJobStock.zoneLabel")}
-      className="h-6 max-w-[100px] rounded-md bg-[#0d0d0d] border border-white/10 text-[10px] px-1.5 outline-none cursor-pointer flex-shrink-0
-        hover:border-white/30 transition-colors"
-      style={value ? { color: "#FFFF00", borderColor: "rgba(255,255,0,0.35)" } : { color: "rgba(255,255,255,0.5)" }}
+      className="h-6 max-w-[100px] rounded-md bg-surface-1 border border-fg/10 text-[10px] px-1.5 outline-none cursor-pointer flex-shrink-0
+        hover:border-fg/30 transition-colors"
+      style={value ? { color: "var(--brand)", borderColor: "rgba(255,255,0,0.35)" } : { color: "rgba(255,255,255,0.5)" }}
     >
       <option value="">{t("manageJobStock.zoneNone")}</option>
       {zones.map((z) => <option key={z.id} value={z.name}>{z.name}</option>)}
@@ -218,7 +218,7 @@ export const ManageJobStockCartPane = ({
       onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
       onClick={(e) => { e.stopPropagation(); handleRowSelect(key, e.shiftKey); }}
       className={`select-none w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-        ${selected.has(key) ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20 hover:border-white/40"}`}
+        ${selected.has(key) ? "border-brand bg-brand" : "border-fg/20 hover:border-fg/40"}`}
     >
       {selected.has(key) && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
     </button>
@@ -237,20 +237,20 @@ export const ManageJobStockCartPane = ({
       });
 
     return (
-      <div key={group.stockItemId} className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.04]">
+      <div key={group.stockItemId} className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-fg/[0.04]">
           {groupKeys.length > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); toggleGroupSelect(); }}
               title={t("manageJobStock.selectGroupHint")}
               className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                ${groupAllSelected ? "border-[#FFFF00] bg-[#FFFF00]" : groupSomeSelected ? "border-[#FFFF00]/60 bg-[#FFFF00]/20" : "border-white/20 hover:border-white/40"}`}
+                ${groupAllSelected ? "border-brand bg-brand" : groupSomeSelected ? "border-brand/60 bg-brand/20" : "border-fg/20 hover:border-fg/40"}`}
             >
               {groupAllSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
-              {groupSomeSelected && <div className="w-2 h-0.5 bg-[#FFFF00] rounded-full" />}
+              {groupSomeSelected && <div className="w-2 h-0.5 bg-brand rounded-full" />}
             </button>
           )}
-          <p className="text-xs font-semibold text-white/80 truncate flex-1 min-w-0">{group.name}</p>
+          <p className="text-xs font-semibold text-fg/80 truncate flex-1 min-w-0">{group.name}</p>
           {group.units.length > 0 && zoneSelect(
             group.units[0]?.position ?? null,
             (v) => onGroupApplyPositionToUnits(group.stockItemId, v)
@@ -265,13 +265,13 @@ export const ManageJobStockCartPane = ({
               key={line.unitId}
               onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
               onClick={(e) => handleRowSelect(key, e.shiftKey)}
-              className={`select-none flex items-center gap-2 px-3 py-1.5 border-t border-white/[0.04] cursor-pointer transition-colors ${selected.has(key) ? "bg-[#FFFF00]/[0.05]" : "hover:bg-white/[0.02]"}`}
+              className={`select-none flex items-center gap-2 px-3 py-1.5 border-t border-fg/[0.04] cursor-pointer transition-colors ${selected.has(key) ? "bg-brand/[0.05]" : "hover:bg-fg/[0.02]"}`}
             >
               {rowCheckbox(key)}
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/70 truncate">{info?.name ?? line.unitId}</p>
+                <p className="text-xs text-fg/70 truncate">{info?.name ?? line.unitId}</p>
                 {(info?.serialNumber || info?.barcode) && (
-                  <p className="text-[10px] text-white/40 font-mono truncate">
+                  <p className="text-[10px] text-fg/40 font-mono truncate">
                     {info?.serialNumber ? `SN: ${info.serialNumber}` : ""}
                     {info?.serialNumber && info?.barcode ? "  ·  " : ""}
                     {info?.barcode ? `BC: ${info.barcode}` : ""}
@@ -279,7 +279,7 @@ export const ManageJobStockCartPane = ({
                 )}
               </div>
               {zoneSelect(line.position, (v) => onUnitPositionChange(line.unitId, v))}
-              <button onClick={(e) => { e.stopPropagation(); onUnitRemove(line.unitId); }} className="text-white/30 hover:text-red-400 transition-colors flex-shrink-0">
+              <button onClick={(e) => { e.stopPropagation(); onUnitRemove(line.unitId); }} className="text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -293,28 +293,28 @@ export const ManageJobStockCartPane = ({
             key={line.lineId}
             onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
             onClick={(e) => handleRowSelect(key, e.shiftKey)}
-            className={`select-none flex items-center gap-2 px-3 py-1.5 border-t border-white/[0.04] cursor-pointer transition-colors ${selected.has(key) ? "bg-[#FFFF00]/[0.05]" : "hover:bg-white/[0.02]"}`}
+            className={`select-none flex items-center gap-2 px-3 py-1.5 border-t border-fg/[0.04] cursor-pointer transition-colors ${selected.has(key) ? "bg-brand/[0.05]" : "hover:bg-fg/[0.02]"}`}
           >
             {rowCheckbox(key)}
             <Layers className="w-3.5 h-3.5 text-amber-400/60 flex-shrink-0" />
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={(e) => { e.stopPropagation(); onBulkLineQtyChange(line.lineId, -1); }}
-                className="w-5 h-5 rounded border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
+                className="w-5 h-5 rounded border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
               >
                 <Minus className="w-2.5 h-2.5" />
               </button>
-              <span className="w-6 text-center text-xs font-bold text-[#FFFF00]">{line.quantity}</span>
+              <span className="w-6 text-center text-xs font-bold text-brand">{line.quantity}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onBulkLineQtyChange(line.lineId, 1); }}
-                className="w-5 h-5 rounded border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:border-white/30 transition-colors"
+                className="w-5 h-5 rounded border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
               >
                 <Plus className="w-2.5 h-2.5" />
               </button>
             </div>
             <div className="flex-1" />
             {zoneSelect(line.position, (v) => onBulkLinePositionChange(line.lineId, v))}
-            <button onClick={(e) => { e.stopPropagation(); onBulkLineRemove(line.lineId); }} className="text-white/30 hover:text-red-400 transition-colors flex-shrink-0">
+            <button onClick={(e) => { e.stopPropagation(); onBulkLineRemove(line.lineId); }} className="text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -324,7 +324,7 @@ export const ManageJobStockCartPane = ({
         {group.bulkLines.length > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); onBulkLineAdd(group.stockItemId); }}
-            className="w-full flex items-center gap-1.5 px-3 py-1.5 border-t border-white/[0.04] text-[10px] text-white/40 hover:text-[#FFFF00] transition-colors"
+            className="w-full flex items-center gap-1.5 px-3 py-1.5 border-t border-fg/[0.04] text-[10px] text-fg/40 hover:text-brand transition-colors"
           >
             <PlusCircle className="w-3 h-3" />
             {t("manageJobStock.addSplit")}
@@ -337,8 +337,8 @@ export const ManageJobStockCartPane = ({
   return (
     <div className="w-[38%] min-w-[260px] flex flex-col">
       <div className="px-4 pt-4 pb-2 flex-shrink-0 flex items-center justify-between">
-        <span className="text-xs font-bold text-white/80">{t("manageJobStock.cartTitle")}</span>
-        <span className="text-[10px] text-white/60">{t("manageContainerUnits.selectedCount", { count: totalCount })}</span>
+        <span className="text-xs font-bold text-fg/80">{t("manageJobStock.cartTitle")}</span>
+        <span className="text-[10px] text-fg/60">{t("manageContainerUnits.selectedCount", { count: totalCount })}</span>
       </div>
 
       {tabs.length > 1 && (
@@ -348,7 +348,7 @@ export const ManageJobStockCartPane = ({
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`h-6 px-2.5 rounded-full text-[10px] font-semibold transition-colors border
-                ${activeTab === tab ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
+                ${activeTab === tab ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
             >
               {tabLabel(tab)} <span className="opacity-60">{tabCount(tab)}</span>
             </button>
@@ -361,11 +361,11 @@ export const ManageJobStockCartPane = ({
           <button
             onClick={toggleSelectAllVisible}
             className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-              ${allVisibleSelected ? "border-[#FFFF00] bg-[#FFFF00]" : "border-white/20 hover:border-white/40"}`}
+              ${allVisibleSelected ? "border-brand bg-brand" : "border-fg/20 hover:border-fg/40"}`}
           >
             {allVisibleSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
           </button>
-          <span className="text-[10px] text-white/50 whitespace-nowrap">
+          <span className="text-[10px] text-fg/50 whitespace-nowrap">
             {selected.size > 0 ? t("manageJobStock.selectedForBulk", { count: selected.size }) : t("manageJobStock.selectAllHint")}
           </span>
           {selected.size > 0 && (
@@ -374,13 +374,13 @@ export const ManageJobStockCartPane = ({
               <select
                 value=""
                 onChange={(e) => applyBulkZone(e.target.value)}
-                className="h-7 rounded-md bg-[#0d0d0d] border border-[#FFFF00]/30 text-[10px] px-2 outline-none cursor-pointer text-[#FFFF00] hover:border-[#FFFF00]/50 transition-colors flex-shrink-0"
+                className="h-7 rounded-md bg-surface-1 border border-brand/30 text-[10px] px-2 outline-none cursor-pointer text-brand hover:border-brand/50 transition-colors flex-shrink-0"
               >
                 <option value="" disabled>{t("manageJobStock.bulkZonePlaceholder")}</option>
                 <option value="__NONE__">{t("manageJobStock.zoneNone")}</option>
                 {zones.map((z) => <option key={z.id} value={z.name}>{z.name}</option>)}
               </select>
-              <button onClick={() => setSelected(new Set())} className="text-white/40 hover:text-red-400 transition-colors flex-shrink-0">
+              <button onClick={() => setSelected(new Set())} className="text-fg/40 hover:text-red-400 transition-colors flex-shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
             </>
@@ -391,8 +391,8 @@ export const ManageJobStockCartPane = ({
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 select-none">
         {groups.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <PackageOpen className="w-8 h-8 text-white/30" />
-            <p className="text-xs text-white/50">{t("manageJobStock.cartEmpty")}</p>
+            <PackageOpen className="w-8 h-8 text-fg/30" />
+            <p className="text-xs text-fg/50">{t("manageJobStock.cartEmpty")}</p>
           </div>
         )}
 
@@ -400,11 +400,11 @@ export const ManageJobStockCartPane = ({
           zoneSections.map(({ zoneKey, groups: zoneGroups }) => (
             <div key={zoneKey}>
               <div className="flex items-center gap-2 mb-2 px-0.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#FFFF00]/60 whitespace-nowrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-brand/60 whitespace-nowrap">
                   {tabLabel(zoneKey)}
                 </span>
-                <span className="text-[10px] text-white/40 flex-shrink-0">{tabCount(zoneKey)}</span>
-                <div className="flex-1 h-px bg-white/[0.06]" />
+                <span className="text-[10px] text-fg/40 flex-shrink-0">{tabCount(zoneKey)}</span>
+                <div className="flex-1 h-px bg-fg/[0.06]" />
               </div>
               <div className="space-y-3">
                 {zoneGroups.map(renderGroupCard)}

@@ -48,9 +48,9 @@ export const activityLog: ActivityEntry[] = [
   { id: 5,  type: "stock",       action: "Returned",         detail: "14x items — Wedding Reception",                     person: "Sarah Chen",   time: "Yesterday, 22:30",  icon: CheckCircle2, color: "text-emerald-400" },
   { id: 6,  type: "jobs",        action: "Job Completed",    detail: "Wedding Reception — all items returned",            person: "Sarah Chen",   time: "Yesterday, 22:45",  icon: CheckCircle2, color: "text-emerald-400" },
   { id: 7,  type: "maintenance", action: "Damage Reported",  detail: "J8-004 — dropped during load-in, cone damaged",    person: "Mike Torres",  time: "Yesterday, 16:15",  icon: AlertTriangle,color: "text-red-400" },
-  { id: 8,  type: "finance",     action: "Quote Sent",       detail: "QT-2026-031 — City Park Concert — £18,900",         person: "Emma Davis",   time: "14 Mar, 14:30",     icon: DollarSign,   color: "text-[#FFFF00]" },
+  { id: 8,  type: "finance",     action: "Quote Sent",       detail: "QT-2026-031 — City Park Concert — £18,900",         person: "Emma Davis",   time: "14 Mar, 14:30",     icon: DollarSign,   color: "text-brand" },
   { id: 9,  type: "stock",       action: "Checked Out",      detail: "18x items → Corporate Gala",                       person: "Emma Davis",   time: "14 Mar, 10:00",     icon: ArrowRight,   color: "text-blue-400" },
-  { id: 10, type: "jobs",        action: "Pull Sheet Created",detail: "PS-007 — Tech Conference AV — 32 items",           person: "James Wilson", time: "14 Mar, 09:00",     icon: Package,      color: "text-[#FFFF00]" },
+  { id: 10, type: "jobs",        action: "Pull Sheet Created",detail: "PS-007 — Tech Conference AV — 32 items",           person: "James Wilson", time: "14 Mar, 09:00",     icon: Package,      color: "text-brand" },
   { id: 11, type: "maintenance", action: "Service Completed", detail: "GSL8-005 — input connector replaced",             person: "Mike Torres",  time: "12 Mar, 17:00",     icon: CheckCircle2, color: "text-emerald-400" },
   { id: 12, type: "finance",     action: "Invoice Created",  detail: "INV-0044 — Wedding Bliss — £3,200",                person: "System",       time: "11 Mar, 09:00",     icon: DollarSign,   color: "text-blue-400" },
   { id: 13, type: "stock",       action: "Sub-Rental Received",detail: "4x QSC K12.2 from Partner Audio Ltd",           person: "Tom Baker",    time: "10 Mar, 14:00",     icon: Package,      color: "text-purple-400" },
@@ -69,7 +69,7 @@ export const utilizationData: UtilizationCategory[] = [
 export const healthMetrics: HealthMetric[] = [
   { label: "Overall Health",    value: "87%",  color: "text-emerald-400" },
   { label: "Assets At Risk",    value: "6",    color: "text-amber-400" },
-  { label: "Avg Age (months)",  value: "18.4", color: "text-white/60" },
+  { label: "Avg Age (months)",  value: "18.4", color: "text-fg/60" },
 ];
 
 export const revenueMonths: RevenueMonth[] = [

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **STAK v2.0** — Multi-tenant AV/audio-visual rental equipment management SaaS. Built for 1 company now, scaling to 100+ companies. Each company's data is isolated via `company_id` on every database table.
 
-Dark theme, yellow (`#FFFF00`) accent color throughout.
+Switchable theme — default dark/yellow, alternate a full light theme with a red accent (see "Theming" below).
 
 ## Commands
 
@@ -69,16 +69,49 @@ export type StockItem = typeof stockItems.$inferSelect  // TypeScript type
 **Button style standard** (all action buttons):
 ```tsx
 className="h-9 px-4 text-sm font-bold gap-2 hover:opacity-90"
-style={{ backgroundColor: "#FFFF00" }}
+style={{ backgroundColor: "var(--brand)" }}
 // icon: w-4 h-4
 ```
 
+**Theming (2026-07-28):** the whole look — accent color, text/border color, and background — is
+switchable via 3 token families, backed by CSS variables in `client/src/index.css` and Tailwind
+colors in `tailwind.config.ts`. `:root` = default (dark background, white text/borders, yellow
+accent); `[data-theme="red"]` overrides all of them to a **full light theme** (white/off-white
+backgrounds, near-black text/borders, red accent) — NOT just an accent recolor.
+
+- **Accent** — Tailwind color `brand` (`text-brand`, `bg-brand/10`, `border-brand/25`,
+  `hover:text-brand`, opacity modifiers work normally) or `var(--brand)` in inline
+  `style={{...}}`/plain CSS. Backed by `--brand`/`--brand-rgb`.
+- **Text/borders/hover-overlays (the old "white" family)** — Tailwind color `fg`
+  (`text-fg`, `border-fg/10`, `bg-fg/[0.06]`, etc.). Backed by `--fg-rgb`. Never write
+  `text-white`/`bg-white`/`border-white` (or any literal white/near-white hex) — always `fg`.
+- **Background surfaces** — Tailwind color `surface`, 3 tiers: `surface-0` (page bg),
+  `surface-1` (card/panel/header bg), `surface-2` (elevated/hover/row bg). Backed by
+  `--surface-0/1/2` (plain `var()`, no alpha — these are always solid fills). Never write a
+  literal dark hex (`#0a0a0a`, `#0f0f0f`, `#1a1a1a`, etc.) for a neutral panel background —
+  always `surface-0/1/2`.
+
+**Explicitly NOT themed** (left as literals on purpose): `bg-black/[opacity]` (shadcn modal
+backdrops + this app's form-input recessed backgrounds — dual-purpose, deliberately left alone)
+and semantic status colors (`emerald`/`blue`/`amber`/`red-400` family for
+available/dispatched/warning/danger states) — tuned for the dark theme; revisit only if they're
+actually hard to read in the red/light theme, not preemptively.
+
+Switching happens via `ThemeSwitcher.tsx` (mounted in `StockHome.tsx`'s sidebar, next to
+`LanguageSwitcher`), which calls `useAppStore().setTheme("yellow" | "red")`; this sets
+`document.documentElement.dataset.theme` and persists to `localStorage` (via the store's existing
+`persist` middleware) — **it's a per-browser preference, not a company-wide setting**. Both the
+initial `brand`-only migration (830 `#FFFF00` occurrences) and the later `fg`/`surface` migration
+(white-family + ~11 dark-panel hex literals, ~2,700 occurrences across ~70 files) were done via
+one-off regex codemods, not by hand — if you ever need a *third* theme, follow the same
+`[data-theme="x"]` CSS-variable-override pattern; don't reintroduce hardcoded hex/white anywhere.
+
 **Top action bar style** (tabs with action buttons):
 ```tsx
-className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-white/[0.06] bg-[#0f0f0f] flex-shrink-0"
+className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0"
 ```
-**Divider opacity standard: `border-white/[0.06]`** everywhere (tab bars, action bars, section
-dividers, card borders). Older Stock action bars used `border-white/10` — normalized to `/[0.06]`.
+**Divider opacity standard: `border-fg/[0.06]`** everywhere (tab bars, action bars, section
+dividers, card borders). Older Stock action bars used `border-fg/10` — normalized to `/[0.06]`.
 
 **Card grid action-button row standard** (Containers, Equipment Sets, and any future card-grid
 tab in `StockPage.tsx`-style layouts): all actions on a card (primary action, Edit, Delete) are
@@ -86,7 +119,7 @@ tab in `StockPage.tsx`-style layouts): all actions on a card (primary action, Ed
 `ml-auto`. Edit/Delete always show their label text, not just an icon:
 ```tsx
 <div className="mt-auto flex items-center gap-2 pt-2">
-  <button className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-white/[0.06] text-white/70 hover:bg-white/10 transition-colors">
+  <button className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors">
     <Pencil className="w-3 h-3" /> {tc("edit")}
   </button>
   {canManage && (
@@ -158,13 +191,28 @@ Every client mutation that changes unit assignment or status **must** invalidate
 so the Inventory badge (`availableCount / plannedCount`) reflects the change immediately.
 For per-item detail views also invalidate `["stock", stockItemId]`.
 
+**Any mutation that changes `stock_units.status` (scan checkout/return, inline unit edit,
+maintenance create/update/delete/batch, dispose, job phase-update-to-dispatched, job delete)
+must ALSO invalidate `["containers"]`** — the Containers tab caches each container's assigned
+units (including their live `status`) under that key, completely independent of `["stock"]`.
+Missing this was a real bug (found 2026-07-27): a unit scanned "out" for a job updated the
+Inventory table instantly but stayed stuck showing "พร้อมใช้งาน" inside its rack's expanded
+card until something else happened to trigger a `["containers"]` refetch. When adding a new
+place that changes unit status, grep for existing `stockApi.updateUnit(` call sites first and
+follow the same invalidation list — don't invent a new partial one.
+
 | Mutation | Required invalidations |
 |---|---|
 | ManageJobStockModal save | `["job-units", jobId]`, `["stock"]`, `["stock-with-units"]`, `["stock", stockItemId]` |
 | AssignContainerModal assign | `["job-containers"]`, `["containers"]`, `["job-units"]`, `["stock"]` |
 | JobsPage removeContainer | `["job-containers"]`, `["containers"]`, `["stock"]` |
-| JobsPage deleteJob | `["jobs"]`, `["pull-sheets"]`, `["stock"]` |
-| ScanModal scan (any mode) | `["job-units", jobId]`, `["stock"]`, `["stock", unit.stockItemId]` |
+| JobsPage / JobDetailPanel deleteJob | `["jobs"]`, `["pull-sheets"]`, `["stock"]`, `["containers"]` |
+| JobDetailPanel updatePhase (dispatch) | `["job-units", jobId]`, `["stock"]`, `["containers"]` |
+| ScanModal scan (any mode) | `["job-units", jobId]`, `["stock"]`, `["stock", unit.stockItemId]`, `["containers"]` |
+| JobOperationsModal dispatch-scan / return-scan | `["job-units", jobId]`, `["stock"]`, `["stock", unit.stockItemId]`, `["containers"]` |
+| StockItemsTableSection inline unit edit | `["stock", itemId]`, `["stock"]`, `["containers"]` |
+| DisposeModal dispose/sell | `["stock"]`, `["stock-with-units"]`, `["disposals"]`, `["stats"]`, `["containers"]` |
+| StockPage maintenance log create/update/delete/bulk-complete/bulk-delete | `["maintenance"]`, `["stock"]`, `["stock-with-units"]`, `["containers"]` |
 | JobSubRentalsModal add/delete/return | `["job-subrentals", jobId]`, `["subrentals"]`, `["finance-costing"]` |
 | EditContainerModal / batch AddContainerModal | `["containers"]` |
 | SetBuilderModal create/update, StockPage deleteSet | `["equipment-sets"]` |
@@ -355,6 +403,17 @@ called from `POST /:id/units`, `POST /:id/apply-set/:setId`, `POST /:id/containe
 `PUT /:id/units/phase`, `POST /:id/duplicate`) deliberately swallows its own errors —
 those core equipment actions keep working normally even before this migration runs; only the
 history log itself stays empty.
+
+**Pending (2026-07-28)** — `companies.company_logo_url` column for per-company logo upload
+(Settings → General → "โลโก้บริษัท" card, admin-only), shown in the header
+(`StockManagementHeaderSection.tsx`) instead of the plain "STAK" text wordmark once set.
+Already in `shared/schema.ts` and `migrations/0026_company_logo.sql`. Run in Supabase SQL Editor:
+```sql
+ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "company_logo_url" text;
+```
+Until run, `PUT /api/auth/company` will fail whenever `companyLogoUrl` is included in the body
+(i.e. as soon as someone uploads a logo) — everything else (login, `/me`, the rest of Settings)
+is unaffected since the column is simply omitted/null everywhere else until then.
 
 **Already applied (2026-07-19)** — `equipment_sets` + `equipment_set_items` tables for the
 Equipment Sets (ชุดอุปกรณ์ / Kits) feature. In `shared/schema.ts` and
@@ -553,7 +612,7 @@ The Crew tab renders `CrewScheduleView` — a **Gantt timeline calendar**:
 
 | Status | Background | Border | Text |
 |---|---|---|---|
-| draft | white/7% | white/12% | white/45% |
+| draft | fg/7% | fg/12% | fg/45% |
 | scheduled | blue/28% | blue/35% | blue-200/90% |
 | active | amber/30% | amber/40% | amber-200/90% |
 | completed | emerald/25% | emerald/35% | emerald-200/90% |
@@ -889,8 +948,8 @@ category is picked; changing category clears an out-of-scope sub; edit keeps the
 even if out of scope.
 
 ### Inventory table dividers
-Row dividers use `border-white/10` (item/model rows) and `border-white/[0.06]` (unit sub-rows) — the
-older `white/[0.05]` / `white/[0.03]` were effectively invisible on the dark rows.
+Row dividers use `border-fg/10` (item/model rows) and `border-fg/[0.06]` (unit sub-rows) — the
+older `fg/[0.05]` / `fg/[0.03]` were effectively invisible on the dark rows.
 
 ## Adding a New Feature
 

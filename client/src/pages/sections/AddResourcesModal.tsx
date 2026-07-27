@@ -17,8 +17,8 @@ type CrewRow = { id: number; type: CrewType; name: string; phone: string; role: 
 type VehRow = { id: number; name: string; type: string; plate: string; capacity: string; note: string };
 
 const inputCls =
-  "w-full h-9 px-3 rounded-lg bg-black/40 border border-white/10 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFFF00]/40 transition-colors";
-const labelCls = "text-[10px] text-white/50 uppercase tracking-wider font-medium";
+  "w-full h-9 px-3 rounded-lg bg-black/40 border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/40 transition-colors";
+const labelCls = "text-[10px] text-fg/50 uppercase tracking-wider font-medium";
 
 interface Props {
   initialTab?: "crew" | "vehicle";
@@ -125,7 +125,7 @@ export const AddResourcesModal = ({ initialTab = "crew", onClose }: Props): JSX.
                     <button
                       key={ty}
                       onClick={() => setDefType(ty)}
-                      className={`flex-1 h-8 rounded-lg text-xs font-bold transition-colors ${defType === ty ? "bg-[#FFFF00] text-black" : "bg-white/5 text-white/60 hover:text-white"}`}
+                      className={`flex-1 h-8 rounded-lg text-xs font-bold transition-colors ${defType === ty ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}
                     >
                       {CREW_TYPE_LABEL[ty]}
                     </button>
@@ -150,7 +150,7 @@ export const AddResourcesModal = ({ initialTab = "crew", onClose }: Props): JSX.
                   <button
                     key={q}
                     onClick={() => setDefVehType(q)}
-                    className="h-6 px-2 rounded-full text-[10px] font-medium border border-white/10 text-white/50 hover:border-[#FFFF00]/40 hover:text-[#FFFF00] transition-colors"
+                    className="h-6 px-2 rounded-full text-[10px] font-medium border border-fg/10 text-fg/50 hover:border-brand/40 hover:text-brand transition-colors"
                   >
                     {q}
                   </button>
@@ -158,15 +158,15 @@ export const AddResourcesModal = ({ initialTab = "crew", onClose }: Props): JSX.
               </div>
             </div>
           )}
-          <div className="h-px bg-white/[0.06] my-1" />
-          <p className="text-[10px] text-white/40">
+          <div className="h-px bg-fg/[0.06] my-1" />
+          <p className="text-[10px] text-fg/40">
             ค่านี้จะถูกเติมให้แถวใหม่ที่กด "เพิ่มแถว" ปรับรายแถวได้ตามต้องการ
           </p>
         </div>
       }
       footer={
         <>
-          <div className="text-sm text-white/70 font-medium">
+          <div className="text-sm text-fg/70 font-medium">
             รวม {validCrew.length} คน · {validVeh.length} รถ
           </div>
           <div className="flex items-center gap-2">
@@ -178,11 +178,11 @@ export const AddResourcesModal = ({ initialTab = "crew", onClose }: Props): JSX.
         </>
       }
     >
-      <div className="flex items-center gap-2 px-6 py-2.5 border-b border-white/[0.06] flex-shrink-0">
-        <span className="text-xs font-bold text-white/50">{tab === "crew" ? "รายชื่อทีมงานที่จะเพิ่ม" : "รายการรถที่จะเพิ่ม"}</span>
+      <div className="flex items-center gap-2 px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
+        <span className="text-xs font-bold text-fg/50">{tab === "crew" ? "รายชื่อทีมงานที่จะเพิ่ม" : "รายการรถที่จะเพิ่ม"}</span>
         <button
           onClick={tab === "crew" ? addCrewRow : addVehRow}
-          className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold text-[#FFFF00] border border-[#FFFF00]/30 hover:bg-[#FFFF00]/10 flex items-center gap-1.5 transition-colors"
+          className="ml-auto h-7 px-3 rounded-lg text-[11px] font-bold text-brand border border-brand/30 hover:bg-brand/10 flex items-center gap-1.5 transition-colors"
         >
           <Plus className="w-3 h-3" />เพิ่มแถว
         </button>
@@ -195,23 +195,23 @@ export const AddResourcesModal = ({ initialTab = "crew", onClose }: Props): JSX.
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3">
         {tab === "crew"
           ? crewRows.map((r, i) => (
-              <div key={r.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 flex flex-col gap-2">
+              <div key={r.id} className="rounded-xl border border-fg/[0.08] bg-fg/[0.02] p-3 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">
                     {NAMED_TYPES.map((ty) => (
                       <button
                         key={ty}
                         onClick={() => setCrew(r.id, { type: ty })}
-                        className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold border transition-colors ${r.type === ty ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/60 border-white/10 hover:border-white/30"}`}
+                        className={`h-7 px-2.5 rounded-lg text-[11px] font-semibold border transition-colors ${r.type === ty ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
                       >
                         {CREW_TYPE_LABEL[ty]}
                       </button>
                     ))}
                   </div>
-                  <span className="text-[11px] text-white/30 ml-1">#{i + 1}</span>
+                  <span className="text-[11px] text-fg/30 ml-1">#{i + 1}</span>
                   <button
                     onClick={() => rmCrewRow(r.id)}
-                    className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-fg/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -244,12 +244,12 @@ export const AddResourcesModal = ({ initialTab = "crew", onClose }: Props): JSX.
               </div>
             ))
           : vehRows.map((r, i) => (
-              <div key={r.id} className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 flex flex-col gap-2">
+              <div key={r.id} className="rounded-xl border border-fg/[0.08] bg-fg/[0.02] p-3 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-white/30">#{i + 1}</span>
+                  <span className="text-[11px] text-fg/30">#{i + 1}</span>
                   <button
                     onClick={() => rmVehRow(r.id)}
-                    className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg text-fg/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -268,7 +268,7 @@ export const AddResourcesModal = ({ initialTab = "crew", onClose }: Props): JSX.
 
         <button
           onClick={tab === "crew" ? addCrewRow : addVehRow}
-          className="w-full h-10 rounded-xl border border-dashed border-white/15 hover:border-[#FFFF00]/50 text-white/60 hover:text-[#FFFF00] text-sm font-medium flex items-center justify-center gap-2 transition-all"
+          className="w-full h-10 rounded-xl border border-dashed border-fg/15 hover:border-brand/50 text-fg/60 hover:text-brand text-sm font-medium flex items-center justify-center gap-2 transition-all"
         >
           <Plus className="w-4 h-4" />เพิ่มแถว
         </button>

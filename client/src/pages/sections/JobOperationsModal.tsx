@@ -40,7 +40,7 @@ const phaseDot = (phase: string) => {
   if (phase === "returned")   return "bg-emerald-400";
   if (phase === "dispatched") return "bg-blue-400";
   if (phase === "prepared")   return "bg-amber-400";
-  return "bg-white/25";
+  return "bg-fg/25";
 };
 const phaseLabel = (phase: string) => {
   if (phase === "returned")   return "returned";
@@ -53,7 +53,7 @@ const phaseLabel = (phase: string) => {
 const LogFeed = ({ entries, emptyHint }: { entries: LogEntry[]; emptyHint: string }): JSX.Element => (
   <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1.5">
     {entries.length === 0 ? (
-      <div className="flex flex-col items-center justify-center h-full text-white/20 gap-2">
+      <div className="flex flex-col items-center justify-center h-full text-fg/20 gap-2">
         <Hash className="w-8 h-8" />
         <p className="text-xs text-center whitespace-pre-line">{emptyHint}</p>
       </div>
@@ -62,12 +62,12 @@ const LogFeed = ({ entries, emptyHint }: { entries: LogEntry[]; emptyHint: strin
         <div key={entry.id}
           className={`flex items-start gap-3 px-3 py-2 rounded-lg transition-opacity
             ${idx === 0 ? "opacity-100" : idx < 3 ? "opacity-70" : "opacity-40"}
-            ${entry.type === "rack_switch" ? "bg-[#FFFF00]/[0.06] border border-[#FFFF00]/15"
-              : entry.type === "item_ok"    ? "bg-white/[0.03]"
+            ${entry.type === "rack_switch" ? "bg-brand/[0.06] border border-brand/15"
+              : entry.type === "item_ok"    ? "bg-fg/[0.03]"
               : entry.type === "item_already" ? "bg-amber-500/[0.06]"
               : "bg-red-500/[0.06]"}`}>
           <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5
-            ${entry.type === "rack_switch" ? "bg-[#FFFF00]/15 text-[#FFFF00]"
+            ${entry.type === "rack_switch" ? "bg-brand/15 text-brand"
               : entry.type === "item_ok"    ? "bg-green-500/15 text-green-400"
               : entry.type === "item_already" ? "bg-amber-500/15 text-amber-400"
               : "bg-red-500/15 text-red-400"}`}>
@@ -78,16 +78,16 @@ const LogFeed = ({ entries, emptyHint }: { entries: LogEntry[]; emptyHint: strin
           </div>
           <div className="flex-1 min-w-0">
             <p className={`text-xs font-semibold truncate
-              ${entry.type === "rack_switch" ? "text-[#FFFF00]"
-                : entry.type === "item_ok"   ? "text-white"
+              ${entry.type === "rack_switch" ? "text-brand"
+                : entry.type === "item_ok"   ? "text-fg"
                 : entry.type === "item_already" ? "text-amber-300"
                 : "text-red-400"}`}>
               {entry.type === "rack_switch" ? `↕ ${entry.text}` : entry.text}
             </p>
-            {entry.sub && <p className="text-[10px] text-white/35 truncate">{entry.sub}</p>}
-            {entry.rack && <p className="text-[10px] text-[#FFFF00]/40 truncate">→ {entry.rack}</p>}
+            {entry.sub && <p className="text-[10px] text-fg/35 truncate">{entry.sub}</p>}
+            {entry.rack && <p className="text-[10px] text-brand/40 truncate">→ {entry.rack}</p>}
           </div>
-          {idx === 0 && <div className="w-1.5 h-1.5 rounded-full bg-[#FFFF00] flex-shrink-0 mt-1.5 animate-pulse" />}
+          {idx === 0 && <div className="w-1.5 h-1.5 rounded-full bg-brand flex-shrink-0 mt-1.5 animate-pulse" />}
         </div>
       ))
     )}
@@ -359,6 +359,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
         qc.invalidateQueries({ queryKey: ["job-units", job.id] });
         qc.invalidateQueries({ queryKey: ["stock"] });
         qc.invalidateQueries({ queryKey: ["stock", unit.stockItemId] });
+        qc.invalidateQueries({ queryKey: ["containers"] });
         pushDispatchLog({ type: "item_ok", text: unit.itemName, sub: `${unit.serialNumber || barcode} — dispatched` });
 
       } else {
@@ -437,6 +438,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
       qc.invalidateQueries({ queryKey: ["job-units", job.id] });
       qc.invalidateQueries({ queryKey: ["stock"] });
       qc.invalidateQueries({ queryKey: ["stock", unit.stockItemId] });
+      qc.invalidateQueries({ queryKey: ["containers"] });
       setReturnScannedIds((prev) => { const next = new Set(prev); next.add(unit.id); return next; });
       pushReturnLog({ type: "item_ok", text: unit.itemName, sub: `${unit.serialNumber || barcode} — คืนแล้ว` });
     } catch {
@@ -536,7 +538,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
 
         {isLoading && (
           <div className="flex items-center justify-center flex-1">
-            <Loader2 className="w-8 h-8 text-white/30 animate-spin" />
+            <Loader2 className="w-8 h-8 text-fg/30 animate-spin" />
           </div>
         )}
 
@@ -549,22 +551,22 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
 
             {/* ── Left: Scanner Station ──────────────────────── */}
             <div
-              className="w-[400px] flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-[#0a0a0a]"
+              className="w-[400px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Active rack display — big, scanner-visible */}
               {activeRack ? (
-                <div className="px-5 pt-5 pb-4 border-b border-[#FFFF00]/15 bg-[#FFFF00]/[0.04] flex-shrink-0">
+                <div className="px-5 pt-5 pb-4 border-b border-brand/15 bg-brand/[0.04] flex-shrink-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
-                      <BoxSelect className="w-4 h-4 text-[#FFFF00]/60 flex-shrink-0 mt-0.5" />
+                      <BoxSelect className="w-4 h-4 text-brand/60 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] font-bold text-[#FFFF00]/50 uppercase tracking-widest">กำลังสแกนเข้า</p>
-                        <p className="text-xl font-bold text-[#FFFF00] leading-tight">{activeRack.name}</p>
+                        <p className="text-[10px] font-bold text-brand/50 uppercase tracking-widest">กำลังสแกนเข้า</p>
+                        <p className="text-xl font-bold text-brand leading-tight">{activeRack.name}</p>
                       </div>
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); setActiveRackId(null); }}
-                      className="mt-0.5 text-[10px] px-2 py-1 rounded border border-[#FFFF00]/20 text-[#FFFF00]/40 hover:text-[#FFFF00] hover:border-[#FFFF00]/50 transition-colors flex-shrink-0">
+                      className="mt-0.5 text-[10px] px-2 py-1 rounded border border-brand/20 text-brand/40 hover:text-brand hover:border-brand/50 transition-colors flex-shrink-0">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -576,9 +578,9 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-black/30 rounded-full h-1.5 overflow-hidden">
                           <div className="h-full rounded-full transition-all duration-300"
-                            style={{ width: stat.total > 0 ? `${Math.round(stat.prepared / stat.total * 100)}%` : "0%", backgroundColor: stat.done ? "#4ade80" : "#FFFF00" }} />
+                            style={{ width: stat.total > 0 ? `${Math.round(stat.prepared / stat.total * 100)}%` : "0%", backgroundColor: stat.done ? "#4ade80" : "var(--brand)" }} />
                         </div>
-                        <span className={`text-[11px] font-bold tabular-nums flex-shrink-0 ${stat.done ? "text-green-400" : "text-[#FFFF00]/70"}`}>
+                        <span className={`text-[11px] font-bold tabular-nums flex-shrink-0 ${stat.done ? "text-green-400" : "text-brand/70"}`}>
                           {stat.prepared}/{stat.total}
                           {stat.done && " ✓"}
                         </span>
@@ -593,18 +595,18 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                   )}
                 </div>
               ) : (
-                <div className="px-5 pt-5 pb-4 border-b border-white/[0.06] flex-shrink-0">
-                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">ยังไม่ได้เลือกแร็ค</p>
-                  <p className="text-base font-bold text-white/50">สแกน barcode แร็ค</p>
-                  <p className="text-[11px] text-white/30 mt-1">หรือเลือกจากรายการทางขวา</p>
+                <div className="px-5 pt-5 pb-4 border-b border-fg/[0.06] flex-shrink-0">
+                  <p className="text-[10px] font-bold text-fg/30 uppercase tracking-widest mb-1">ยังไม่ได้เลือกแร็ค</p>
+                  <p className="text-base font-bold text-fg/50">สแกน barcode แร็ค</p>
+                  <p className="text-[11px] text-fg/30 mt-1">หรือเลือกจากรายการทางขวา</p>
                 </div>
               )}
 
               {/* Scan input */}
-              <div className="px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
+              <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
                 <div className="relative">
-                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                  {scanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 animate-spin" />}
+                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30 pointer-events-none" />
+                  {scanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40 animate-spin" />}
                   <input
                     ref={scanRef}
                     type="text"
@@ -613,10 +615,10 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     onKeyDown={(e) => { if (e.key === "Enter") handleScan(scanValue); }}
                     placeholder={activeRack ? `สแกนของ → ${activeRack.name}` : "สแกน barcode แร็ค หรือสแกนของ..."}
                     autoFocus
-                    className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-[#FFFF00]/50 focus:bg-white/[0.08] transition-all"
+                    className="w-full bg-fg/[0.06] border border-fg/10 rounded-xl pl-10 pr-10 py-3 text-sm text-fg placeholder-fg/25 outline-none focus:border-brand/50 focus:bg-fg/[0.08] transition-all"
                   />
                 </div>
-                <p className="text-[10px] text-white/20 mt-2 text-center">
+                <p className="text-[10px] text-fg/20 mt-2 text-center">
                   {activeRack
                     ? "สแกน barcode แร็คอื่น = สลับแร็คทันที ไม่ต้องกลับมากดที่หน้าจอ"
                     : "สแกน barcode แร็คก่อน เพื่อเลือกแร็คที่ใช้งาน"}
@@ -626,7 +628,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               {/* Scan log feed */}
               <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1.5">
                 {scanLog.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-white/20 gap-2">
+                  <div className="flex flex-col items-center justify-center h-full text-fg/20 gap-2">
                     <Hash className="w-8 h-8" />
                     <p className="text-xs text-center">รายการสแกนจะแสดงที่นี่<br/>ล่าสุดอยู่ด้านบน</p>
                   </div>
@@ -639,14 +641,14 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       onClick={() => isRackEntry && handleSelectRack(entry.rackId!)}
                       title={isRackEntry ? "คลิกเพื่อเลือกแร็คนี้อีกครั้ง" : undefined}
                       className={`flex items-start gap-3 px-3 py-2 rounded-lg transition-opacity
-                        ${isRackEntry ? "cursor-pointer hover:bg-[#FFFF00]/[0.1]" : ""}
+                        ${isRackEntry ? "cursor-pointer hover:bg-brand/[0.1]" : ""}
                         ${idx === 0 ? "opacity-100" : idx < 3 ? "opacity-70" : "opacity-40"}
-                        ${entry.type === "rack_switch" ? "bg-[#FFFF00]/[0.06] border border-[#FFFF00]/15"
-                          : entry.type === "item_ok"    ? "bg-white/[0.03]"
+                        ${entry.type === "rack_switch" ? "bg-brand/[0.06] border border-brand/15"
+                          : entry.type === "item_ok"    ? "bg-fg/[0.03]"
                           : entry.type === "item_already" ? "bg-amber-500/[0.06]"
                           : "bg-red-500/[0.06]"}`}>
                       <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5
-                        ${entry.type === "rack_switch" ? "bg-[#FFFF00]/15 text-[#FFFF00]"
+                        ${entry.type === "rack_switch" ? "bg-brand/15 text-brand"
                           : entry.type === "item_ok"    ? "bg-green-500/15 text-green-400"
                           : entry.type === "item_already" ? "bg-amber-500/15 text-amber-400"
                           : "bg-red-500/15 text-red-400"}`}>
@@ -657,17 +659,17 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-semibold truncate
-                          ${entry.type === "rack_switch" ? "text-[#FFFF00]"
-                            : entry.type === "item_ok"   ? "text-white"
+                          ${entry.type === "rack_switch" ? "text-brand"
+                            : entry.type === "item_ok"   ? "text-fg"
                             : entry.type === "item_already" ? "text-amber-300"
                             : "text-red-400"}`}>
                           {entry.type === "rack_switch" ? `↕ ${entry.text}` : entry.text}
                         </p>
-                        {entry.sub && <p className="text-[10px] text-white/35 truncate">{entry.sub}</p>}
-                        {entry.rack && <p className="text-[10px] text-[#FFFF00]/40 truncate">→ {entry.rack}</p>}
+                        {entry.sub && <p className="text-[10px] text-fg/35 truncate">{entry.sub}</p>}
+                        {entry.rack && <p className="text-[10px] text-brand/40 truncate">→ {entry.rack}</p>}
                       </div>
-                      {isActiveRack && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FFFF00] text-black font-bold flex-shrink-0">กำลังใช้</span>}
-                      {idx === 0 && !isActiveRack && <div className="w-1.5 h-1.5 rounded-full bg-[#FFFF00] flex-shrink-0 mt-1.5 animate-pulse" />}
+                      {isActiveRack && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-brand text-black font-bold flex-shrink-0">กำลังใช้</span>}
+                      {idx === 0 && !isActiveRack && <div className="w-1.5 h-1.5 rounded-full bg-brand flex-shrink-0 mt-1.5 animate-pulse" />}
                     </div>
                     );
                   })
@@ -675,12 +677,12 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               </div>
 
               {/* Download packing sheet */}
-              <div className="border-t border-white/10 p-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+              <div className="border-t border-fg/10 p-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={handleDownload}
                   disabled={downloading}
                   className="w-full flex items-center justify-center gap-2 h-9 px-4 text-sm font-bold rounded-lg disabled:opacity-40 hover:opacity-90"
-                  style={{ backgroundColor: "#FFFF00", color: "#000" }}
+                  style={{ backgroundColor: "var(--brand)", color: "#000" }}
                 >
                   {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                   ดาวน์โหลด Packing Sheet
@@ -691,19 +693,19 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Right: Inventory + Rack List ───────────────── */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               {/* Top bar: progress + rack chips + buttons */}
-              <div className="px-5 py-3 border-b border-white/[0.06] flex-shrink-0 bg-white/[0.015] space-y-2">
+              <div className="px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015] space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${packProgress}%`, backgroundColor: "#FFFF00" }} />
+                  <div className="flex-1 bg-fg/10 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${packProgress}%`, backgroundColor: "var(--brand)" }} />
                   </div>
-                  <span className="text-xs text-white/60 flex-shrink-0 tabular-nums">{notPlannedCount}/{totalUnits}</span>
+                  <span className="text-xs text-fg/60 flex-shrink-0 tabular-nums">{notPlannedCount}/{totalUnits}</span>
                   {allPrepared && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FFFF00]/10 text-[#FFFF00] font-bold flex items-center gap-1 flex-shrink-0">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand/10 text-brand font-bold flex items-center gap-1 flex-shrink-0">
                       <Zap className="w-3 h-3" /> พร้อม → Dispatch
                     </span>
                   )}
                   <button onClick={() => markAllPrepared.mutate()} disabled={markAllPrepared.isPending || allPrepared}
-                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-bold border border-white/10 text-white/50 hover:text-white hover:border-white/30 disabled:opacity-40 transition-colors flex-shrink-0">
+                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-bold border border-fg/10 text-fg/50 hover:text-fg hover:border-fg/30 disabled:opacity-40 transition-colors flex-shrink-0">
                     {markAllPrepared.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                     All Prepared
                   </button>
@@ -711,16 +713,16 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
 
                 {/* Rack chips */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[9px] text-white/25 font-bold uppercase tracking-wider flex-shrink-0">แร็ค:</span>
+                  <span className="text-[9px] text-fg/25 font-bold uppercase tracking-wider flex-shrink-0">แร็ค:</span>
                   {availableRacks.map((r) => {
                     const stat = rackPackStats.find((s) => s.rack.id === r.id);
                     const isActive = activeRackId === r.id;
                     return (
                       <button key={r.id} onClick={() => handleSelectRack(r.id)}
                         className={`flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[10px] font-bold border transition-colors
-                          ${isActive ? "border-[#FFFF00] bg-[#FFFF00]/15 text-[#FFFF00]"
+                          ${isActive ? "border-brand bg-brand/15 text-brand"
                             : stat?.done ? "border-green-500/30 bg-green-500/10 text-green-400"
-                            : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white hover:border-white/30"}`}>
+                            : "border-fg/10 bg-fg/[0.04] text-fg/50 hover:text-fg hover:border-fg/30"}`}>
                         <BoxSelect className="w-2.5 h-2.5" />
                         {r.name}
                         {stat && <span className="opacity-60">{stat.prepared}/{stat.total}</span>}
@@ -729,7 +731,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       </button>
                     );
                   })}
-                  {availableRacks.length === 0 && <span className="text-xs text-white/20">ยังไม่มีแร็คในระบบ</span>}
+                  {availableRacks.length === 0 && <span className="text-xs text-fg/20">ยังไม่มีแร็คในระบบ</span>}
                 </div>
               </div>
 
@@ -743,19 +745,19 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       <div className="space-y-1 mt-1.5">
                         {accessoryShortfalls.map((s) => (
                           <div key={s.stockItemId} className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] text-white/70 truncate">{s.name}</span>
+                            <span className="text-[11px] text-fg/70 truncate">{s.name}</span>
                             <span className="text-[10px] text-amber-300/90 font-mono whitespace-nowrap">มี {s.got} / ต้องการ {s.wanted}</span>
                             <button
                               onClick={() => setManageStockSearch(s.name)}
                               className="flex items-center gap-1 h-6 px-2 rounded text-[10px] font-bold text-black flex-shrink-0 hover:opacity-80 transition-opacity"
-                              style={{ backgroundColor: "#FFFF00" }}
+                              style={{ backgroundColor: "var(--brand)" }}
                             >
                               <Plus className="w-2.5 h-2.5" />เพิ่ม
                             </button>
                           </div>
                         ))}
                       </div>
-                      <p className="text-[10px] text-white/50 mt-2">คำเตือนนี้ไม่บล็อกการแพ็ค/ดิสแพตช์</p>
+                      <p className="text-[10px] text-fg/50 mt-2">คำเตือนนี้ไม่บล็อกการแพ็ค/ดิสแพตช์</p>
                     </div>
                   </div>
                 </div>
@@ -764,7 +766,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               {/* Unit list */}
               <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
                 {packedGroups.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
+                  <div className="flex flex-col items-center justify-center h-40 gap-2 text-fg/30">
                     <Package className="w-10 h-10" />
                     <p className="text-sm">ยังไม่มีอุปกรณ์ใน job นี้</p>
                     <p className="text-xs">เพิ่มอุปกรณ์ผ่าน "Edit Units" ก่อน</p>
@@ -783,22 +785,22 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     const zone          = units.find((u) => u.position)?.position ?? null;
 
                     return (
-                      <div key={itemName} className="bg-white/[0.025] border border-white/[0.05] rounded-xl overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => toggleGroup(itemName)}>
-                          {expanded ? <ChevronDown className="w-3.5 h-3.5 text-white/25 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-white/25 flex-shrink-0" />}
-                          {allReady ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
-                          <span className="font-medium text-sm text-white flex-1 min-w-0 truncate">{itemName}</span>
+                      <div key={itemName} className="bg-fg/[0.025] border border-fg/[0.05] rounded-xl overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-fg/[0.02] transition-colors" onClick={() => toggleGroup(itemName)}>
+                          {expanded ? <ChevronDown className="w-3.5 h-3.5 text-fg/25 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-fg/25 flex-shrink-0" />}
+                          {allReady ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-fg/20 flex-shrink-0" />}
+                          <span className="font-medium text-sm text-fg flex-1 min-w-0 truncate">{itemName}</span>
                           {accessoryOfName && (
-                            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 flex-shrink-0" title={`อุปกรณ์เสริมของ ${accessoryOfName}`}>
+                            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-fg/[0.06] text-fg/40 flex-shrink-0" title={`อุปกรณ์เสริมของ ${accessoryOfName}`}>
                               <Link2 className="w-2.5 h-2.5" />{accessoryOfName}
                             </span>
                           )}
                           {zone && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FFFF00]/10 text-[#FFFF00]/70 flex-shrink-0 font-semibold">{zone}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-brand/10 text-brand/70 flex-shrink-0 font-semibold">{zone}</span>
                           )}
-                          <span className="text-[10px] text-white/40 tabular-nums flex-shrink-0">{prepared}/{units.length}</span>
+                          <span className="text-[10px] text-fg/40 tabular-nums flex-shrink-0">{prepared}/{units.length}</span>
                           {rackBadge && (
-                            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/40 flex-shrink-0 ml-1" title={`ตอนนี้อยู่ในแร็ค: ${rackBadge}`}>
+                            <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-fg/[0.06] text-fg/40 flex-shrink-0 ml-1" title={`ตอนนี้อยู่ในแร็ค: ${rackBadge}`}>
                               <BoxSelect className="w-2.5 h-2.5" />{rackBadge}
                             </span>
                           )}
@@ -814,7 +816,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                 qc.invalidateQueries({ queryKey: ["containers"] });
                               }}
                               title={`ย้ายอุปกรณ์กลุ่มนี้ทั้งหมดไปที่แร็ค "${activeRack.name}" (แร็คที่กำลังใช้อยู่)`}
-                              className="flex items-center gap-1 h-5 px-1.5 rounded text-[9px] font-bold border border-[#FFFF00]/25 text-[#FFFF00]/60 hover:text-[#FFFF00] hover:border-[#FFFF00]/50 transition-colors flex-shrink-0 ml-1"
+                              className="flex items-center gap-1 h-5 px-1.5 rounded text-[9px] font-bold border border-brand/25 text-brand/60 hover:text-brand hover:border-brand/50 transition-colors flex-shrink-0 ml-1"
                             >
                               ย้ายทั้งหมด → {activeRack.name}
                             </button>
@@ -822,25 +824,25 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                         </div>
 
                         {expanded && (
-                          <div className="border-t border-white/[0.04]">
+                          <div className="border-t border-fg/[0.04]">
                             {units.map((u) => {
                               const unitRack = jobRacks.find((r) => r.id === unitContainerMap[u.id]);
                               return (
-                                <div key={u.id} className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.025] last:border-0">
+                                <div key={u.id} className="flex items-center gap-2 px-4 py-2 border-b border-fg/[0.025] last:border-0">
                                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${phaseDot(u.phase)}`} />
                                   <div className="flex-1 min-w-0">
-                                    <span className="text-xs text-white/80">{u.name || "—"}</span>
-                                    {u.serialNumber && <span className="text-[10px] text-white/35 ml-1.5 font-mono">SN:{u.serialNumber}</span>}
-                                    {u.barcode && <span className="text-[10px] text-white/25 ml-1.5 font-mono">BC:{u.barcode}</span>}
+                                    <span className="text-xs text-fg/80">{u.name || "—"}</span>
+                                    {u.serialNumber && <span className="text-[10px] text-fg/35 ml-1.5 font-mono">SN:{u.serialNumber}</span>}
+                                    {u.barcode && <span className="text-[10px] text-fg/25 ml-1.5 font-mono">BC:{u.barcode}</span>}
                                   </div>
-                                  {unitRack && <span className="text-[9px] text-white/25 flex-shrink-0">{unitRack.name}</span>}
+                                  {unitRack && <span className="text-[9px] text-fg/25 flex-shrink-0">{unitRack.name}</span>}
                                   <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0
-                                    ${u.phase === "returned" ? "bg-emerald-500/15 text-emerald-400" : u.phase === "dispatched" ? "bg-blue-500/15 text-blue-400" : u.phase === "prepared" ? "bg-amber-500/15 text-amber-400" : "bg-white/8 text-white/35"}`}>
+                                    ${u.phase === "returned" ? "bg-emerald-500/15 text-emerald-400" : u.phase === "dispatched" ? "bg-blue-500/15 text-blue-400" : u.phase === "prepared" ? "bg-amber-500/15 text-amber-400" : "bg-fg/8 text-fg/35"}`}>
                                     {phaseLabel(u.phase)}
                                   </span>
                                   {jobRacks.length > 0 && (
                                     <select
-                                      className="bg-[#0d0d0d] border border-white/10 rounded px-1 py-0.5 text-[9px] text-white/35 outline-none cursor-pointer hover:border-white/25 flex-shrink-0"
+                                      className="bg-surface-1 border border-fg/10 rounded px-1 py-0.5 text-[9px] text-fg/35 outline-none cursor-pointer hover:border-fg/25 flex-shrink-0"
                                       value={unitContainerMap[u.id] ?? ""}
                                       onChange={(e) => { if (!e.target.value) return; containersApi.addUnit(e.target.value, u.id).then(() => qc.invalidateQueries({ queryKey: ["containers"] })); }}
                                     >
@@ -852,7 +854,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                     <button
                                       onClick={() => containersApi.removeUnit(unitRack.id, u.id).then(() => qc.invalidateQueries({ queryKey: ["containers"] }))}
                                       title="นำออกจากแร็ค (สแกน/เลือกผิด)"
-                                      className="p-1 rounded text-white/50 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
+                                      className="p-1 rounded text-fg/50 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
                                     >
                                       <X className="w-3.5 h-3.5" />
                                     </button>
@@ -870,7 +872,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                         });
                                       }}
                                       title="เอาออกจากงานนี้ (เลือกผิด/ไม่ใช้แล้ว)"
-                                      className="p-1 rounded text-white/50 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
+                                      className="p-1 rounded text-fg/50 hover:text-red-400 hover:bg-red-400/10 transition-colors flex-shrink-0"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -885,7 +887,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                           if (activeRackId) qc.invalidateQueries({ queryKey: ["containers"] });
                                         });
                                       }}
-                                      className="text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-white/35 hover:text-white hover:border-white/25 transition-colors flex-shrink-0"
+                                      className="text-[9px] px-1.5 py-0.5 rounded border border-fg/10 text-fg/35 hover:text-fg hover:border-fg/25 transition-colors flex-shrink-0"
                                     >→ OK</button>
                                   )}
                                   {u.phase === "prepared" && (
@@ -899,7 +901,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                                         });
                                       }}
                                       title="ยกเลิก — เลือกผิด กลับเป็นวางแผน"
-                                      className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-white/10 text-white/35 hover:text-red-400 hover:border-red-400/30 transition-colors flex-shrink-0"
+                                      className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-fg/10 text-fg/35 hover:text-red-400 hover:border-red-400/30 transition-colors flex-shrink-0"
                                     >
                                       <RotateCcw className="w-2.5 h-2.5" />ยกเลิก
                                     </button>
@@ -927,7 +929,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
 
             {/* ── Left: Scanner Station ──────────────────────── */}
             <div
-              className="w-[400px] flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-[#0a0a0a]"
+              className="w-[400px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Mode context header */}
@@ -951,10 +953,10 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               </div>
 
               {/* Scan input */}
-              <div className="px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
+              <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
                 <div className="relative">
-                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                  {scanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 animate-spin" />}
+                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30 pointer-events-none" />
+                  {scanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40 animate-spin" />}
                   <input
                     ref={scanRef}
                     type="text"
@@ -963,10 +965,10 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     onKeyDown={(e) => { if (e.key === "Enter") handleScan(scanValue); }}
                     placeholder="สแกน barcode แร็ค หรือชิ้นส่วน..."
                     autoFocus
-                    className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-blue-500/50 focus:bg-white/[0.08] transition-all"
+                    className="w-full bg-fg/[0.06] border border-fg/10 rounded-xl pl-10 pr-10 py-3 text-sm text-fg placeholder-fg/25 outline-none focus:border-blue-500/50 focus:bg-fg/[0.08] transition-all"
                   />
                 </div>
-                <p className="text-[10px] text-white/20 mt-2 text-center">สแกนแร็ค = โหลดทั้งแร็คขึ้นรถ · สแกนของ = dispatch ทีละชิ้น</p>
+                <p className="text-[10px] text-fg/20 mt-2 text-center">สแกนแร็ค = โหลดทั้งแร็คขึ้นรถ · สแกนของ = dispatch ทีละชิ้น</p>
               </div>
 
               {/* Scan log feed */}
@@ -976,17 +978,17 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Right: Rack list ───────────────────────────── */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               {/* Top bar: progress + dispatch button */}
-              <div className="px-5 py-3 border-b border-white/[0.06] flex-shrink-0 bg-white/[0.015]">
+              <div className="px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015]">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div className="flex-1 bg-fg/10 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500"
                       style={{ width: rackStats.length > 0 ? `${Math.round((racksLoaded / rackStats.length) * 100)}%` : "0%", backgroundColor: "#3b82f6" }} />
                   </div>
-                  <span className="text-xs text-white/60 flex-shrink-0 tabular-nums">{racksLoaded}/{rackStats.length} แร็คบนรถ</span>
+                  <span className="text-xs text-fg/60 flex-shrink-0 tabular-nums">{racksLoaded}/{rackStats.length} แร็คบนรถ</span>
                   {allDispatched && (
                     <button onClick={dispatchJob} disabled={dispatching || job.status === "active"}
                       className="flex items-center gap-1 h-7 px-3 rounded-lg text-[10px] font-bold text-black hover:opacity-90 disabled:opacity-40 transition-opacity flex-shrink-0"
-                      style={{ backgroundColor: "#FFFF00" }}>
+                      style={{ backgroundColor: "var(--brand)" }}>
                       {dispatching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Truck className="w-3 h-3" />}
                       {job.status === "active" ? "Active แล้ว" : "Dispatch Job →"}
                     </button>
@@ -996,7 +998,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
 
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {rackStats.length === 0 && looseJobUnits.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
+                <div className="flex flex-col items-center justify-center h-40 gap-2 text-fg/30">
                   <Truck className="w-10 h-10" /><p className="text-sm">ยังไม่มีแร็คใน job นี้</p>
                 </div>
               )}
@@ -1004,23 +1006,23 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                 const pct = total > 0 ? Math.round((dispatched / total) * 100) : 0;
                 return (
                   <div key={rack.id} className={`flex items-center gap-4 px-5 py-4 rounded-xl border transition-colors
-                    ${isLoaded ? "bg-green-500/5 border-green-500/20" : isPartial ? "bg-amber-500/5 border-amber-500/20" : "bg-white/[0.02] border-white/[0.06]"}`}>
-                    {isLoaded ? <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" /> : <div className="w-5 h-5 rounded-full border-2 border-white/20 flex-shrink-0" />}
+                    ${isLoaded ? "bg-green-500/5 border-green-500/20" : isPartial ? "bg-amber-500/5 border-amber-500/20" : "bg-fg/[0.02] border-fg/[0.06]"}`}>
+                    {isLoaded ? <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" /> : <div className="w-5 h-5 rounded-full border-2 border-fg/20 flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className={`text-sm font-medium ${isLoaded ? "text-green-400" : "text-white"}`}>{rack.name}</p>
-                        {rack.type && <span className="text-xs text-white/40">{rack.type}</span>}
+                        <p className={`text-sm font-medium ${isLoaded ? "text-green-400" : "text-fg"}`}>{rack.name}</p>
+                        {rack.type && <span className="text-xs text-fg/40">{rack.type}</span>}
                         {isPartial && <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">⚠ partial</span>}
                       </div>
-                      <p className="text-xs text-white/40 mt-0.5">{dispatched}/{total} dispatched</p>
+                      <p className="text-xs text-fg/40 mt-0.5">{dispatched}/{total} dispatched</p>
                     </div>
                     <div className="w-32 flex-shrink-0">
-                      <div className="bg-white/10 rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-fg/10 rounded-full h-1.5 overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%`, backgroundColor: isLoaded ? "#4ade80" : isPartial ? "#f59e0b" : "#FFFF00" }} />
+                          style={{ width: `${pct}%`, backgroundColor: isLoaded ? "#4ade80" : isPartial ? "#f59e0b" : "var(--brand)" }} />
                       </div>
                     </div>
-                    <span className={`text-xs font-medium w-16 text-right flex-shrink-0 ${isLoaded ? "text-green-400" : isPartial ? "text-amber-400" : "text-white/30"}`}>
+                    <span className={`text-xs font-medium w-16 text-right flex-shrink-0 ${isLoaded ? "text-green-400" : isPartial ? "text-amber-400" : "text-fg/30"}`}>
                       {isLoaded ? "loaded ✓" : isPartial ? "partial" : "pending"}
                     </span>
                     {!isLoaded && (
@@ -1031,7 +1033,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                           qc.invalidateQueries({ queryKey: ["containers"] });
                           qc.invalidateQueries({ queryKey: ["stock"] });
                         }}
-                        className="flex items-center gap-1 h-7 px-3 rounded-lg text-xs font-bold border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors flex-shrink-0"
+                        className="flex items-center gap-1 h-7 px-3 rounded-lg text-xs font-bold border border-fg/10 text-fg/50 hover:text-fg hover:border-fg/30 transition-colors flex-shrink-0"
                       >
                         <Truck className="w-3 h-3" /> โหลด
                       </button>
@@ -1042,20 +1044,20 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
 
               {looseJobUnits.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider mb-2 px-1">ของที่ไม่อยู่ในแร็ค ({looseJobUnits.length})</p>
-                  <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl overflow-hidden">
+                  <p className="text-[10px] font-bold text-fg/30 uppercase tracking-wider mb-2 px-1">ของที่ไม่อยู่ในแร็ค ({looseJobUnits.length})</p>
+                  <div className="bg-fg/[0.02] border border-fg/[0.06] rounded-xl overflow-hidden">
                     {looseJobUnits.map((u, idx) => (
-                      <div key={u.id} className={`flex items-center gap-3 px-5 py-2.5 ${idx < looseJobUnits.length - 1 ? "border-b border-white/[0.04]" : ""}`}>
+                      <div key={u.id} className={`flex items-center gap-3 px-5 py-2.5 ${idx < looseJobUnits.length - 1 ? "border-b border-fg/[0.04]" : ""}`}>
                         <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${phaseDot(u.phase)}`} />
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm text-white">{u.itemName}</span>
-                          {u.serialNumber && <span className="text-xs text-white/40 ml-2">SN:{u.serialNumber}</span>}
+                          <span className="text-sm text-fg">{u.itemName}</span>
+                          {u.serialNumber && <span className="text-xs text-fg/40 ml-2">SN:{u.serialNumber}</span>}
                         </div>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium
-                          ${u.phase === "returned" ? "bg-emerald-500/15 text-emerald-400" : u.phase === "dispatched" ? "bg-blue-500/15 text-blue-400" : u.phase === "prepared" ? "bg-amber-500/15 text-amber-400" : "bg-white/10 text-white/40"}`}>
+                          ${u.phase === "returned" ? "bg-emerald-500/15 text-emerald-400" : u.phase === "dispatched" ? "bg-blue-500/15 text-blue-400" : u.phase === "prepared" ? "bg-amber-500/15 text-amber-400" : "bg-fg/10 text-fg/40"}`}>
                           {phaseLabel(u.phase)}
                         </span>
-                        {u.barcode && <span className="text-[10px] text-white/30 font-mono">{u.barcode}</span>}
+                        {u.barcode && <span className="text-[10px] text-fg/30 font-mono">{u.barcode}</span>}
                       </div>
                     ))}
                   </div>
@@ -1075,7 +1077,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
 
             {/* ── Left: Scanner Station ──────────────────────── */}
             <div
-              className="w-[400px] flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-[#0a0a0a]"
+              className="w-[400px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-0"
               onClick={() => returnScanRef.current?.focus()}
             >
               {/* Mode context header */}
@@ -1099,10 +1101,10 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               </div>
 
               {/* Scan input */}
-              <div className="px-5 py-4 border-b border-white/[0.06] flex-shrink-0">
+              <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
                 <div className="relative">
-                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                  {returnScanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 animate-spin" />}
+                  <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30 pointer-events-none" />
+                  {returnScanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40 animate-spin" />}
                   <input
                     ref={returnScanRef}
                     type="text"
@@ -1111,10 +1113,10 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     onKeyDown={(e) => { if (e.key === "Enter") handleReturnScan(returnScanValue); }}
                     placeholder="สแกน barcode เพื่อคืน..."
                     autoFocus
-                    className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-white/25 outline-none focus:border-emerald-500/50 focus:bg-white/[0.08] transition-all"
+                    className="w-full bg-fg/[0.06] border border-fg/10 rounded-xl pl-10 pr-10 py-3 text-sm text-fg placeholder-fg/25 outline-none focus:border-emerald-500/50 focus:bg-fg/[0.08] transition-all"
                   />
                 </div>
-                <p className="text-[10px] text-white/20 mt-2 text-center">สแกน barcode อุปกรณ์ที่คืนเข้าคลัง</p>
+                <p className="text-[10px] text-fg/20 mt-2 text-center">สแกน barcode อุปกรณ์ที่คืนเข้าคลัง</p>
               </div>
 
               {/* Scan log feed */}
@@ -1124,20 +1126,20 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Right: Manifest list ───────────────────────── */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               {/* Top bar: progress */}
-              <div className="px-5 py-3 border-b border-white/[0.06] flex-shrink-0 bg-white/[0.015]">
+              <div className="px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015]">
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div className="flex-1 bg-fg/10 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500 bg-emerald-400"
                       style={{ width: returnTotal > 0 ? `${Math.round(returnedCount / returnTotal * 100)}%` : "0%" }} />
                   </div>
-                  <span className="text-xs text-white/60 flex-shrink-0 tabular-nums">{returnedCount}/{returnTotal} คืนแล้ว</span>
+                  <span className="text-xs text-fg/60 flex-shrink-0 tabular-nums">{returnedCount}/{returnTotal} คืนแล้ว</span>
                 </div>
               </div>
 
               {/* Manifest grouped list */}
               <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
                 {manifestReturnUnits.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 gap-2 text-white/30">
+                  <div className="flex flex-col items-center justify-center h-40 gap-2 text-fg/30">
                     <RotateCcw className="w-10 h-10" /><p className="text-sm">ยังไม่มีอุปกรณ์ที่ออกงาน</p>
                   </div>
                 ) : (
@@ -1151,25 +1153,25 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     const returned = units.filter((u) => u.phase === "returned" || returnScannedIds.has(u.id)).length;
                     const allBack  = returned === units.length;
                     return (
-                      <div key={itemName} className="bg-white/[0.025] border border-white/[0.05] rounded-xl overflow-hidden">
+                      <div key={itemName} className="bg-fg/[0.025] border border-fg/[0.05] rounded-xl overflow-hidden">
                         <div className="flex items-center gap-2 px-3 py-2.5">
-                          {allBack ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
-                          <span className="font-medium text-sm text-white flex-1 min-w-0 truncate">{itemName}</span>
-                          <span className="text-[10px] text-white/40 tabular-nums flex-shrink-0">{returned}/{units.length}</span>
+                          {allBack ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-fg/20 flex-shrink-0" />}
+                          <span className="font-medium text-sm text-fg flex-1 min-w-0 truncate">{itemName}</span>
+                          <span className="text-[10px] text-fg/40 tabular-nums flex-shrink-0">{returned}/{units.length}</span>
                         </div>
-                        <div className="border-t border-white/[0.04]">
+                        <div className="border-t border-fg/[0.04]">
                           {units.map((u) => {
                             const isReturned = u.phase === "returned";
                             const isTicked   = isReturned || returnScannedIds.has(u.id);
                             return (
-                              <div key={u.id} className={`flex items-center gap-2 px-4 py-2 border-b border-white/[0.025] last:border-0 ${isReturned && !returnScannedIds.has(u.id) ? "opacity-60" : ""}`}>
+                              <div key={u.id} className={`flex items-center gap-2 px-4 py-2 border-b border-fg/[0.025] last:border-0 ${isReturned && !returnScannedIds.has(u.id) ? "opacity-60" : ""}`}>
                                 {isTicked
                                   ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                                  : <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />}
+                                  : <div className="w-3.5 h-3.5 rounded-full border border-fg/20 flex-shrink-0" />}
                                 <div className="flex-1 min-w-0">
-                                  <span className="text-xs text-white/80">{u.name || "—"}</span>
-                                  {u.serialNumber && <span className="text-[10px] text-white/35 ml-1.5 font-mono">SN:{u.serialNumber}</span>}
-                                  {u.barcode && <span className="text-[10px] text-white/25 ml-1.5 font-mono">BC:{u.barcode}</span>}
+                                  <span className="text-xs text-fg/80">{u.name || "—"}</span>
+                                  {u.serialNumber && <span className="text-[10px] text-fg/35 ml-1.5 font-mono">SN:{u.serialNumber}</span>}
+                                  {u.barcode && <span className="text-[10px] text-fg/25 ml-1.5 font-mono">BC:{u.barcode}</span>}
                                 </div>
                                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${isTicked ? "bg-emerald-500/15 text-emerald-400" : "bg-blue-500/15 text-blue-400"}`}>
                                   {isTicked ? "คืนแล้ว" : "dispatched"}

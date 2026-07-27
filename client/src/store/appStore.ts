@@ -11,10 +11,12 @@ type AuthState = {
   userRole:     UserRole;
   companyId:    string;
   companyName:  string;
+  companyLogoUrl: string | null;
   avatarUrl:    string | null;
 };
 
 type SettingsTab = "general" | "team" | "profile";
+export type ThemeKey = "yellow" | "red";
 
 type AppStore = {
   // ---- Auth (เก็บใน localStorage) ----
@@ -24,10 +26,12 @@ type AppStore = {
   updateToken: (token: string) => void;
   updateProfile: (data: Partial<Pick<AuthState, "userName" | "userInitials" | "avatarUrl">>) => void;
   updateCompanyName: (name: string) => void;
+  updateCompanyLogoUrl: (url: string | null) => void;
 
   // shortcuts อ่านค่าจาก auth ง่ายขึ้น
   companyId:    string | null;
   companyName:  string | null;
+  companyLogoUrl: string | null;
   userRole:     UserRole | null;
   userName:     string | null;
   userInitials: string | null;
@@ -45,6 +49,10 @@ type AppStore = {
   // ---- Containers UI state ----
   expandedContainers: string[];
   toggleContainer:    (id: string) => void;
+
+  // ---- Theme (สี accent ของทั้งแอป — เก็บต่อเบราว์เซอร์ ไม่ผูกกับบริษัท) ----
+  theme:    ThemeKey;
+  setTheme: (theme: ThemeKey) => void;
 };
 
 export const useAppStore = create<AppStore>()(
@@ -56,6 +64,7 @@ export const useAppStore = create<AppStore>()(
         auth,
         companyId:    auth.companyId,
         companyName:  auth.companyName,
+        companyLogoUrl: auth.companyLogoUrl ?? null,
         userRole:     auth.userRole,
         userName:     auth.userName,
         userInitials: auth.userInitials,
@@ -64,7 +73,7 @@ export const useAppStore = create<AppStore>()(
       }),
       clearAuth: () => set({
         auth: null,
-        companyId: null, companyName: null,
+        companyId: null, companyName: null, companyLogoUrl: null,
         userRole: null, userName: null,
         userInitials: null, avatarUrl: null, token: null,
       }),
@@ -83,10 +92,15 @@ export const useAppStore = create<AppStore>()(
         companyName: name,
         auth: state.auth ? { ...state.auth, companyName: name } : state.auth,
       })),
+      updateCompanyLogoUrl: (url) => set((state) => ({
+        companyLogoUrl: url,
+        auth: state.auth ? { ...state.auth, companyLogoUrl: url } : state.auth,
+      })),
 
       // shortcuts (sync กับ auth)
       companyId:    null,
       companyName:  null,
+      companyLogoUrl: null,
       userRole:     null,
       userName:     null,
       userInitials: null,
@@ -110,15 +124,20 @@ export const useAppStore = create<AppStore>()(
             ? state.expandedContainers.filter((r) => r !== id)
             : [...state.expandedContainers, id],
         })),
+
+      // ---- Theme ----
+      theme: "yellow",
+      setTheme: (theme) => set({ theme }),
     }),
     {
       name: "stak-store",
-      partialize: (state) => ({ auth: state.auth }),
+      partialize: (state) => ({ auth: state.auth, theme: state.theme }),
       // hydrate shortcuts จาก auth ตอน load
       onRehydrateStorage: () => (state) => {
         if (state?.auth) {
           state.companyId    = state.auth.companyId;
           state.companyName  = state.auth.companyName;
+          state.companyLogoUrl = state.auth.companyLogoUrl ?? null;
           state.userRole     = state.auth.userRole;
           state.userName     = state.auth.userName;
           state.userInitials = state.auth.userInitials;

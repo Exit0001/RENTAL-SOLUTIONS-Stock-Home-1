@@ -59,34 +59,34 @@ export function ResourceScheduleView({ rows, jobs, assignments, onBarClick, empt
   const totalW = LEFT_W + VIEW_DAYS * COL_W;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#0a0a0a]">
+    <div className="flex flex-col h-full overflow-hidden bg-surface-0">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-white/[0.06] flex-shrink-0">
-        <button type="button" onClick={() => navigate(-1)} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-fg/[0.06] flex-shrink-0">
+        <button type="button" onClick={() => navigate(-1)} className="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors">
           <ChevronLeft className="w-3.5 h-3.5" />
         </button>
-        <span className="text-[11px] text-white/50 min-w-[160px] text-center">
+        <span className="text-[11px] text-fg/50 min-w-[160px] text-center">
           {days[0].toLocaleDateString("th-TH", { day: "numeric", month: "short" })} –{" "}
           {days[VIEW_DAYS - 1].toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
         </span>
-        <button type="button" onClick={() => navigate(1)} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+        <button type="button" onClick={() => navigate(1)} className="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors">
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={goToday} className="text-[11px] text-[#FFFF00]/50 hover:text-[#FFFF00] transition-colors px-1">วันนี้</button>
+        <button type="button" onClick={goToday} className="text-[11px] text-brand/50 hover:text-brand transition-colors px-1">วันนี้</button>
       </div>
 
       {/* Grid */}
       <div ref={gridRef} className="flex-1 overflow-auto">
         <div style={{ minWidth: totalW }}>
           {/* Day header */}
-          <div className="flex sticky top-0 z-30 bg-[#0a0a0a] border-b border-white/[0.06]">
-            <div className="flex-shrink-0 sticky left-0 z-40 bg-[#0a0a0a] border-r border-white/[0.06]" style={{ width: LEFT_W }} />
+          <div className="flex sticky top-0 z-30 bg-surface-0 border-b border-fg/[0.06]">
+            <div className="flex-shrink-0 sticky left-0 z-40 bg-surface-0 border-r border-fg/[0.06]" style={{ width: LEFT_W }} />
             {days.map((d, i) => {
               const isToday = i === todayOffset;
               return (
-                <div key={i} className={`shrink-0 border-r border-white/[0.04] text-center py-2 ${isToday ? "bg-[#FFFF00]/[0.06]" : ""}`} style={{ width: COL_W }}>
-                  <div className={`text-[9px] uppercase tracking-wide ${isToday ? "text-[#FFFF00]/70" : "text-white/25"}`}>{DOW_TH[d.getDay()]}</div>
-                  <div className={`text-[11px] font-semibold mt-0.5 ${isToday ? "text-[#FFFF00]" : "text-white/40"}`}>{d.getDate()}</div>
+                <div key={i} className={`shrink-0 border-r border-fg/[0.04] text-center py-2 ${isToday ? "bg-brand/[0.06]" : ""}`} style={{ width: COL_W }}>
+                  <div className={`text-[9px] uppercase tracking-wide ${isToday ? "text-brand/70" : "text-fg/25"}`}>{DOW_TH[d.getDay()]}</div>
+                  <div className={`text-[11px] font-semibold mt-0.5 ${isToday ? "text-brand" : "text-fg/40"}`}>{d.getDate()}</div>
                 </div>
               );
             })}
@@ -102,27 +102,27 @@ export function ResourceScheduleView({ rows, jobs, assignments, onBarClick, empt
               <Fragment key={c.id}>
                 {showGroup && (
                   <div className="flex sticky left-0 z-20" style={{ width: totalW }}>
-                    <div className="px-3 py-1 bg-[#111] border-b border-white/[0.06] w-full">
-                      <span className="text-[10px] font-bold text-[#FFFF00]/60 uppercase tracking-wider">{c.group}</span>
+                    <div className="px-3 py-1 bg-surface-1 border-b border-fg/[0.06] w-full">
+                      <span className="text-[10px] font-bold text-brand/60 uppercase tracking-wider">{c.group}</span>
                     </div>
                   </div>
                 )}
                 <div className="flex" style={{ height: ROW_H }}>
-                  <div className={`flex-shrink-0 sticky left-0 z-10 flex items-center gap-2.5 px-3 border-b border-r border-white/[0.04] ${ri % 2 === 1 ? "bg-[#0d0d0d]" : "bg-[#0a0a0a]"}`} style={{ width: LEFT_W }}>
-                    <div className="w-7 h-7 rounded-full bg-white/[0.08] flex items-center justify-center text-[10px] font-bold text-white/50 flex-shrink-0">{c.initials}</div>
+                  <div className={`flex-shrink-0 sticky left-0 z-10 flex items-center gap-2.5 px-3 border-b border-r border-fg/[0.04] ${ri % 2 === 1 ? "bg-surface-1" : "bg-surface-0"}`} style={{ width: LEFT_W }}>
+                    <div className="w-7 h-7 rounded-full bg-fg/[0.08] flex items-center justify-center text-[10px] font-bold text-fg/50 flex-shrink-0">{c.initials}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-white/75 truncate leading-tight">{c.name}</p>
-                      {c.sub && <p className="text-[10px] text-white/25 truncate leading-tight mt-0.5">{c.sub}</p>}
+                      <p className="text-xs font-medium text-fg/75 truncate leading-tight">{c.name}</p>
+                      {c.sub && <p className="text-[10px] text-fg/25 truncate leading-tight mt-0.5">{c.sub}</p>}
                     </div>
                   </div>
 
-                  <div className={`relative flex-shrink-0 border-b border-white/[0.04] ${ri % 2 === 1 ? "bg-[#0d0d0d]" : ""}`} style={{ width: VIEW_DAYS * COL_W, height: ROW_H }}>
+                  <div className={`relative flex-shrink-0 border-b border-fg/[0.04] ${ri % 2 === 1 ? "bg-surface-1" : ""}`} style={{ width: VIEW_DAYS * COL_W, height: ROW_H }}>
                     {days.map((_, di) => (
-                      <div key={di} className="absolute top-0 bottom-0 border-r border-white/[0.04]"
+                      <div key={di} className="absolute top-0 bottom-0 border-r border-fg/[0.04]"
                         style={{ left: di * COL_W, width: COL_W, background: di === todayOffset ? "rgba(255,255,0,0.04)" : undefined }} />
                     ))}
                     {todayOffset >= 0 && todayOffset < VIEW_DAYS && (
-                      <div className="absolute top-0 bottom-0 w-px bg-[#FFFF00]/20 pointer-events-none z-10" style={{ left: todayOffset * COL_W + COL_W / 2 }} />
+                      <div className="absolute top-0 bottom-0 w-px bg-brand/20 pointer-events-none z-10" style={{ left: todayOffset * COL_W + COL_W / 2 }} />
                     )}
                     {resourceJobs.map((job) => {
                       const jobStart = startOfDay(new Date(job.startDate));
@@ -154,7 +154,7 @@ export function ResourceScheduleView({ rows, jobs, assignments, onBarClick, empt
           })}
 
           {rows.length === 0 && (
-            <div className="flex items-center justify-center py-16 text-white/30 text-sm">{emptyText}</div>
+            <div className="flex items-center justify-center py-16 text-fg/30 text-sm">{emptyText}</div>
           )}
         </div>
       </div>

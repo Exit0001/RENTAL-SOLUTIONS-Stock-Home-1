@@ -11,11 +11,11 @@ const MAX_CHIPS = 3;
 type ViewMode = "timeline" | "month";
 
 const JOB_BAR: Record<string, string> = {
-  draft:     "bg-white/[0.12] text-white/50",
-  scheduled: "bg-blue-500/70 text-white",
+  draft:     "bg-fg/[0.12] text-fg/50",
+  scheduled: "bg-blue-500/70 text-fg",
   active:    "bg-amber-500/70 text-black",
-  completed: "bg-emerald-600/60 text-white",
-  cancelled: "bg-red-500/25 text-white/40",
+  completed: "bg-emerald-600/60 text-fg",
+  cancelled: "bg-red-500/25 text-fg/40",
 };
 
 const WEEKDAY_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
@@ -101,11 +101,11 @@ export function JobScheduleView({ jobs }: Props) {
     <div className="space-y-3">
       {/* Control bar */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-0.5 bg-white/[0.05] rounded-lg p-0.5">
+        <div className="flex items-center gap-0.5 bg-fg/[0.05] rounded-lg p-0.5">
           <button
             onClick={() => setViewMode("timeline")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-              viewMode === "timeline" ? "bg-[#FFFF00] text-black" : "text-white/60 hover:text-white"
+              viewMode === "timeline" ? "bg-brand text-black" : "text-fg/60 hover:text-fg"
             }`}
           >
             <LayoutList className="w-3.5 h-3.5" /> ตาราง
@@ -113,7 +113,7 @@ export function JobScheduleView({ jobs }: Props) {
           <button
             onClick={() => setViewMode("month")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-              viewMode === "month" ? "bg-[#FFFF00] text-black" : "text-white/60 hover:text-white"
+              viewMode === "month" ? "bg-brand text-black" : "text-fg/60 hover:text-fg"
             }`}
           >
             <CalendarDays className="w-3.5 h-3.5" /> เดือน
@@ -122,31 +122,31 @@ export function JobScheduleView({ jobs }: Props) {
 
         {viewMode === "timeline" ? (
           <div className="flex items-center gap-1.5">
-            <button onClick={prevWeek} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <button onClick={prevWeek} className="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors">
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[11px] text-white/50 min-w-[160px] text-center">
+            <span className="text-[11px] text-fg/50 min-w-[160px] text-center">
               {rangeStart.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} – {rangeEnd.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
             </span>
-            <button onClick={nextWeek} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <button onClick={nextWeek} className="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors">
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            <button onClick={goToday} className="text-[11px] text-[#FFFF00]/50 hover:text-[#FFFF00] transition-colors px-1">
+            <button onClick={goToday} className="text-[11px] text-brand/50 hover:text-brand transition-colors px-1">
               วันนี้
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
-            <button onClick={prevMonth} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <button onClick={prevMonth} className="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors">
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-sm font-medium text-white/70 min-w-[140px] text-center">
+            <span className="text-sm font-medium text-fg/70 min-w-[140px] text-center">
               {monthCursor.toLocaleDateString("th-TH", { month: "long", year: "numeric" })}
             </span>
-            <button onClick={nextMonth} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors">
+            <button onClick={nextMonth} className="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-colors">
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            <button onClick={goThisMonth} className="text-[11px] text-[#FFFF00]/50 hover:text-[#FFFF00] transition-colors px-1">
+            <button onClick={goThisMonth} className="text-[11px] text-brand/50 hover:text-brand transition-colors px-1">
               เดือนนี้
             </button>
           </div>
@@ -155,26 +155,26 @@ export function JobScheduleView({ jobs }: Props) {
 
       {/* ── Gantt timeline ── */}
       {viewMode === "timeline" && (
-        <div ref={timelineRef} className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
+        <div ref={timelineRef} className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             {/* Header row */}
             <div
-              className="flex border-b border-white/[0.06] bg-[#0f0f0f] sticky top-0 z-10"
+              className="flex border-b border-fg/[0.06] bg-surface-1 sticky top-0 z-10"
               style={{ minWidth: LABEL_W + DAY_W * TOTAL_DAYS }}
             >
-              <div className="shrink-0 border-r border-white/[0.06]" style={{ width: LABEL_W }} />
+              <div className="shrink-0 border-r border-fg/[0.06]" style={{ width: LABEL_W }} />
               {days.map((day) => {
                 const isToday = isSameDay(day, today);
                 return (
                   <div
                     key={day.toISOString()}
-                    className={`shrink-0 border-r border-white/[0.04] text-center py-2 ${isToday ? "bg-[#FFFF00]/[0.06]" : ""}`}
+                    className={`shrink-0 border-r border-fg/[0.04] text-center py-2 ${isToday ? "bg-brand/[0.06]" : ""}`}
                     style={{ width: DAY_W }}
                   >
-                    <div className={`text-[9px] uppercase tracking-wide ${isToday ? "text-[#FFFF00]/70" : "text-white/25"}`}>
+                    <div className={`text-[9px] uppercase tracking-wide ${isToday ? "text-brand/70" : "text-fg/25"}`}>
                       {WEEKDAY_TH[day.getDay()]}
                     </div>
-                    <div className={`text-[11px] font-semibold mt-0.5 ${isToday ? "text-[#FFFF00]" : "text-white/40"}`}>
+                    <div className={`text-[11px] font-semibold mt-0.5 ${isToday ? "text-brand" : "text-fg/40"}`}>
                       {day.getDate()}
                     </div>
                   </div>
@@ -184,7 +184,7 @@ export function JobScheduleView({ jobs }: Props) {
 
             {/* Job rows */}
             {timelineJobs.length === 0 ? (
-              <div className="py-12 text-center text-sm text-white/30" style={{ minWidth: LABEL_W + DAY_W * TOTAL_DAYS }}>
+              <div className="py-12 text-center text-sm text-fg/30" style={{ minWidth: LABEL_W + DAY_W * TOTAL_DAYS }}>
                 ไม่มีงานในช่วงเวลานี้
               </div>
             ) : timelineJobs.map((job) => {
@@ -202,21 +202,21 @@ export function JobScheduleView({ jobs }: Props) {
               return (
                 <div
                   key={job.id}
-                  className="flex items-center border-b border-white/[0.04] hover:bg-white/[0.015] transition-colors"
+                  className="flex items-center border-b border-fg/[0.04] hover:bg-fg/[0.015] transition-colors"
                   style={{ minWidth: LABEL_W + DAY_W * TOTAL_DAYS }}
                 >
                   <div
-                    className="shrink-0 border-r border-white/[0.04] px-3 py-2.5"
+                    className="shrink-0 border-r border-fg/[0.04] px-3 py-2.5"
                     style={{ width: LABEL_W }}
                   >
-                    <p className="text-xs font-medium text-white/80 truncate">{job.name}</p>
-                    <p className="text-[10px] text-white/35 truncate">{job.client}</p>
+                    <p className="text-xs font-medium text-fg/80 truncate">{job.name}</p>
+                    <p className="text-[10px] text-fg/35 truncate">{job.client}</p>
                   </div>
                   <div className="relative" style={{ width: DAY_W * TOTAL_DAYS, height: 44 }}>
                     {/* today column highlight */}
                     {todayOffset >= 0 && todayOffset < TOTAL_DAYS && (
                       <div
-                        className="absolute top-0 bottom-0 bg-[#FFFF00]/[0.025]"
+                        className="absolute top-0 bottom-0 bg-brand/[0.025]"
                         style={{ left: todayOffset * DAY_W, width: DAY_W }}
                       />
                     )}
@@ -224,13 +224,13 @@ export function JobScheduleView({ jobs }: Props) {
                     {days.map((_, di) => (
                       <div
                         key={di}
-                        className="absolute top-0 bottom-0 border-r border-white/[0.03]"
+                        className="absolute top-0 bottom-0 border-r border-fg/[0.03]"
                         style={{ left: di * DAY_W, width: DAY_W }}
                       />
                     ))}
                     {/* job bar */}
                     <div
-                      className={`absolute top-2.5 bottom-2.5 rounded flex items-center px-2 text-[10px] font-semibold truncate select-none ${JOB_BAR[job.status] ?? "bg-white/10 text-white/50"}`}
+                      className={`absolute top-2.5 bottom-2.5 rounded flex items-center px-2 text-[10px] font-semibold truncate select-none ${JOB_BAR[job.status] ?? "bg-fg/10 text-fg/50"}`}
                       style={{ left: startOff * DAY_W + 2, width: Math.max(8, spanDays * DAY_W - 4) }}
                       title={`${job.name} · ${job.status}`}
                     >
@@ -246,11 +246,11 @@ export function JobScheduleView({ jobs }: Props) {
 
       {/* ── Month calendar ── */}
       {viewMode === "month" && (
-        <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
+        <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
           {/* Weekday header */}
-          <div className="grid grid-cols-7 border-b border-white/[0.06] bg-[#0f0f0f]">
+          <div className="grid grid-cols-7 border-b border-fg/[0.06] bg-surface-1">
             {WEEKDAY_TH.map((label) => (
-              <div key={label} className="py-2 text-center text-[10px] font-medium text-white/25 uppercase tracking-wide">
+              <div key={label} className="py-2 text-center text-[10px] font-medium text-fg/25 uppercase tracking-wide">
                 {label}
               </div>
             ))}
@@ -272,15 +272,15 @@ export function JobScheduleView({ jobs }: Props) {
               return (
                 <div
                   key={i}
-                  className={`flex min-h-[84px] flex-col gap-0.5 border-b border-r border-white/[0.04] p-1 ${
+                  className={`flex min-h-[84px] flex-col gap-0.5 border-b border-r border-fg/[0.04] p-1 ${
                     !inMonth ? "opacity-30" : ""
                   }`}
                 >
                   <span
                     className={`self-end text-[11px] mb-0.5 leading-none ${
                       isToday
-                        ? "flex h-5 w-5 items-center justify-center rounded-full bg-[#FFFF00] font-bold text-black"
-                        : "text-white/35"
+                        ? "flex h-5 w-5 items-center justify-center rounded-full bg-brand font-bold text-black"
+                        : "text-fg/35"
                     }`}
                   >
                     {day.getDate()}
@@ -290,13 +290,13 @@ export function JobScheduleView({ jobs }: Props) {
                       <div
                         key={job.id}
                         title={job.name}
-                        className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${JOB_BAR[job.status] ?? "bg-white/10 text-white/50"}`}
+                        className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${JOB_BAR[job.status] ?? "bg-fg/10 text-fg/50"}`}
                       >
                         {job.name}
                       </div>
                     ))}
                     {overflow > 0 && (
-                      <span className="text-[10px] text-white/25">+{overflow} เพิ่มเติม</span>
+                      <span className="text-[10px] text-fg/25">+{overflow} เพิ่มเติม</span>
                     )}
                   </div>
                 </div>

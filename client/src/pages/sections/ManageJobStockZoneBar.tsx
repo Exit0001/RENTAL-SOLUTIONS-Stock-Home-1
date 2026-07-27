@@ -21,12 +21,12 @@ export const ManageJobStockZoneBar = ({
   const [newZoneName, setNewZoneName] = useState("");
 
   return (
-    <div className="px-4 py-2 flex-shrink-0 flex flex-wrap gap-1.5 items-center border-b border-white/[0.06]">
-      <span className="text-[9px] uppercase tracking-wider text-white/30 mr-0.5">{t("manageJobStock.addingToZone")}</span>
+    <div className="px-4 py-2 flex-shrink-0 flex flex-wrap gap-1.5 items-center border-b border-fg/[0.06]">
+      <span className="text-[9px] uppercase tracking-wider text-fg/30 mr-0.5">{t("manageJobStock.addingToZone")}</span>
       <button
         onClick={() => onActiveZoneChange("auto")}
         className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-          ${activeZone === "auto" ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
+          ${activeZone === "auto" ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
       >
         {t("manageJobStock.zoneAuto")}
       </button>
@@ -35,7 +35,7 @@ export const ManageJobStockZoneBar = ({
           key={z.id}
           onClick={() => onActiveZoneChange(z.name)}
           className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-            ${activeZone === z.name ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
+            ${activeZone === z.name ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
         >
           {z.name}
         </button>
@@ -43,7 +43,7 @@ export const ManageJobStockZoneBar = ({
       <button
         onClick={() => onActiveZoneChange(null)}
         className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-          ${activeZone === null ? "bg-[#FFFF00] text-black border-[#FFFF00]" : "text-white/50 border-white/10 hover:border-white/30"}`}
+          ${activeZone === null ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
       >
         {t("manageJobStock.zoneNone")}
       </button>
@@ -51,7 +51,7 @@ export const ManageJobStockZoneBar = ({
       {!addingZone ? (
         <button
           onClick={() => setAddingZone(true)}
-          className="h-6 w-6 rounded-full border border-white/10 text-white/40 hover:text-[#FFFF00] hover:border-[#FFFF00]/40 flex items-center justify-center transition-colors"
+          className="h-6 w-6 rounded-full border border-fg/10 text-fg/40 hover:text-brand hover:border-brand/40 flex items-center justify-center transition-colors"
           title={t("manageJobStock.addZone")}
         >
           <Plus className="w-3 h-3" />
@@ -68,11 +68,11 @@ export const ManageJobStockZoneBar = ({
             }}
             placeholder={t("manageJobStock.newZonePlaceholder")}
             disabled={creatingZone}
-            className="h-6 w-24 px-2 rounded-full bg-white/[0.06] border border-white/10 text-[10px] text-white outline-none focus:border-[#FFFF00]/40"
+            className="h-6 w-24 px-2 rounded-full bg-fg/[0.06] border border-fg/10 text-[10px] text-fg outline-none focus:border-brand/40"
           />
           <button
             onClick={() => { setNewZoneName(""); setAddingZone(false); }}
-            className="text-white/40 hover:text-white transition-colors"
+            className="text-fg/40 hover:text-fg transition-colors"
           >
             <XIcon className="w-3 h-3" />
           </button>

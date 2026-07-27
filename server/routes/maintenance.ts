@@ -3,7 +3,7 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { maintenanceLogs, subRentals, jobs, insertMaintenanceLogBatchSchema } from "@shared/schema";
 import { notify } from "../lib/notify";
-import { markUnitsInMaintenance, revertUnitIfNoOpenMaintenance } from "../lib/stockUnitStatus";
+import { markUnitsInMaintenance, revertUnitIfNoOpenMaintenance, revertUnitsIfNoOpenMaintenance } from "../lib/stockUnitStatus";
 import { recalculateUnitHealth } from "../lib/health";
 
 export const maintenanceRouter = Router();
@@ -94,11 +94,10 @@ maintenanceRouter.put("/batch-status", async (req, res) => {
 
     // sync สถานะอุปกรณ์ของแต่ละรายการที่สถานะเปลี่ยนจริง
     if (status === "completed") {
-      for (const log of updated) {
-        if (log.stockUnitId && beforeStatusById.get(log.id) !== "completed") {
-          await revertUnitIfNoOpenMaintenance(log.stockUnitId);
-        }
-      }
+      const revertIds = updated
+        .filter((log) => log.stockUnitId && beforeStatusById.get(log.id) !== "completed")
+        .map((log) => log.stockUnitId as string);
+      await revertUnitsIfNoOpenMaintenance(revertIds);
     } else if (status === "in_progress") {
       const unitIds = updated
         .filter((l) => l.stockUnitId && beforeStatusById.get(l.id) !== "in_progress")
@@ -132,11 +131,10 @@ maintenanceRouter.delete("/batch", async (req, res) => {
       .where(and(inArray(maintenanceLogs.id, ids), eq(maintenanceLogs.companyId, req.companyId)))
       .returning();
 
-    for (const log of deleted) {
-      if (log.status === "in_progress" && log.stockUnitId) {
-        await revertUnitIfNoOpenMaintenance(log.stockUnitId);
-      }
-    }
+    const revertIds = deleted
+      .filter((log) => log.status === "in_progress" && log.stockUnitId)
+      .map((log) => log.stockUnitId as string);
+    await revertUnitsIfNoOpenMaintenance(revertIds);
 
     const affectedUnitIds = Array.from(new Set(deleted.filter((l) => l.stockUnitId).map((l) => l.stockUnitId as string)));
     await Promise.all(affectedUnitIds.map(recalculateUnitHealth));

@@ -13,13 +13,27 @@
   /* Brand accent color — default theme (black + yellow) */
   --brand: #FFFF00;
   --brand-rgb: 255 255 0;
+
+  /* Foreground ("white" family — text/borders/hover overlays) */
+  --fg-rgb: 255 255 255;
+
+  /* Background surfaces — 3 tiers used throughout the app */
+  --surface-0: #0a0a0a; /* page background */
+  --surface-1: #0f0f0f; /* card / panel / header background */
+  --surface-2: #1a1a1a; /* elevated / hover / row background */
 }
 
-/* Alternate theme (black + white + red) — swaps only the accent color,
-   backgrounds/text/borders stay identical to the default theme */
+/* Alternate theme (white + black + red) — full light theme:
+   white background, near-black text, red accent instead of yellow */
 [data-theme="red"] {
   --brand: #DC2626;
   --brand-rgb: 220 38 38;
+
+  --fg-rgb: 23 23 23;
+
+  --surface-0: #ffffff;
+  --surface-1: #f7f7f7;
+  --surface-2: #eeeeee;
 }
 
 /* Hide all scrollbars globally while keeping scroll functionality */
@@ -273,7 +287,7 @@
   }
 
   body {
-    @apply bg-[#0a0a0a] text-foreground font-sans antialiased;
+    @apply bg-surface-0 text-foreground font-sans antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;

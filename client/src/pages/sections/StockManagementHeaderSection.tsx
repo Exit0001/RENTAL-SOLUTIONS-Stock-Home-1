@@ -21,7 +21,7 @@ const UserAvatar = ({ avatarUrl, initials, name, className }: { avatarUrl: strin
   avatarUrl ? (
     <img src={avatarUrl} alt={name ?? ""} className={`rounded-full object-cover ${className}`} />
   ) : (
-    <div className={`rounded-full bg-[#FFFF00]/20 flex items-center justify-center font-bold text-[#FFFF00] ${className}`}>
+    <div className={`rounded-full bg-brand/20 flex items-center justify-center font-bold text-brand ${className}`}>
       {initials || "?"}
     </div>
   );
@@ -44,7 +44,7 @@ export const StockManagementHeaderSection = ({
   const { t: tc } = useTranslation("common");
   const { t: ts } = useTranslation("settings");
   const { t: tn } = useTranslation("notifications");
-  const { userName, userInitials, userRole, companyName, avatarUrl, token, setActivePage, setSettingsTab, clearAuth } = useAppStore();
+  const { userName, userInitials, userRole, companyName, companyLogoUrl, avatarUrl, token, setActivePage, setSettingsTab, clearAuth } = useAppStore();
   const queryClient = useQueryClient();
 
   const { data: notifications = [] } = useQuery({
@@ -92,17 +92,26 @@ export const StockManagementHeaderSection = ({
   };
 
   return (
-    <header className="w-full h-14 bg-[#0f0f0f] border-b border-white/10 flex items-center justify-between px-6 flex-shrink-0">
+    <header className="w-full h-14 bg-surface-1 border-b border-fg/10 flex items-center justify-between px-6 flex-shrink-0">
       <div className="flex items-center gap-3">
+        {companyLogoUrl ? (
+          <img
+            src={companyLogoUrl}
+            alt={companyName ?? "logo"}
+            className="h-7 max-w-[140px] object-contain flex-shrink-0"
+            data-testid="img-logo"
+          />
+        ) : (
+          <div
+            className="font-black text-brand text-xl tracking-[0.2em]"
+            data-testid="text-logo"
+          >
+            STAK
+          </div>
+        )}
+        <div className="w-px h-6 bg-fg/10" />
         <div
-          className="font-black text-[#FFFF00] text-xl tracking-[0.2em]"
-          data-testid="text-logo"
-        >
-          STAK
-        </div>
-        <div className="w-px h-6 bg-white/10" />
-        <div
-          className="font-semibold text-white/60 text-sm tracking-wide uppercase"
+          className="font-semibold text-fg/60 text-sm tracking-wide uppercase"
           data-testid="text-header-title"
         >
           {t(`pageTitles.${activeSection}`, { defaultValue: activeSection })}
@@ -113,23 +122,23 @@ export const StockManagementHeaderSection = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="relative p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer focus:outline-none"
+              className="relative p-2 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer focus:outline-none"
               data-testid="button-notifications"
               aria-label={tn("title")}
             >
-              <Bell className="w-4.5 h-4.5 text-white/60" />
+              <Bell className="w-4.5 h-4.5 text-fg/60" />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FFFF00] rounded-full" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full" />
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 p-0 bg-[#0f0f0f] border border-white/[0.08] text-white">
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.08]">
-              <span className="text-sm font-semibold text-white">{tn("title")}</span>
+          <DropdownMenuContent align="end" className="w-80 p-0 bg-surface-1 border border-fg/[0.08] text-fg">
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-fg/[0.08]">
+              <span className="text-sm font-semibold text-fg">{tn("title")}</span>
               {unreadCount > 0 && (
                 <button
                   onClick={() => markAllReadMutation.mutate()}
-                  className="text-xs font-semibold text-[#FFFF00] hover:opacity-80 cursor-pointer"
+                  className="text-xs font-semibold text-brand hover:opacity-80 cursor-pointer"
                   data-testid="button-mark-all-read"
                 >
                   {tn("markAllRead")}
@@ -138,20 +147,20 @@ export const StockManagementHeaderSection = ({
             </div>
             <div className="max-h-96 overflow-y-auto">
               {notifications.length === 0 ? (
-                <div className="px-3 py-6 text-center text-sm text-white/40">{tn("empty")}</div>
+                <div className="px-3 py-6 text-center text-sm text-fg/40">{tn("empty")}</div>
               ) : (
                 notifications.map((n) => (
                   <button
                     key={n.id}
                     onClick={() => handleNotificationClick(n)}
-                    className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-white/5 transition-colors border-b border-white/[0.04] last:border-b-0 cursor-pointer"
+                    className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-fg/5 transition-colors border-b border-fg/[0.04] last:border-b-0 cursor-pointer"
                     data-testid={`notification-${n.id}`}
                   >
-                    <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${n.isRead ? "bg-transparent" : "bg-[#FFFF00]"}`} />
+                    <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${n.isRead ? "bg-transparent" : "bg-brand"}`} />
                     <div className="flex flex-col min-w-0 gap-0.5">
-                      <span className="text-sm font-medium text-white">{tn(`title.${n.type}`)}</span>
-                      <span className="text-xs text-white/60">{tn(`body.${n.type}`, n.meta ?? {})}</span>
-                      <span className="text-xs text-white/30">{formatRelativeTime(n.createdAt, tn)}</span>
+                      <span className="text-sm font-medium text-fg">{tn(`title.${n.type}`)}</span>
+                      <span className="text-xs text-fg/60">{tn(`body.${n.type}`, n.meta ?? {})}</span>
+                      <span className="text-xs text-fg/30">{formatRelativeTime(n.createdAt, tn)}</span>
                     </div>
                   </button>
                 ))
@@ -163,11 +172,11 @@ export const StockManagementHeaderSection = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-2.5 pl-2 pr-1.5 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer focus:outline-none"
+              className="flex items-center gap-2.5 pl-2 pr-1.5 py-1.5 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer focus:outline-none"
               data-testid="button-user-menu"
             >
               <span
-                className="font-medium text-white/50 text-sm"
+                className="font-medium text-fg/50 text-sm"
                 data-testid="text-user-name"
               >
                 {userName || "—"}
@@ -175,29 +184,29 @@ export const StockManagementHeaderSection = ({
               <UserAvatar avatarUrl={avatarUrl} initials={userInitials} name={userName} className="w-8 h-8 text-xs" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-[#0f0f0f] border border-white/[0.08] text-white">
+          <DropdownMenuContent align="end" className="w-56 bg-surface-1 border border-fg/[0.08] text-fg">
             <DropdownMenuLabel className="font-normal">
               <div className="flex items-center gap-3">
                 <UserAvatar avatarUrl={avatarUrl} initials={userInitials} name={userName} className="w-9 h-9 text-sm flex-shrink-0" />
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-white truncate">{userName}</span>
-                  <span className="text-xs text-white/50 truncate">
+                  <span className="text-sm font-semibold text-fg truncate">{userName}</span>
+                  <span className="text-xs text-fg/50 truncate">
                     {userRole ? ts(`roles.${userRole}`) : ""}{companyName ? ` · ${companyName}` : ""}
                   </span>
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-white/[0.08]" />
+            <DropdownMenuSeparator className="bg-fg/[0.08]" />
             <DropdownMenuItem
               onClick={handleViewProfile}
-              className="gap-2 text-white/80 cursor-pointer focus:bg-white/5 focus:text-white"
+              className="gap-2 text-fg/80 cursor-pointer focus:bg-fg/5 focus:text-fg"
               data-testid="menu-view-profile"
             >
               <User className="w-4 h-4" /> {t("userMenu.viewProfile")}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleLogout}
-              className="gap-2 text-white/80 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
+              className="gap-2 text-fg/80 cursor-pointer focus:bg-red-500/10 focus:text-red-400"
               data-testid="menu-logout"
             >
               <LogOut className="w-4 h-4" /> {tc("logout")}

@@ -45,6 +45,7 @@ export const LoginPage = ({ onBack }: LoginPageProps) => {
         userRole:     me.role,
         companyId:    me.companyId,
         companyName:  me.companyName,
+        companyLogoUrl: me.companyLogoUrl ?? null,
         avatarUrl:    me.avatarUrl ?? null,
       });
     } catch (err: any) {
@@ -55,7 +56,7 @@ export const LoginPage = ({ onBack }: LoginPageProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-surface-0 flex items-center justify-center p-6">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
@@ -65,45 +66,45 @@ export const LoginPage = ({ onBack }: LoginPageProps) => {
         {/* Back button */}
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors mb-6"
+          className="flex items-center gap-1.5 text-xs text-fg/60 hover:text-fg transition-colors mb-6"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           {t("back", { ns: "common" })}
         </button>
 
-        <div className="bg-[#111] border border-white/[0.08] rounded-2xl p-8">
+        <div className="bg-surface-1 border border-fg/[0.08] rounded-2xl p-8">
           <div className="mb-6 text-center">
-            <p className="text-[10px] text-[#FFFF00]/50 tracking-widest uppercase mb-1">STAK v2.0</p>
-            <h1 className="text-xl font-bold text-white">{t("loginTitle")}</h1>
-            <p className="text-xs text-white/60 mt-1">{t("loginSubtitle")}</p>
+            <p className="text-[10px] text-brand/50 tracking-widest uppercase mb-1">STAK v2.0</p>
+            <h1 className="text-xl font-bold text-fg">{t("loginTitle")}</h1>
+            <p className="text-xs text-fg/60 mt-1">{t("loginSubtitle")}</p>
           </div>
 
           <div className="space-y-3">
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/60" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 placeholder={t("emailPlaceholder")}
-                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40"
+                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40"
               />
             </div>
 
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/60" />
               <input
                 type={showPw ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 placeholder={t("passwordPlaceholder")}
-                className="w-full pl-9 pr-9 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40"
+                className="w-full pl-9 pr-9 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40"
               />
               <button
                 onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-fg/60 hover:text-fg transition-colors"
               >
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -116,7 +117,7 @@ export const LoginPage = ({ onBack }: LoginPageProps) => {
             <button
               onClick={handleLogin}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#FFFF00] text-black text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand text-black text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading
                 ? <><Loader2 className="w-4 h-4 animate-spin" />{t("loggingIn")}</>

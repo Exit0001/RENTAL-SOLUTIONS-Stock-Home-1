@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
 import { authApi, pushApi, backupApi } from "@/api";
-import { uploadAttachment } from "@/components/FileUploadField";
+import { FileUploadField, uploadAttachment } from "@/components/FileUploadField";
 
 // แปลง VAPID public key (base64url) เป็น Uint8Array สำหรับ pushManager.subscribe()
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -26,9 +26,9 @@ const tabs: { key: SettingsTab; labelKey: string; icon: typeof Building2 }[] = [
 ];
 
 const roleColors: Record<string, string> = {
-  admin:   "bg-[#FFFF00]/10 text-[#FFFF00]",
+  admin:   "bg-brand/10 text-brand",
   manager: "bg-blue-500/10 text-blue-400",
-  crew:    "bg-white/5 text-white/60",
+  crew:    "bg-fg/5 text-fg/60",
 };
 
 export const SettingsPage = (): JSX.Element => {
@@ -36,7 +36,7 @@ export const SettingsPage = (): JSX.Element => {
   const { t: tc } = useTranslation("common");
   const {
     companyName, companyId, userName, userInitials, userRole, avatarUrl,
-    token, clearAuth, settingsTab, setSettingsTab, updateProfile, updateCompanyName,
+    token, clearAuth, settingsTab, setSettingsTab, updateProfile, updateCompanyName, updateCompanyLogoUrl,
   } = useAppStore();
   const qc = useQueryClient();
   const [editName, setEditName]     = useState(companyName || "");
@@ -44,6 +44,8 @@ export const SettingsPage = (): JSX.Element => {
   const [lineToken, setLineToken]   = useState("");
   const [lineGroupId, setLineGroupId] = useState("");
   const [lineMsg, setLineMsg]       = useState("");
+  const [logoUrl, setLogoUrl]       = useState<string | null>(null);
+  const [logoMsg, setLogoMsg]       = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName]   = useState("");
   const [inviteRole, setInviteRole]   = useState<"manager" | "crew">("crew");
@@ -138,12 +140,22 @@ export const SettingsPage = (): JSX.Element => {
     if (!companySettings) return;
     setLineToken(companySettings.lineChannelAccessToken || "");
     setLineGroupId(companySettings.lineGroupId || "");
+    setLogoUrl(companySettings.companyLogoUrl ?? null);
   }, [companySettings]);
 
   const saveLine = useMutation({
     mutationFn: () => authApi.updateCompany({ lineChannelAccessToken: lineToken, lineGroupId }),
     onSuccess: () => setLineMsg(`✓ ${t("lineSaved")}`),
     onError: (err: any) => setLineMsg(`✗ ${err.message}`),
+  });
+
+  const saveLogo = useMutation({
+    mutationFn: (url: string | null) => authApi.updateCompany({ companyLogoUrl: url }),
+    onSuccess: (_res, url) => {
+      updateCompanyLogoUrl(url);
+      setLogoMsg(`✓ ${t("logoSaved")}`);
+    },
+    onError: (err: any) => setLogoMsg(`✗ ${err.message}`),
   });
 
   const saveProfile = useMutation({
@@ -241,21 +253,21 @@ export const SettingsPage = (): JSX.Element => {
     <div className="flex-1 overflow-auto p-6 max-w-3xl" data-testid="page-settings">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">{t("pageTitle")}</h1>
-          <p className="text-xs text-white/60 mt-0.5">{t("pageSubtitle")}</p>
+          <h1 className="text-xl font-bold text-fg">{t("pageTitle")}</h1>
+          <p className="text-xs text-fg/60 mt-0.5">{t("pageSubtitle")}</p>
         </div>
         <button onClick={handleLogout}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.08] text-xs text-white/60 hover:text-red-400 hover:border-red-400/20 transition-all">
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-fg/[0.08] text-xs text-fg/60 hover:text-red-400 hover:border-red-400/20 transition-all">
           <LogOut className="w-3.5 h-3.5" /> {tc("logout")}
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-white/[0.06] mb-6">
+      <div className="flex gap-1 border-b border-fg/[0.06] mb-6">
         {tabs.map((tab) => (
           <button key={tab.key} onClick={() => setSettingsTab(tab.key)}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-              settingsTab === tab.key ? "border-[#FFFF00] text-[#FFFF00]" : "border-transparent text-white/60 hover:text-white"
+              settingsTab === tab.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"
             }`}>
             <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
           </button>
@@ -265,18 +277,18 @@ export const SettingsPage = (): JSX.Element => {
       {/* ─── General ─────────────────────────────────────── */}
       {settingsTab === "general" && (
         <div className="space-y-4">
-          <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white/70">{t("companyInformation")}</h3>
+          <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-fg/70">{t("companyInformation")}</h3>
             <div>
-              <label className="block text-xs text-white/60 mb-1.5">{t("companyName")}</label>
+              <label className="block text-xs text-fg/60 mb-1.5">{t("companyName")}</label>
               <input value={editName} onChange={(e) => setEditName(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-[#FFFF00]/40" />
+                className="w-full px-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg focus:outline-none focus:border-brand/40" />
             </div>
             <div>
-              <label className="block text-xs text-white/60 mb-1.5">{t("planLabel")}</label>
+              <label className="block text-xs text-fg/60 mb-1.5">{t("planLabel")}</label>
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#FFFF00]/10 text-[#FFFF00]">{t("freeBadge")}</span>
-                <span className="text-xs text-white/60">{t("upgradeHint")}</span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-brand/10 text-brand">{t("freeBadge")}</span>
+                <span className="text-xs text-fg/60">{t("upgradeHint")}</span>
               </div>
             </div>
 
@@ -287,26 +299,26 @@ export const SettingsPage = (): JSX.Element => {
             )}
 
             <button onClick={() => saveCompany.mutate()} disabled={saveCompany.isPending || !editName.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors disabled:opacity-50">
               {saveCompany.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {tc("saveChanges")}
             </button>
           </div>
 
           {userRole === "admin" && (
-            <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-white/70">{t("lineIntegration")}</h3>
-              <p className="text-xs text-white/50 leading-relaxed">{t("lineHelpText")}</p>
+            <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-fg/70">{t("lineIntegration")}</h3>
+              <p className="text-xs text-fg/50 leading-relaxed">{t("lineHelpText")}</p>
 
               <div>
-                <label className="block text-xs text-white/60 mb-1.5">{t("lineTokenLabel")}</label>
+                <label className="block text-xs text-fg/60 mb-1.5">{t("lineTokenLabel")}</label>
                 <textarea rows={2} value={lineToken} onChange={(e) => setLineToken(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white font-mono resize-none focus:outline-none focus:border-[#FFFF00]/40" />
+                  className="w-full px-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg font-mono resize-none focus:outline-none focus:border-brand/40" />
               </div>
               <div>
-                <label className="block text-xs text-white/60 mb-1.5">{t("lineGroupIdLabel")}</label>
+                <label className="block text-xs text-fg/60 mb-1.5">{t("lineGroupIdLabel")}</label>
                 <input value={lineGroupId} onChange={(e) => setLineGroupId(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white font-mono focus:outline-none focus:border-[#FFFF00]/40" />
+                  className="w-full px-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg font-mono focus:outline-none focus:border-brand/40" />
               </div>
 
               {lineMsg && (
@@ -316,7 +328,7 @@ export const SettingsPage = (): JSX.Element => {
               )}
 
               <button onClick={() => saveLine.mutate()} disabled={saveLine.isPending}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors disabled:opacity-50">
                 {saveLine.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {tc("saveChanges")}
               </button>
@@ -324,12 +336,35 @@ export const SettingsPage = (): JSX.Element => {
           )}
 
           {userRole === "admin" && (
-            <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
+            <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-fg/70">{t("logoTitle")}</h3>
+              <p className="text-xs text-fg/50 leading-relaxed">{t("logoHelpText")}</p>
+
+              {companyId && (
+                <FileUploadField
+                  label={t("logoLabel")}
+                  folder="logos"
+                  companyId={companyId}
+                  value={logoUrl}
+                  onChange={(url) => { setLogoUrl(url); saveLogo.mutate(url); }}
+                />
+              )}
+
+              {(logoMsg || saveLogo.isPending) && (
+                <p className={`text-xs px-3 py-2 rounded-lg ${saveLogo.isPending ? "text-fg/50 bg-fg/[0.04]" : logoMsg.startsWith("✓") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
+                  {saveLogo.isPending ? `${tc("saving")}...` : logoMsg}
+                </p>
+              )}
+            </div>
+          )}
+
+          {userRole === "admin" && (
+            <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-[#FFFF00]/70" />
-                <h3 className="text-sm font-semibold text-white/70">{t("backupTitle")}</h3>
+                <Database className="w-4 h-4 text-brand/70" />
+                <h3 className="text-sm font-semibold text-fg/70">{t("backupTitle")}</h3>
               </div>
-              <p className="text-xs text-white/50 leading-relaxed">{t("backupHelpText")}</p>
+              <p className="text-xs text-fg/50 leading-relaxed">{t("backupHelpText")}</p>
 
               {backupMsg && (
                 <p className={`text-xs px-3 py-2 rounded-lg ${backupMsg.startsWith("✓") ? "text-emerald-400 bg-emerald-400/10" : "text-red-400 bg-red-400/10"}`}>
@@ -338,7 +373,7 @@ export const SettingsPage = (): JSX.Element => {
               )}
 
               <button onClick={handleExportBackup} disabled={backupLoading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors disabled:opacity-50">
                 {backupLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                 {t("backupExportBtn")}
               </button>
@@ -352,26 +387,26 @@ export const SettingsPage = (): JSX.Element => {
         <div className="space-y-4">
           {/* Invite */}
           {userRole === "admin" && (
-            <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-white/70 mb-3">{t("inviteNewMember")}</h3>
+            <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-fg/70 mb-3">{t("inviteNewMember")}</h3>
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <input value={inviteName} onChange={(e) => setInviteName(e.target.value)}
                     placeholder={t("memberNamePlaceholder")}
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+                    className="flex-1 px-3 py-2 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40" />
                 </div>
                 <div className="flex gap-2">
                   <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder={t("memberEmailPlaceholder")}
                     type="email"
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+                    className="flex-1 px-3 py-2 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40" />
                   <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as any)}
-                    className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white/70 focus:outline-none focus:border-[#FFFF00]/40 transition-colors appearance-none cursor-pointer">
-                    <option value="crew" className="bg-[#111]">{t("roles.crew")}</option>
-                    <option value="manager" className="bg-[#111]">{t("roles.manager")}</option>
+                    className="px-3 py-2 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg/70 focus:outline-none focus:border-brand/40 transition-colors appearance-none cursor-pointer">
+                    <option value="crew" className="bg-surface-1">{t("roles.crew")}</option>
+                    <option value="manager" className="bg-surface-1">{t("roles.manager")}</option>
                   </select>
                   <button onClick={handleInvite} disabled={inviteLoading}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00] text-black text-xs font-bold hover:opacity-90 disabled:opacity-50">
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand text-black text-xs font-bold hover:opacity-90 disabled:opacity-50">
                     {inviteLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     {tc("send")}
                   </button>
@@ -386,28 +421,28 @@ export const SettingsPage = (): JSX.Element => {
           )}
 
           {/* Team list */}
-          <div className="bg-[#111] border border-white/[0.06] rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#FFFF00]" />
-              <span className="text-xs font-bold text-[#FFFF00] tracking-widest uppercase">{t("allMembers")}</span>
-              <span className="ml-auto text-[10px] text-white/60">{t("membersCount", { count: team.length })}</span>
+          <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
+              <Shield className="w-4 h-4 text-brand" />
+              <span className="text-xs font-bold text-brand tracking-widest uppercase">{t("allMembers")}</span>
+              <span className="ml-auto text-[10px] text-fg/60">{t("membersCount", { count: team.length })}</span>
             </div>
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-fg/[0.04]">
               {teamLoading && (
-                <div className="px-4 py-6 text-center text-xs text-white/60">{tc("loading")}</div>
+                <div className="px-4 py-6 text-center text-xs text-fg/60">{tc("loading")}</div>
               )}
               {team.map((member) => (
                 <div key={member.id} className="flex items-center gap-4 px-4 py-3">
                   {member.avatarUrl ? (
                     <img src={member.avatarUrl} alt={member.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-xs font-bold text-[#FFFF00]/70 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center text-xs font-bold text-brand/70 flex-shrink-0">
                       {member.initials}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white/80">{member.name}</p>
-                    <p className="text-xs text-white/60">{member.email}</p>
+                    <p className="text-sm font-medium text-fg/80">{member.name}</p>
+                    <p className="text-xs text-fg/60">{member.email}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${roleColors[member.role]}`}>
                     {t(`roles.${member.role}`)}
@@ -415,7 +450,7 @@ export const SettingsPage = (): JSX.Element => {
                   {userRole === "admin" && member.role !== "admin" && (
                     <button onClick={() => removeMember.mutate(member.id)}
                       disabled={removeMember.isPending && removeMember.variables === member.id}
-                      className="p-1.5 rounded-lg text-white/60 hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50">
+                      className="p-1.5 rounded-lg text-fg/60 hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50">
                       {removeMember.isPending && removeMember.variables === member.id
                         ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         : <Trash2 className="w-3.5 h-3.5" />}
@@ -427,12 +462,12 @@ export const SettingsPage = (): JSX.Element => {
           </div>
 
           {/* Role guide */}
-          <div className="bg-[#111] border border-white/[0.06] rounded-xl p-4">
-            <p className="text-xs font-semibold text-white/50 mb-2">{t("roleGuideTitle")}</p>
-            <div className="space-y-1.5 text-xs text-white/60">
-              <div className="flex gap-2"><span className="text-[#FFFF00] font-semibold w-16">{t("roles.admin")}</span>{t("roleAdminDesc")}</div>
+          <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-4">
+            <p className="text-xs font-semibold text-fg/50 mb-2">{t("roleGuideTitle")}</p>
+            <div className="space-y-1.5 text-xs text-fg/60">
+              <div className="flex gap-2"><span className="text-brand font-semibold w-16">{t("roles.admin")}</span>{t("roleAdminDesc")}</div>
               <div className="flex gap-2"><span className="text-blue-400 font-semibold w-16">{t("roles.manager")}</span>{t("roleManagerDesc")}</div>
-              <div className="flex gap-2"><span className="text-white/60 font-semibold w-16">{t("roles.crew")}</span>{t("roleCrewDesc")}</div>
+              <div className="flex gap-2"><span className="text-fg/60 font-semibold w-16">{t("roles.crew")}</span>{t("roleCrewDesc")}</div>
             </div>
           </div>
         </div>
@@ -441,7 +476,7 @@ export const SettingsPage = (): JSX.Element => {
       {/* ─── Profile ─────────────────────────────────────── */}
       {settingsTab === "profile" && (
         <div className="space-y-4">
-          <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
+          <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-4">
               <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
                 onChange={(e) => handleAvatarFile(e.target.files?.[0])} />
@@ -450,16 +485,16 @@ export const SettingsPage = (): JSX.Element => {
                 {profileAvatarUrl ? (
                   <img src={profileAvatarUrl} alt={userName || ""} className="w-14 h-14 rounded-full object-cover" />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-[#FFFF00]/10 flex items-center justify-center text-lg font-bold text-[#FFFF00]">
+                  <div className="w-14 h-14 rounded-full bg-brand/10 flex items-center justify-center text-lg font-bold text-brand">
                     {userInitials || "?"}
                   </div>
                 )}
                 <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  {avatarUploading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Camera className="w-4 h-4 text-white" />}
+                  {avatarUploading ? <Loader2 className="w-4 h-4 text-fg animate-spin" /> : <Camera className="w-4 h-4 text-fg" />}
                 </div>
               </button>
               <div>
-                <p className="font-semibold text-white">{userName}</p>
+                <p className="font-semibold text-fg">{userName}</p>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${roleColors[userRole || "crew"]}`}>
                   {t(`roles.${userRole || "crew"}`)}
                 </span>
@@ -467,18 +502,18 @@ export const SettingsPage = (): JSX.Element => {
             </div>
 
             <div>
-              <label className="block text-xs text-white/60 mb-1.5">{t("fullName")}</label>
+              <label className="block text-xs text-fg/60 mb-1.5">{t("fullName")}</label>
               <input value={profileName} onChange={(e) => setProfileName(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-[#FFFF00]/40" />
+                className="w-full px-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg focus:outline-none focus:border-brand/40" />
             </div>
 
-            <div className="pt-3 border-t border-white/[0.06]">
-              <label className="block text-xs text-white/60 mb-1.5">{t("changePassword")}</label>
+            <div className="pt-3 border-t border-fg/[0.06]">
+              <label className="block text-xs text-fg/60 mb-1.5">{t("changePassword")}</label>
               <div className="space-y-2">
                 <input type="password" placeholder={t("newPasswordPlaceholder")}
-                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+                  className="w-full px-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40" />
                 <input type="password" placeholder={t("confirmPasswordPlaceholder")}
-                  className="w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/60 focus:outline-none focus:border-[#FFFF00]/40" />
+                  className="w-full px-3 py-2.5 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg placeholder:text-fg/60 focus:outline-none focus:border-brand/40" />
               </div>
             </div>
 
@@ -489,21 +524,21 @@ export const SettingsPage = (): JSX.Element => {
             )}
 
             <button onClick={() => saveProfile.mutate()} disabled={saveProfile.isPending}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#FFFF00]/10 text-[#FFFF00] text-xs font-semibold hover:bg-[#FFFF00]/20 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand/10 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors disabled:opacity-50">
               {saveProfile.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               {tc("save")}
             </button>
           </div>
 
-          <div className="bg-[#111] border border-white/[0.06] rounded-xl p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-white/70 flex items-center gap-2">
-              <Bell className="w-4 h-4 text-[#FFFF00]" />
+          <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-fg/70 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-brand" />
               {t("pushNotifications")}
             </h3>
-            <p className="text-xs text-white/50 leading-relaxed">{t("pushHelpText")}</p>
+            <p className="text-xs text-fg/50 leading-relaxed">{t("pushHelpText")}</p>
 
             {!pushSupported ? (
-              <p className="text-xs text-white/40">{t("pushUnsupported")}</p>
+              <p className="text-xs text-fg/40">{t("pushUnsupported")}</p>
             ) : (
               <>
                 {pushMsg && (
@@ -513,7 +548,7 @@ export const SettingsPage = (): JSX.Element => {
                 )}
                 <button onClick={() => (pushSubscribed ? disablePush() : enablePush())} disabled={pushLoading}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
-                    pushSubscribed ? "bg-white/[0.06] text-white/70 hover:bg-white/[0.1]" : "bg-[#FFFF00]/10 text-[#FFFF00] hover:bg-[#FFFF00]/20"
+                    pushSubscribed ? "bg-fg/[0.06] text-fg/70 hover:bg-fg/[0.1]" : "bg-brand/10 text-brand hover:bg-brand/20"
                   }`}>
                   {pushLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {pushSubscribed ? t("disablePush") : t("enablePush")}
