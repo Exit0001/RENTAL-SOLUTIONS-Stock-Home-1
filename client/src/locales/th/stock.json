@@ -165,5 +165,9 @@
   "selectedUnitsCount": "เลือก {{count}} หน่วย",
   "bulkEditTitle": "แก้ไขหลายหน่วยพร้อมกัน",
   "bulkEditHint": "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก",
-  "bulkEditDone": "แก้ไขแล้ว"
+  "bulkEditDone": "แก้ไขแล้ว",
+  "nameAndBarcodePerUnit": "ชื่อ & บาร์โค้ด (แก้ทีละหน่วย)",
+  "prefixPlaceholder": "คำนำหน้า เช่น AMP-DC-300A-",
+  "startNumberLabel": "เริ่มที่",
+  "padDigitsLabel": "จำนวนหลัก"
 }

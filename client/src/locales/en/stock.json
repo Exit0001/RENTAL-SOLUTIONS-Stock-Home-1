@@ -165,5 +165,9 @@
   "selectedUnitsCount": "{{count}} selected",
   "bulkEditTitle": "Edit multiple units",
   "bulkEditHint": "Tick the fields to change — only ticked fields apply to all selected units",
-  "bulkEditDone": "Updated"
+  "bulkEditDone": "Updated",
+  "nameAndBarcodePerUnit": "Name & barcode (edit per unit)",
+  "prefixPlaceholder": "Prefix, e.g. AMP-DC-300A-",
+  "startNumberLabel": "Start at",
+  "padDigitsLabel": "Digits"
 }

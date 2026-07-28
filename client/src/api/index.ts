@@ -99,6 +99,8 @@ export const stockApi = {
                     api.put<{ updated: number }>(`/stock/units/batch`, { unitIds, patch }),
   deleteUnitsBatch: (unitIds: string[]) =>
                     api.delete<{ deleted: number }>(`/stock/units/batch`, { unitIds }),
+  updateUnitsValuesBatch: (units: { id: string; name?: string; barcode?: string }[]) =>
+                    api.put<{ updated: number; units: { id: string; name: string; barcode: string | null }[] }>(`/stock/units/batch-values`, { units }),
   scanBarcode:    (barcode: string) =>
                     api.get<ScannedUnit>(`/stock/units/scan/${encodeURIComponent(barcode)}`),
   // accessories

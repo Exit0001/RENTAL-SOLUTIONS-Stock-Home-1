@@ -1,8 +1,31 @@
 import { Router } from "express";
-import { eq, and, inArray, sql, ne, isNotNull, desc } from "drizzle-orm";
+import { eq, and, inArray, notInArray, sql, ne, isNotNull, desc } from "drizzle-orm";
 import { db } from "../db";
 import { stockItems, stockUnits, containers, containerUnits, users, itemAccessories, jobUnits, jobStock, jobs, equipmentSets, equipmentSetItems, insertStockItemSchema, insertStockUnitSchema } from "@shared/schema";
 import { notifyCompany } from "../lib/notify";
+
+// เรียงชื่อ/บาร์โค้ดแบบ "natural sort" — เทียบเลขในสตริงเป็นจำนวนจริง ไม่ใช่ string
+// (ป้องกัน "#10" ไปแทรกก่อน "#2" แบบ lexicographic, และกัน DB row order ที่ไม่มี ORDER BY
+// ทำให้หน่วยที่เพิ่มเข้ามาทีหลังโผล่ผิดที่ เช่น #08 ไปอยู่หลัง #10)
+function naturalCompare(a: string, b: string): number {
+  const aParts = a.match(/(\d+)|(\D+)/g) ?? [];
+  const bParts = b.match(/(\d+)|(\D+)/g) ?? [];
+  const len = Math.max(aParts.length, bParts.length);
+  for (let i = 0; i < len; i++) {
+    const ap = aParts[i] ?? "";
+    const bp = bParts[i] ?? "";
+    const aIsNum = /^\d+$/.test(ap);
+    const bIsNum = /^\d+$/.test(bp);
+    if (aIsNum && bIsNum) {
+      const diff = parseInt(ap, 10) - parseInt(bp, 10);
+      if (diff !== 0) return diff;
+    } else {
+      const cmp = ap.localeCompare(bp);
+      if (cmp !== 0) return cmp;
+    }
+  }
+  return 0;
+}
 
 // ─── Uniqueness helpers ───────────────────────────────────────────────────────
 
@@ -316,7 +339,7 @@ stockRouter.get("/all-with-units", async (req, res) => {
     }
 
     res.json(items.map((item) => {
-      const itemUnits = unitsByItem[item.id] ?? [];
+      const itemUnits = (unitsByItem[item.id] ?? []).slice().sort((a, b) => naturalCompare(a.name ?? "", b.name ?? ""));
       const availableCount = item.trackingMode === "bulk"
         ? (item.quantity ?? 0) - (bulkAvailMap.get(item.id) ?? 0)
         : itemUnits.filter((u) => u.status === "available").length;
@@ -429,6 +452,7 @@ stockRouter.get("/:id", async (req, res) => {
       };
     });
 
+    unitsWithContainer.sort((a, b) => naturalCompare(a.name ?? "", b.name ?? ""));
     res.json({ ...item, units: unitsWithContainer });
   } catch {
     res.status(500).json({ message: "Failed to fetch stock item" });
@@ -658,6 +682,72 @@ stockRouter.put("/units/batch", async (req, res) => {
     res.json({ updated: updated.length });
   } catch (err: any) {
     res.status(400).json({ message: err?.message ?? "แก้ไขไม่สำเร็จ" });
+  }
+});
+
+// PUT /api/stock/units/batch-values — แก้ชื่อ/บาร์โค้ดของหลาย unit พร้อมกัน โดยแต่ละ unit
+// มีค่าต่างกันได้ (ไม่ใช่ apply ค่าเดียวกับทุกตัวแบบ /units/batch) — อัปเดตครั้งเดียวด้วย
+// CASE id WHEN...THEN...END ไม่ใช่วน await ทีละ unit
+stockRouter.put("/units/batch-values", async (req, res) => {
+  if (req.userRole !== "admin" && req.userRole !== "manager") {
+    return res.status(403).json({ message: "ต้องเป็นผู้ดูแล/ผู้จัดการเท่านั้น" });
+  }
+  try {
+    const rows: { id: string; name?: string; barcode?: string }[] = Array.isArray(req.body?.units) ? req.body.units : [];
+    if (rows.length === 0) return res.status(400).json({ message: "ไม่มีหน่วยอุปกรณ์ที่จะแก้ไข" });
+
+    const unitIds = rows.map((r) => r.id);
+
+    const barcodeRows = rows.filter((r): r is { id: string; barcode: string } => typeof r.barcode === "string" && r.barcode.trim() !== "");
+    const lowerBarcodes = barcodeRows.map((r) => r.barcode.trim().toLowerCase());
+
+    // ตรวจบาร์โค้ดซ้ำกันเองภายใน batch นี้
+    const dup = lowerBarcodes.find((v, i) => lowerBarcodes.indexOf(v) !== i);
+    if (dup) throw new Error(`Barcode "${dup}" ซ้ำกันในรายการที่แก้`);
+
+    // ตรวจว่าชนกับ unit อื่นที่ไม่ได้อยู่ใน batch นี้หรือไม่ (1 query)
+    if (lowerBarcodes.length > 0) {
+      const [conflict] = await db
+        .select({ id: stockUnits.id, stockItemId: stockUnits.stockItemId, itemName: stockItems.name, barcode: stockUnits.barcode })
+        .from(stockUnits)
+        .innerJoin(stockItems, eq(stockItems.id, stockUnits.stockItemId))
+        .where(and(
+          eq(stockUnits.companyId, req.companyId),
+          inArray(sql`LOWER(${stockUnits.barcode})`, lowerBarcodes),
+          notInArray(stockUnits.id, unitIds),
+        ))
+        .limit(1);
+      if (conflict) {
+        throw new DuplicateUnitError(
+          `Barcode "${conflict.barcode}" มีอยู่แล้วในระบบ`,
+          "barcode", conflict.id, conflict.stockItemId, conflict.itemName,
+        );
+      }
+    }
+
+    const nameRows = rows.filter((r): r is { id: string; name: string } => typeof r.name === "string" && r.name.trim() !== "");
+
+    const setPayload: Record<string, unknown> = {};
+    if (nameRows.length > 0) {
+      const cases = nameRows.map((r) => sql`WHEN ${r.id} THEN ${r.name.trim()}`);
+      setPayload.name = sql.join([sql`CASE ${stockUnits.id}`, ...cases, sql`ELSE ${stockUnits.name} END`], sql` `);
+    }
+    if (barcodeRows.length > 0) {
+      const cases = barcodeRows.map((r) => sql`WHEN ${r.id} THEN ${r.barcode.trim()}`);
+      setPayload.barcode = sql.join([sql`CASE ${stockUnits.id}`, ...cases, sql`ELSE ${stockUnits.barcode} END`], sql` `);
+    }
+    if (Object.keys(setPayload).length === 0) return res.status(400).json({ message: "ไม่มีฟิลด์ที่จะแก้ไข" });
+
+    const updated = await db
+      .update(stockUnits)
+      .set(setPayload)
+      .where(and(inArray(stockUnits.id, unitIds), eq(stockUnits.companyId, req.companyId)))
+      .returning({ id: stockUnits.id, name: stockUnits.name, barcode: stockUnits.barcode });
+
+    res.json({ updated: updated.length, units: updated });
+  } catch (err: any) {
+    const { status, body } = unitErrorResponse(err);
+    res.status(status).json(body);
   }
 });
 

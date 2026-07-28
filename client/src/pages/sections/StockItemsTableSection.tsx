@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronRightIcon, Pencil, Trash2, Eye, Package, Loader2, Boxes, Check, X as XIcon, Layers, Plus, Link2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -122,29 +123,73 @@ const YellowCheck = ({ checked, indeterminate, onClick, title }: { checked: bool
   </button>
 );
 
+// แยกคำนำหน้า + จำนวนหลักของเลขท้ายสตริง เพื่อเดาค่าเริ่มต้นให้ปุ่ม "เติม" อัตโนมัติ
+// (เช่น "AMCRON DC-300A Series II #01" → prefix "...II #", pad 2; "AMP-DC-300A-001" → pad 3)
+const parseTrailingNumber = (s: string | null | undefined) => {
+  const m = (s ?? "").match(/^(.*?)(\d+)$/);
+  if (!m) return { prefix: s ?? "", pad: 3 };
+  return { prefix: m[1], pad: m[2].length };
+};
+
 // Modal แก้ไขหลาย unit พร้อมกัน — ติ๊กช่องที่จะแก้ (ช่องที่ไม่ติ๊ก = ไม่แตะ)
-const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; onClose: () => void; onSaved: () => void }) => {
+// ชื่อ + บาร์โค้ด แก้แยกทีละหน่วยได้ (ค่าไม่เหมือนกันได้ ต่างจากช่องอื่นที่ apply ค่าเดียวกับทุกหน่วย)
+// units ต้องส่งมาตามลำดับที่แสดงในตาราง (ใช้กับปุ่ม "เติม")
+const BulkEditUnitsModal = ({ units, onClose, onSaved }: { units: { id: string; name: string; barcode: string | null }[]; onClose: () => void; onSaved: () => void }) => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
   const { toast } = useToast();
-  const [en, setEn] = useState({ location: false, status: false, purchasedAt: false, warrantyExpiresAt: false });
+  const unitIds = useMemo(() => units.map((u) => u.id), [units]);
+  const [en, setEn] = useState({ location: false, status: false, purchasedAt: false, warrantyExpiresAt: false, nameBarcode: false });
   const [val, setVal] = useState({ location: "", status: "available", purchasedAt: "", warrantyExpiresAt: "" });
+  // ชื่อและบาร์โค้ดมักใช้ base + เลขวิ่งเหมือนกัน แค่ pattern คนละแบบ (เช่น "#01" กับ "-001")
+  // เดาค่าเริ่มต้นจากหน่วยแรกที่เลือกไว้ให้ — แก้แค่คำนำหน้าตรงนี้ก็พอ ทุกแถวข้างล่างอัปเดตสดตามทันที
+  const [fillName, setFillName]       = useState(() => parseTrailingNumber(units[0]?.name));
+  const [fillBarcode, setFillBarcode] = useState(() => parseTrailingNumber(units[0]?.barcode));
+  const [fillStart, setFillStart]     = useState(() => {
+    const m = (units[0]?.name ?? "").match(/(\d+)$/) ?? (units[0]?.barcode ?? "").match(/(\d+)$/);
+    return m ? parseInt(m[1], 10) : 1;
+  });
+  const generatedRows = useMemo(
+    () => units.map((u, i) => ({
+      id: u.id,
+      name:    `${fillName.prefix}${String(fillStart + i).padStart(fillName.pad, "0")}`,
+      barcode: `${fillBarcode.prefix}${String(fillStart + i).padStart(fillBarcode.pad, "0")}`,
+    })),
+    [units, fillName, fillBarcode, fillStart]
+  );
+  const [rows, setRows] = useState(generatedRows);
+  // แก้คำนำหน้า/เลขเริ่ม/จำนวนหลัก → อัปเดตทุกแถวสดทันที ไม่ต้องกดปุ่ม (การแก้ทีละแถวด้วยมือจะถูก
+  // เขียนทับถ้าแก้ pattern ซ้ำอีกครั้ง — ตั้งใจ เพราะกรณีใช้งานจริงคือตั้ง pattern ให้ถูกก่อนแล้วค่อย
+  // แก้เคสพิเศษทีละแถวเป็นขั้นสุดท้าย)
+  useEffect(() => { setRows(generatedRows); }, [generatedRows]);
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const patch: Record<string, any> = {};
       if (en.location)          patch.location = val.location || null;
       if (en.status)            patch.status = val.status;
       if (en.purchasedAt)       patch.purchasedAt = val.purchasedAt ? new Date(val.purchasedAt).toISOString() : null;
       if (en.warrantyExpiresAt) patch.warrantyExpiresAt = val.warrantyExpiresAt ? new Date(val.warrantyExpiresAt).toISOString() : null;
-      return stockApi.updateUnitsBatch(unitIds, patch);
+
+      const changedRows = en.nameBarcode
+        ? rows.filter((r, i) => r.name !== units[i].name || r.barcode !== (units[i].barcode ?? "")).map((r) => ({ id: r.id, name: r.name, barcode: r.barcode }))
+        : [];
+
+      await Promise.all([
+        Object.keys(patch).length > 0 ? stockApi.updateUnitsBatch(unitIds, patch) : Promise.resolve(),
+        changedRows.length > 0 ? stockApi.updateUnitsValuesBatch(changedRows) : Promise.resolve(),
+      ]);
     },
     onSuccess: () => { toast({ title: t("bulkEditDone", { defaultValue: "แก้ไขแล้ว" }), description: `${unitIds.length} ${tc("units")}` }); onSaved(); },
     onError: (err: any) => toast({ title: tc("error"), description: err?.message ?? "", variant: "destructive" }),
   });
 
-  const anyEnabled = en.location || en.status || en.purchasedAt || en.warrantyExpiresAt;
-  const inputCls = "h-8 w-full bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg focus:outline-none focus:border-brand/40";
+  const anyEnabled = en.location || en.status || en.purchasedAt || en.warrantyExpiresAt || en.nameBarcode;
+  // ไม่รวม w-full ไว้ในตัวนี้ตั้งใจ — ต้องแปะ "w-full" หรือ "flex-1"/"w-NN" เองต่อจุดใช้งาน
+  // เพราะถ้ามีทั้ง w-full กับ w-NN อยู่ในคลาสเดียวกัน Tailwind จะให้ตัวไหนชนะขึ้นกับลำดับใน
+  // stylesheet ที่ compile ออกมา ไม่ใช่ลำดับที่เขียนใน className — ผลคือ w-14 อาจแพ้ w-full
+  // แบบเงียบๆ (เคยเกิดจริงกับช่อง pad ด้านล่าง ทำให้มันกว้างเบียดช่อง prefix จนแฟบ)
+  const inputCls = "h-8 bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg focus:outline-none focus:border-brand/40";
   // เรียกเป็นฟังก์ชัน (ไม่ใช่ <Row/>) — กัน React remount ทำให้ช่องพิมพ์โฟกัสหลุดทุกตัวอักษร
   const row = (k: keyof typeof en, label: string, children: React.ReactNode) => (
     <div className="flex items-center gap-3">
@@ -154,21 +199,25 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
     </div>
   );
 
-  return (
+  // Portal ไปที่ document.body — component นี้ถูก mount อยู่ลึกใน <table>/<tr>/<td> ของ Inventory
+  // (ไม่ใช่ Radix Dialog ที่ portal ให้อัตโนมัติ) ถ้าไม่ portal เอง "fixed" จะเทียบกับ containing
+  // block ที่ใกล้ที่สุดที่มี transform/animation ของแถวตาราง ไม่ใช่ viewport จริง ทำให้ modal
+  // ไปโป่งอยู่ตรงกลางแถวที่กดแทนกลางจอ
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-surface-1 border border-fg/10 rounded-xl shadow-2xl p-5">
-        <div className="flex items-center justify-between mb-1">
+      <div className="relative w-full max-w-xl bg-surface-1 border border-fg/10 rounded-xl shadow-2xl p-5 max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between mb-1 flex-shrink-0">
           <h3 className="text-base font-bold text-fg">{t("bulkEditTitle", { defaultValue: "แก้ไขหลายหน่วยพร้อมกัน" })}</h3>
           <button onClick={onClose} className="text-fg/50 hover:text-fg"><XIcon className="w-4 h-4" /></button>
         </div>
-        <p className="text-xs text-fg/50 mb-4">{t("bulkEditHint", { defaultValue: "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก" })} · {unitIds.length} {tc("units")}</p>
-        <div className="flex flex-col gap-3">
+        <p className="text-xs text-fg/50 mb-4 flex-shrink-0">{t("bulkEditHint", { defaultValue: "ติ๊กช่องที่ต้องการเปลี่ยน — เฉพาะช่องที่ติ๊กจะถูกแก้กับทุกหน่วยที่เลือก" })} · {unitIds.length} {tc("units")}</p>
+        <div className="flex flex-col gap-3 overflow-y-auto flex-1 pr-1">
           {row("location", tc("location"),
-            <input className={inputCls} value={val.location} onChange={(e) => setVal((p) => ({ ...p, location: e.target.value }))} placeholder={tc("location")} />
+            <input className={`${inputCls} w-full`} value={val.location} onChange={(e) => setVal((p) => ({ ...p, location: e.target.value }))} placeholder={tc("location")} />
           )}
           {row("status", tc("status"),
-            <select className={`${inputCls} appearance-none cursor-pointer`} value={val.status} onChange={(e) => setVal((p) => ({ ...p, status: e.target.value }))}>
+            <select className={`${inputCls} w-full appearance-none cursor-pointer`} value={val.status} onChange={(e) => setVal((p) => ({ ...p, status: e.target.value }))}>
               <option value="available" className="bg-surface-1">{tc("statusEnum.available")}</option>
               <option value="out" className="bg-surface-1">{tc("statusEnum.out")}</option>
               <option value="maintenance" className="bg-surface-1">{tc("statusEnum.maintenance")}</option>
@@ -176,13 +225,49 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
             </select>
           )}
           {row("purchasedAt", t("colPurchased"),
-            <input type="date" className={`${inputCls} [color-scheme:dark]`} value={val.purchasedAt} onChange={(e) => setVal((p) => ({ ...p, purchasedAt: e.target.value }))} />
+            <input type="date" className={`${inputCls} w-full [color-scheme:dark]`} value={val.purchasedAt} onChange={(e) => setVal((p) => ({ ...p, purchasedAt: e.target.value }))} />
           )}
           {row("warrantyExpiresAt", t("colWarrantyExp"),
-            <input type="date" className={`${inputCls} [color-scheme:dark]`} value={val.warrantyExpiresAt} onChange={(e) => setVal((p) => ({ ...p, warrantyExpiresAt: e.target.value }))} />
+            <input type="date" className={`${inputCls} w-full [color-scheme:dark]`} value={val.warrantyExpiresAt} onChange={(e) => setVal((p) => ({ ...p, warrantyExpiresAt: e.target.value }))} />
           )}
+          <div className="flex items-start gap-3">
+            <YellowCheck checked={en.nameBarcode} onClick={() => setEn((p) => ({ ...p, nameBarcode: !p.nameBarcode }))} />
+            <div className="flex-1 min-w-0">
+              <span className="text-xs text-fg/60">{t("nameAndBarcodePerUnit", { defaultValue: "ชื่อ & บาร์โค้ด (แก้ทีละหน่วย)" })}</span>
+              <div className={`mt-2 flex flex-col gap-2 ${en.nameBarcode ? "" : "opacity-40 pointer-events-none"}`}>
+                {/* แก้แค่คำนำหน้า/เลขเริ่ม — ทุกแถวข้างล่างอัปเดตสดทันทีไม่ต้องกดปุ่ม (ชื่อ/บาร์โค้ด
+                    คนละ pattern ได้ แต่ใช้เลขวิ่งตัวเดียวกัน) ยังแก้ทีละแถวเป็นกรณีพิเศษต่อได้ */}
+                <div className="flex flex-col gap-1 bg-fg/[0.03] rounded-lg p-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-fg/40 w-14 flex-shrink-0">{tc("name")}</span>
+                    <input className={`${inputCls} flex-1 min-w-0`} value={fillName.prefix} onChange={(e) => setFillName((p) => ({ ...p, prefix: e.target.value }))} placeholder={t("prefixPlaceholder", { defaultValue: "คำนำหน้า" })} />
+                    <input type="number" min={1} max={6} className={`${inputCls} w-14 flex-shrink-0`} value={fillName.pad} onChange={(e) => setFillName((p) => ({ ...p, pad: Math.min(6, Math.max(1, parseInt(e.target.value) || 1)) }))} title={t("padDigitsLabel", { defaultValue: "จำนวนหลัก" })} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-fg/40 w-14 flex-shrink-0">{t("colBarcode")}</span>
+                    <input className={`${inputCls} flex-1 min-w-0 font-mono`} value={fillBarcode.prefix} onChange={(e) => setFillBarcode((p) => ({ ...p, prefix: e.target.value }))} placeholder={t("prefixPlaceholder", { defaultValue: "คำนำหน้า" })} />
+                    <input type="number" min={1} max={6} className={`${inputCls} w-14 flex-shrink-0`} value={fillBarcode.pad} onChange={(e) => setFillBarcode((p) => ({ ...p, pad: Math.min(6, Math.max(1, parseInt(e.target.value) || 1)) }))} title={t("padDigitsLabel", { defaultValue: "จำนวนหลัก" })} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-fg/40 w-14 flex-shrink-0">{t("startNumberLabel", { defaultValue: "เริ่มที่" })}</span>
+                    <input type="number" min={1} className={`${inputCls} w-20 flex-shrink-0`} value={fillStart} onChange={(e) => setFillStart(Math.max(1, parseInt(e.target.value) || 1))} />
+                  </div>
+                </div>
+                {/* รายการทีละหน่วย — พรีวิวสดตามคำนำหน้าด้านบน แก้ทีละแถวเป็นกรณีพิเศษได้ */}
+                <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto border border-fg/[0.06] rounded-lg p-2">
+                  {rows.map((r, i) => (
+                    <div key={r.id} className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-fg/30 w-5 flex-shrink-0 text-right">{i + 1}</span>
+                      <input className={`${inputCls} flex-[1.6] min-w-0`} value={r.name} onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder={tc("name")} />
+                      <input className={`${inputCls} flex-1 min-w-0 font-mono`} value={r.barcode} onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, barcode: e.target.value } : x))} placeholder={t("colBarcode")} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex justify-end gap-2 mt-5">
+        <div className="flex justify-end gap-2 mt-5 flex-shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded text-sm text-fg/60 hover:text-fg border border-fg/10">{tc("cancel")}</button>
           <button onClick={() => save.mutate()} disabled={!anyEnabled || save.isPending}
             className="h-9 px-4 rounded text-sm font-bold text-black flex items-center gap-2 disabled:opacity-40" style={{ backgroundColor: "var(--brand)" }}>
@@ -190,7 +275,8 @@ const BulkEditUnitsModal = ({ unitIds, onClose, onSaved }: { unitIds: string[]; 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -598,7 +684,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
           <TableCell colSpan={6} className="p-0 border-0">
             {bulkEditOpen && (
               <BulkEditUnitsModal
-                unitIds={Array.from(selected)}
+                units={units.filter((u) => selected.has(u.id)).map((u) => ({ id: u.id, name: u.name, barcode: u.barcode ?? null }))}
                 onClose={() => setBulkEditOpen(false)}
                 onSaved={() => { setBulkEditOpen(false); invalidate(); setSelected(new Set()); }}
               />
