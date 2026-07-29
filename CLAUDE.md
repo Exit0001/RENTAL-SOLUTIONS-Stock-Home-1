@@ -867,6 +867,18 @@ even if out of scope.
 Row dividers use `border-fg/10` (item/model rows) and `border-fg/[0.06]` (unit sub-rows) — the
 older `fg/[0.05]` / `fg/[0.03]` were effectively invisible on the dark rows.
 
+## Next Up — Mobile-Responsive Pass (handoff, 2026-07-29)
+
+Repo is clean and pushed to `origin/main` (`8da727e`) — pull on the other machine to continue.
+
+Next task: make the UI usable on mobile/tablet. **Load the `stak-mobile-responsive` skill first**
+— it's the single source of truth for this app's breakpoint contract, `useBreakpoint`, table→card
+patterns, `WorkspaceShell`/`ScrollTabs`/`MasterDetail` mobile behavior, touch targets, and safe-area
+handling. Nothing mobile-specific has been built yet; this is a fresh pass across the whole app, not
+a continuation of in-progress work. Good starting points given the page inventory above: `StockPage.tsx`
+tables (Inventory/Containers/Maintenance), `JobsPage.tsx`'s master-detail layout, and `CrewPage.tsx`'s
+3-column layout — all currently assume desktop width.
+
 ## Adding a New Feature
 
 1. Add table/columns to `shared/schema.ts`
