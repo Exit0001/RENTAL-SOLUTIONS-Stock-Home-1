@@ -2,7 +2,7 @@ import { Palette } from "lucide-react";
 import { useAppStore, type ThemeKey } from "@/store/appStore";
 
 interface ThemeSwitcherProps {
-  variant?: "sidebar" | "pill";
+  variant?: "sidebar" | "pill" | "drawer";
 }
 
 const NEXT_THEME: Record<ThemeKey, ThemeKey> = { yellow: "red", red: "yellow" };
@@ -24,6 +24,21 @@ export const ThemeSwitcher = ({ variant = "pill" }: ThemeSwitcherProps): JSX.Ele
       >
         <Palette className="w-5 h-5 flex-shrink-0" />
         <span className="text-[9px] font-medium leading-none">{label}</span>
+      </button>
+    );
+  }
+
+  // Full-width left-aligned row matching AppNavDrawer's nav-button style — see
+  // the matching comment in LanguageSwitcher.tsx for why "sidebar" breaks here.
+  if (variant === "drawer") {
+    return (
+      <button
+        onClick={toggle}
+        title={title}
+        className="flex items-center gap-3 min-h-[48px] w-full px-3 rounded-lg text-sm font-medium transition-colors text-fg/70 hover:text-fg hover:bg-fg/[0.04]"
+      >
+        <Palette className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+        {label}
       </button>
     );
   }

@@ -53,6 +53,11 @@ type AppStore = {
   // ---- Theme (สี accent ของทั้งแอป — เก็บต่อเบราว์เซอร์ ไม่ผูกกับบริษัท) ----
   theme:    ThemeKey;
   setTheme: (theme: ThemeKey) => void;
+
+  // ---- Stock edit-lock (ป้องกันกดแก้ไข/ลบ/เพิ่มสต็อกโดยไม่ตั้งใจ — ล็อกเป็นค่าเริ่มต้น
+  // ต่อเบราว์เซอร์ ไม่ผูกกับบริษัท เหมือน theme) ----
+  stockEditMode:    boolean;
+  setStockEditMode: (v: boolean) => void;
 };
 
 export const useAppStore = create<AppStore>()(
@@ -128,10 +133,14 @@ export const useAppStore = create<AppStore>()(
       // ---- Theme ----
       theme: "yellow",
       setTheme: (theme) => set({ theme }),
+
+      // ---- Stock edit-lock ----
+      stockEditMode: false,
+      setStockEditMode: (v) => set({ stockEditMode: v }),
     }),
     {
       name: "stak-store",
-      partialize: (state) => ({ auth: state.auth, theme: state.theme }),
+      partialize: (state) => ({ auth: state.auth, theme: state.theme, stockEditMode: state.stockEditMode }),
       // hydrate shortcuts จาก auth ตอน load
       onRehydrateStorage: () => (state) => {
         if (state?.auth) {

@@ -51,7 +51,7 @@ export const AppNavDrawer = ({ open, onOpenChange }: AppNavDrawerProps): JSX.Ele
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
-        className="z-[70] w-[280px] p-0 bg-surface-1 text-fg border-r border-fg/[0.06] gap-0 flex flex-col"
+        className="z-[70] w-[220px] p-0 bg-surface-1 text-fg border-r border-fg/[0.06] gap-0 flex flex-col"
         overlayClassName="z-[70]"
       >
         <div className="flex items-center gap-3 px-4 py-4 border-b border-fg/[0.06] flex-shrink-0">
@@ -82,8 +82,8 @@ export const AppNavDrawer = ({ open, onOpenChange }: AppNavDrawerProps): JSX.Ele
         </nav>
 
         <div className="border-t border-fg/[0.06] p-2 flex flex-col gap-1 flex-shrink-0 safe-b">
-          <LanguageSwitcher variant="sidebar" />
-          <ThemeSwitcher variant="sidebar" />
+          <LanguageSwitcher variant="drawer" />
+          <ThemeSwitcher variant="drawer" />
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 min-h-[48px] px-3 rounded-lg text-sm font-medium text-fg/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"

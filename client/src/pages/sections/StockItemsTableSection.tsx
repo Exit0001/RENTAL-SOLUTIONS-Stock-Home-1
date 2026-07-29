@@ -76,11 +76,13 @@ const ActionIcons = ({ onView, onEdit, onAccessories, onDelete }: { onView?: () 
         className="p-1.5 rounded-md text-fg/60 hover:text-fg hover:bg-fg/10 transition-colors" title={t("viewDetails")}>
         <Eye className="w-4 h-4" />
       </button>
-      <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-        className="p-1.5 rounded-md text-fg hover:text-brand hover:bg-fg/10 transition-colors" title={tc("edit")}
-      >
-        <Pencil className="w-4 h-4" />
-      </button>
+      {onEdit && (
+        <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="p-1.5 rounded-md text-fg hover:text-brand hover:bg-fg/10 transition-colors" title={tc("edit")}
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+      )}
       {onAccessories && (
         <button onClick={(e) => { e.stopPropagation(); onAccessories(); }}
           className="p-1.5 rounded-md text-fg/60 hover:text-brand hover:bg-fg/10 transition-colors" title={t("tabAccessories")}
@@ -109,9 +111,11 @@ const MobileActionRow = ({ onView, onEdit, onAccessories, onDelete }: { onView?:
       <button onClick={(e) => { e.stopPropagation(); onView?.(); }} className={`${base} bg-fg/[0.06] text-fg/70 hover:bg-fg/10`}>
         <Eye className="w-3 h-3" aria-hidden="true" /> {t("viewDetails")}
       </button>
-      <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }} className={`${base} bg-fg/[0.06] text-fg/70 hover:bg-fg/10`}>
-        <Pencil className="w-3 h-3" aria-hidden="true" /> {tc("edit")}
-      </button>
+      {onEdit && (
+        <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className={`${base} bg-fg/[0.06] text-fg/70 hover:bg-fg/10`}>
+          <Pencil className="w-3 h-3" aria-hidden="true" /> {tc("edit")}
+        </button>
+      )}
       {onAccessories && (
         <button onClick={(e) => { e.stopPropagation(); onAccessories(); }} className={`${base} bg-fg/[0.06] text-fg/70 hover:bg-fg/10`}>
           <Link2 className="w-3 h-3" aria-hidden="true" /> {t("tabAccessories")}
@@ -314,8 +318,10 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
   const { t: tc } = useTranslation("common");
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { userRole } = useAppStore();
+  const { userRole, stockEditMode } = useAppStore();
   const canManage = userRole === "admin" || userRole === "manager";
+  // ต้องปลดล็อกโหมดแก้ไข (StockEditModeToggle) ก่อนจึงจะแก้ไข/ลบ/เพิ่มหน่วยได้
+  const canEdit = canManage && stockEditMode;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<SaveError | null>(null);
@@ -455,7 +461,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
         <TableCell colSpan={6} className="py-2.5 pl-16 pr-4">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs text-fg/60 italic">{t("noUnitsRow")}</span>
-            {canManage && (showAdd ? (
+            {canEdit && (showAdd ? (
               <div className="flex items-center gap-2">
                 <input type="number" min={1} value={addQty} onChange={(e) => setAddQty(e.target.value)}
                   className="h-7 w-20 bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg text-center focus:outline-none focus:border-brand/40 [color-scheme:dark]" />
@@ -488,7 +494,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
       <TableRow className="bg-surface-1 hover:bg-surface-1 border-b-0">
         <TableCell colSpan={6} className="py-1.5 pl-16 pr-4">
           <div className="flex items-center gap-2">
-            {canManage && <YellowCheck checked={allSelected} indeterminate={someSelected} onClick={selectAllToggle} title={tc("selectAll")} />}
+            {canEdit && <YellowCheck checked={allSelected} indeterminate={someSelected} onClick={selectAllToggle} title={tc("selectAll")} />}
             <div className="grid gap-x-3 flex-1 text-[10px] font-bold text-fg/60 uppercase tracking-wider pr-[60px]"
               style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
               <span>{t("colUnitName")}</span>
@@ -504,7 +510,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
       </TableRow>
 
       {/* Bulk action bar */}
-      {canManage && selected.size > 0 && (
+      {canEdit && selected.size > 0 && (
         <TableRow className="bg-brand/[0.06] hover:bg-brand/[0.06] border-b border-brand/10">
           <TableCell colSpan={6} className="py-2 pl-16 pr-4">
             <div className="flex items-center gap-3">
@@ -543,7 +549,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                 /* ── Edit mode ── */
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                  {canManage && <span className="w-4 flex-shrink-0" />}
+                  {canEdit && <span className="w-4 flex-shrink-0" />}
                   <div className="grid gap-x-3 items-center flex-1"
                     style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
                     <input className={inputCls} value={form.name}              onChange={f("name")}              placeholder={t("unitNamePlaceholder")} />
@@ -596,7 +602,7 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
               ) : (
                 /* ── View mode ── */
                 <div className="flex items-center gap-2">
-                  {canManage && <YellowCheck checked={selected.has(unit.id)} onClick={() => toggleSel(unit.id)} />}
+                  {canEdit && <YellowCheck checked={selected.has(unit.id)} onClick={() => toggleSel(unit.id)} />}
                   <div className="grid gap-x-3 items-center flex-1"
                     style={{ gridTemplateColumns: "2fr 1.1fr 1.1fr 1fr 1.1fr 1.1fr 1fr" }}>
                     <span className="text-fg/85 text-sm font-medium truncate">{unit.name}</span>
@@ -631,14 +637,16 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
                     </div>
                   </div>
                   {/* Edit button */}
-                  <button
-                    onClick={() => startEdit(unit)}
-                    className="flex-shrink-0 p-1.5 rounded text-fg/60 hover:text-brand hover:bg-brand/10 transition-colors"
-                    title={t("editUnit")}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  {canManage && (
+                  {stockEditMode && (
+                    <button
+                      onClick={() => startEdit(unit)}
+                      className="flex-shrink-0 p-1.5 rounded text-fg/60 hover:text-brand hover:bg-brand/10 transition-colors"
+                      title={t("editUnit")}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {canEdit && (
                     <button
                       onClick={() => { setDeleteErr(null); setDeleteUnitId(unit.id); }}
                       className="flex-shrink-0 p-1.5 rounded text-fg/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
@@ -673,8 +681,8 @@ const UnitRows = ({ itemId, onViewItem }: { itemId: string; onViewItem?: (item: 
         );
       })}
 
-      {/* + เพิ่มหน่วยให้ของเดิม (Admin/Manager) */}
-      {canManage && (
+      {/* + เพิ่มหน่วยให้ของเดิม (Admin/Manager, ต้องปลดล็อกโหมดแก้ไข) */}
+      {canEdit && (
         <TableRow className="bg-surface-1 hover:bg-surface-1 border-b border-fg/[0.03]">
           <TableCell colSpan={6} className="py-2 pl-16 pr-4">
             {showAdd ? (
@@ -790,7 +798,7 @@ export const StockItemsTableSection = ({
 }: StockItemsTableProps): JSX.Element => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
-  const { token, userRole } = useAppStore();
+  const { token, userRole, stockEditMode } = useAppStore();
   const qc = useQueryClient();
   const [expandedRows, setExpandedRows]           = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -798,6 +806,8 @@ export const StockItemsTableSection = ({
   const [deleteError, setDeleteError]             = useState<string | null>(null);
 
   const canManage = userRole === "admin" || userRole === "manager";
+  // ต้องปลดล็อกโหมดแก้ไข (StockEditModeToggle) ก่อนจึงจะแก้ไข/ลบ/เพิ่มอุปกรณ์ได้ — กันกดผิด
+  const canEdit = canManage && stockEditMode;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => stockApi.delete(id),
@@ -896,7 +906,7 @@ export const StockItemsTableSection = ({
   // The desktop <table> is squeezed to ~50px per column at 360px, which is why the
   // presentation changes shape entirely here rather than just shrinking.
   const mobileCards = (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col gap-2 p-2.5">
       {isLoading && Array.from({ length: 5 }).map((_, i) => (
         <div key={`mskel-${i}`} className="animate-pulse bg-surface-2 border border-fg/[0.06] rounded-xl h-24" />
       ))}
@@ -919,19 +929,19 @@ export const StockItemsTableSection = ({
           <div key={`m-${category}`} className="rounded-xl border border-fg/10 bg-surface-1 overflow-hidden">
             <button
               onClick={() => !isFiltering && toggleCategory(category)}
-              className="w-full text-left px-3 py-3 flex items-center gap-2.5 min-h-[52px] hover:bg-surface-2 transition-colors"
+              className="w-full text-left px-2.5 py-2.5 flex items-center gap-2 min-h-[46px] hover:bg-surface-2 transition-colors"
             >
               {!isFiltering && (
-                <ChevronRightIcon className={`w-4 h-4 flex-shrink-0 text-brand/60 transition-transform duration-200 ${catOpen ? "rotate-90" : ""}`} aria-hidden="true" />
+                <ChevronRightIcon className={`w-3.5 h-3.5 flex-shrink-0 text-brand/60 transition-transform duration-200 ${catOpen ? "rotate-90" : ""}`} aria-hidden="true" />
               )}
-              <Boxes className="w-4 h-4 text-brand/40 flex-shrink-0" aria-hidden="true" />
+              <Boxes className="w-3.5 h-3.5 text-brand/40 flex-shrink-0" aria-hidden="true" />
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-sm text-brand truncate">{category}</div>
-                <div className="text-[11px] text-fg/50 mt-0.5">
+                <div className="font-bold text-[13px] text-brand truncate">{category}</div>
+                <div className="text-[10px] text-fg/50 mt-0.5">
                   {t("modelsCount", { count: items.length })} · {t("unitsCount", { count: catTotalUnits })}
                 </div>
               </div>
-              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold flex-shrink-0
+              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0
                 ${allAvail ? "bg-emerald-950/40 text-emerald-500" : noneAvail ? "bg-red-950/40 text-red-500" : "bg-amber-950/40 text-amber-500"}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${allAvail ? "bg-emerald-500" : noneAvail ? "bg-red-500" : "bg-amber-500"}`} />
                 {allAvail ? t("allAvailable") : noneAvail ? t("noneAvailable") : catAvail}
@@ -939,7 +949,7 @@ export const StockItemsTableSection = ({
             </button>
 
             {catOpen && (
-              <div className="flex flex-col gap-2 px-2 pb-2">
+              <div className="flex flex-col gap-1.5 px-2 pb-2">
                 {items.map((item: StockItemWithCount) => {
                   const isBulk = item.trackingMode === "bulk";
                   const isExpanded = !isBulk && expandedRows.has(item.id);
@@ -951,30 +961,30 @@ export const StockItemsTableSection = ({
                     >
                       <button
                         onClick={isBulk ? undefined : () => toggleRow(item.id)}
-                        className={`w-full text-left px-3 py-3 flex items-start gap-2.5 ${isBulk ? "cursor-default" : ""}`}
+                        className={`w-full text-left px-2.5 py-2.5 flex items-start gap-2 ${isBulk ? "cursor-default" : ""}`}
                       >
                         {isBulk ? (
-                          <span className="w-5 h-5 mt-0.5 rounded-md bg-amber-400/15 flex items-center justify-center flex-shrink-0">
-                            <Layers className="w-3 h-3 text-amber-400" aria-hidden="true" />
+                          <span className="w-4 h-4 mt-0.5 rounded-md bg-amber-400/15 flex items-center justify-center flex-shrink-0">
+                            <Layers className="w-2.5 h-2.5 text-amber-400" aria-hidden="true" />
                           </span>
                         ) : (
-                          <ChevronRightIcon className={`w-4 h-4 mt-1 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-90 text-brand" : "text-fg/50"}`} aria-hidden="true" />
+                          <ChevronRightIcon className={`w-3.5 h-3.5 mt-1 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-90 text-brand" : "text-fg/50"}`} aria-hidden="true" />
                         )}
                         <div className="min-w-0 flex-1">
-                          <div className={`font-semibold text-sm leading-snug break-words ${isBulk ? "text-amber-100/90" : "text-fg/90"}`}>
+                          <div className={`font-semibold text-[13px] leading-snug break-words ${isBulk ? "text-amber-100/90" : "text-fg/90"}`}>
                             {item.name}
                           </div>
-                          <div className="text-[11px] text-fg/50 mt-1 truncate">
+                          <div className="text-[10px] text-fg/50 mt-0.5 truncate">
                             {item.brand}{item.subCategory ? ` · ${item.subCategory}` : ""}
                           </div>
-                          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold ${isBulk ? "bg-amber-400/15 text-amber-300" : "bg-fg/[0.08] text-fg/70"}`}>
+                          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isBulk ? "bg-amber-400/15 text-amber-300" : "bg-fg/[0.08] text-fg/70"}`}>
                               {totalForBadge} {isBulk ? "ชิ้น" : t("unitsCount", { count: totalForBadge }).replace(String(totalForBadge), "").trim()}
                             </span>
                             <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} />
                           </div>
                           {item.sets && item.sets.length > 0 && (
-                            <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-brand/10 text-brand/90 font-semibold max-w-full">
+                            <div className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-brand/10 text-brand/90 font-semibold max-w-full">
                               <Boxes className="w-2.5 h-2.5 flex-shrink-0" aria-hidden="true" />
                               <span className="truncate">{item.sets[0].name}{item.sets.length > 1 ? ` +${item.sets.length - 1}` : ""}</span>
                             </div>
@@ -982,12 +992,12 @@ export const StockItemsTableSection = ({
                         </div>
                       </button>
 
-                      <div className="px-3 pb-2.5 pt-1 border-t border-fg/[0.06]">
+                      <div className="px-2.5 pb-2 pt-1 border-t border-fg/[0.06]">
                         <MobileActionRow
                           onView={() => onViewItem?.(item)}
-                          onEdit={() => onEditItem?.(item)}
-                          onAccessories={() => onManageAccessories?.(item)}
-                          onDelete={canManage ? () => { setDeleteError(null); setDeleteItemId(item.id); } : undefined}
+                          onEdit={stockEditMode ? () => onEditItem?.(item) : undefined}
+                          onAccessories={stockEditMode ? () => onManageAccessories?.(item) : undefined}
+                          onDelete={canEdit ? () => { setDeleteError(null); setDeleteItemId(item.id); } : undefined}
                         />
                       </div>
 
@@ -1182,9 +1192,9 @@ export const StockItemsTableSection = ({
                           <TableCell className="py-2.5 pr-6 text-right align-middle">
                             <ActionIcons
                               onView={() => onViewItem?.(item)}
-                              onEdit={() => onEditItem?.(item)}
-                              onAccessories={() => onManageAccessories?.(item)}
-                              onDelete={canManage ? () => { setDeleteError(null); setDeleteItemId(item.id); } : undefined}
+                              onEdit={stockEditMode ? () => onEditItem?.(item) : undefined}
+                              onAccessories={stockEditMode ? () => onManageAccessories?.(item) : undefined}
+                              onDelete={canEdit ? () => { setDeleteError(null); setDeleteItemId(item.id); } : undefined}
                             />
                           </TableCell>
                         </TableRow>
@@ -1203,9 +1213,9 @@ export const StockItemsTableSection = ({
   return (
     <section className="w-full bg-surface-1 rounded-xl border border-fg/10 overflow-hidden animate-fade-in">
       {/* Header */}
-      <div className="px-3 md:px-6 py-3 md:py-4 border-b border-fg/10 flex items-center gap-2 md:gap-3">
-        <Package className="w-5 h-5 text-brand flex-shrink-0" aria-hidden="true" />
-        <h2 className="font-bold text-brand text-sm md:text-base tracking-widest uppercase truncate">{t("stockItems")}</h2>
+      <div className="px-2.5 md:px-6 py-2.5 md:py-4 border-b border-fg/10 flex items-center gap-2 md:gap-3">
+        <Package className="w-4 h-4 md:w-5 md:h-5 text-brand flex-shrink-0" aria-hidden="true" />
+        <h2 className="font-bold text-brand text-[13px] md:text-base tracking-widest uppercase truncate">{t("stockItems")}</h2>
         <div className="ml-auto flex items-center gap-1.5 md:gap-3 text-[10px] md:text-xs text-fg/60 font-medium flex-shrink-0">
           {isFiltering && <span className="text-brand/50 hidden sm:inline">{t("filteredLabel")} ·</span>}
           <span>{t("categoryCount", { count: grouped.length })}</span>

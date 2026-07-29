@@ -18,7 +18,7 @@ Full plan (Thai, with rationale): `C:\Users\tcgmc\.claude\plans\hamburgers-100-r
 | 0 | This skill file | ✅ done 2026-07-29 |
 | 1 | Shell + hamburger + 8 primitives | ✅ done 2026-07-29 — `npm run check` clean, verified live. Only the shell (rail/hamburger/drawer/header) + the primitives were touched. |
 | 2 | 7 pages responsive | ✅ done 2026-07-29 — all 7 done. See per-page notes below. |
-| 3 | 8 tables → cards | 🔄 **6 of 8 done.** Remaining: **Maintenance** (`StockPage.tsx`, 9 cols + bulk-select checkboxes — hardest one; currently `.h-scroll` + `min-w-[900px]` so it swipes instead of crushing) and **RackBuild** (`RackBuildModal.tsx:346`, deferrable to Phase 4a since it lives inside a workspace modal). |
+| 3 | 8 tables → cards | 🔄 **7 of 8 done.** **Maintenance** done 2026-07-29 — `ResponsiveTable` wraps the existing 9-col `<table>` (`table` prop, unchanged) alongside a new grouped `DataCard` list (`cards` prop): category header keeps its own custom accordion (checkbox + chevron + count + status badge, not a DataCard), each log renders as a `DataCard` (bulk-select checkbox folded into the `title` slot, status in `badge`, type/tech/cost/description in `fields`), and the inline status+cost edit form bypasses `DataCard` entirely (a custom bordered block matches the desktop `isEditing` branch — a 2-col grid form doesn't fit `DataCard`'s fixed title/fields/actions shape). Remaining: **RackBuild** (`RackBuildModal.tsx:346`, deferrable to Phase 4a since it lives inside a workspace modal). |
 | 4a | WorkspaceShell + 11 workspace modals | ⬜ not started — **next up.** Biggest remaining block. |
 | 4b | CenteredModal + 24 dialogs | ⬜ not started. `CenteredModal` primitive exists and is unused so far. |
 | 5 | Gantt + touch targets + polish | ⬜ not started |

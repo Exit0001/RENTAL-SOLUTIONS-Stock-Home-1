@@ -57,6 +57,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ResponsiveTable } from "@/components/ResponsiveTable";
 import { DataCard } from "@/components/DataCard";
 import { ScrollTabs } from "@/components/ScrollTabs";
+import { StockEditModeToggle } from "@/components/StockEditModeToggle";
 import { containersApi, disposalsApi, equipmentSetsApi, jobsApi, maintenanceApi, stockApi } from "@/api";
 import { useToast } from "@/hooks/use-toast";
 import type { ContainerWithItems, CrewMember, DisposalRow, EquipmentSetSummary, StockItemWithUnits, SubRentalWithJob } from "@/api";
@@ -130,9 +131,12 @@ export const StockPage = (): JSX.Element => {
   const [bulkDeleteLogsOpen, setBulkDeleteLogsOpen] = useState(false);
   const [expandedMaintenanceCategories, setExpandedMaintenanceCategories] = useState<Set<string>>(new Set());
 
-  const { token, expandedContainers, toggleContainer, userRole } = useAppStore();
+  const { token, expandedContainers, toggleContainer, userRole, stockEditMode } = useAppStore();
   const { toast } = useToast();
   const canManage = userRole === "admin" || userRole === "manager";
+  // ปุ่มแก้ไข/ลบ/เพิ่มสต็อกทั้งหมดต้องปลดล็อกโหมดแก้ไขก่อน (StockEditModeToggle) — กัน
+  // การกดผิดที่ทำให้ของหาย ScanModal/assign-checkout ไม่ถูกล็อก เพราะเป็นงานปฏิบัติการ
+  const canEdit = canManage && stockEditMode;
   const qc = useQueryClient();
 
   // ดึง containers จาก API (token ถูกส่งอัตโนมัติจาก api client)
@@ -506,14 +510,17 @@ export const StockPage = (): JSX.Element => {
       {addSetsOpen && <AddSetsModal onClose={() => setAddSetsOpen(false)} />}
       {disposeOpen && <DisposeModal onClose={() => setDisposeOpen(false)} />}
 
-      <ScrollTabs
-        tabs={stockTabs.map((tab) => ({ key: tab.key, label: t(tab.labelKey), Icon: tab.icon }))}
-        active={activeTab}
-        onChange={(k) => setActiveTab(k as StockTab)}
-        variant="underline"
-        className="px-2 md:px-4 pt-2 md:pt-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0"
-        testIdPrefix="tab-stock"
-      />
+      <div className="flex items-center gap-2 pr-2 md:pr-4 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0">
+        <ScrollTabs
+          tabs={stockTabs.map((tab) => ({ key: tab.key, label: t(tab.labelKey), Icon: tab.icon }))}
+          active={activeTab}
+          onChange={(k) => setActiveTab(k as StockTab)}
+          variant="underline"
+          className="flex-1 min-w-0 px-2 md:px-4 pt-2 md:pt-3"
+          testIdPrefix="tab-stock"
+        />
+        {canManage && <StockEditModeToggle />}
+      </div>
 
       {activeTab === "inventory" && (
         <div className="flex flex-row flex-1 overflow-hidden">
@@ -592,31 +599,33 @@ export const StockPage = (): JSX.Element => {
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
           <div className="h-scroll flex flex-row items-center gap-2 md:gap-3 w-full px-3 md:px-4 py-2.5 md:py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in [&>*]:flex-shrink-0">
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={() => setRackBuildOpen(true)}
-                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold border border-brand/40 text-brand transition-opacity hover:opacity-90 hover:bg-brand/10"
-              >
-                <ScanLine className="w-4 h-4" /> Rack Build Mode
-              </button>
-              <button
-                onClick={() => setAddContainerOpen(true)}
-                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "var(--brand)" }}
-              >
-                <Plus className="w-4 h-4" /> {t("addContainer")}
-              </button>
-            </div>
+            {stockEditMode && (
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setRackBuildOpen(true)}
+                  className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold border border-brand/40 text-brand transition-opacity hover:opacity-90 hover:bg-brand/10"
+                >
+                  <ScanLine className="w-4 h-4" /> Rack Build Mode
+                </button>
+                <button
+                  onClick={() => setAddContainerOpen(true)}
+                  className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "var(--brand)" }}
+                >
+                  <Plus className="w-4 h-4" /> {t("addContainer")}
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-2.5 md:p-4">
           {containers.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
               <Layers className="w-10 h-10" />
               <p className="text-sm">{t("noContainersYet")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3 items-start">
               {containers.map((c) => {
                 const expanded = expandedContainers.includes(c.id);
                 const isOut = c.isOut;
@@ -625,16 +634,16 @@ export const StockPage = (): JSX.Element => {
                   <div key={c.id} className={`rounded-xl border bg-surface-1 overflow-hidden transition-colors ${isOut ? "border-blue-500/20" : "border-fg/[0.08] hover:border-brand/30"}`} data-testid={`container-${c.id}`}>
                     <div className="flex">
                       {c.imageUrl
-                        ? <img src={c.imageUrl} alt="" className="w-24 h-24 object-cover flex-shrink-0" />
+                        ? <img src={c.imageUrl} alt="" className="w-16 h-16 md:w-24 md:h-24 object-cover flex-shrink-0" />
                         : (
-                          <div className={`w-24 h-24 flex items-center justify-center flex-shrink-0 ${isOut ? "bg-blue-500/[0.06]" : "bg-brand/[0.06]"}`}>
-                            <Layers className={`w-6 h-6 ${isOut ? "text-blue-400/40" : "text-brand/40"}`} />
+                          <div className={`w-16 h-16 md:w-24 md:h-24 flex items-center justify-center flex-shrink-0 ${isOut ? "bg-blue-500/[0.06]" : "bg-brand/[0.06]"}`}>
+                            <Layers className={`w-5 h-5 md:w-6 md:h-6 ${isOut ? "text-blue-400/40" : "text-brand/40"}`} />
                           </div>
                         )}
-                      <div className="flex-1 min-w-0 p-3 flex flex-col">
+                      <div className="flex-1 min-w-0 p-2.5 md:p-3 flex flex-col">
                         <div onClick={() => toggleContainer(c.id)} className="cursor-pointer hover:opacity-80 transition-opacity">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-sm font-bold text-fg truncate">{c.name}</span>
+                            <span className="text-[13px] md:text-sm font-bold text-fg truncate">{c.name}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${isOut ? "bg-blue-500/15 text-blue-400" : "bg-brand/10 text-brand/70"}`}>{c.type}</span>
                             {isOut && (
                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/15 text-blue-400">
@@ -642,39 +651,39 @@ export const StockPage = (): JSX.Element => {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-fg/50 mt-0.5">
+                          <div className="flex items-center gap-1.5 text-[10px] md:text-[11px] text-fg/50 mt-0.5">
                             <ChevronRightIcon className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${expanded ? "rotate-90 text-brand" : ""}`} />
                             <span className="truncate">{c.location}</span>
                             {c.barcode && <span className="font-mono truncate">{c.barcode}</span>}
                           </div>
-                          <p className="text-[11px] text-fg/40 mt-0.5">
+                          <p className="text-[10px] md:text-[11px] text-fg/40 mt-0.5">
                             {c.items.length > 0
                               ? t("readyOfTotal", { ready: readyCount, total: c.items.length })
                               : <span className="italic">{t("emptyAssignBelow")}</span>}
                           </p>
                         </div>
 
-                        <div className="mt-auto flex items-center gap-2 pt-2 flex-wrap">
+                        <div className="mt-auto flex items-center gap-1.5 md:gap-2 pt-1.5 md:pt-2 flex-wrap">
                           <button
                             onClick={() => setAssignContainer(c)}
-                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
+                            className="flex items-center gap-1 h-7 px-2 md:px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
                             title={t("assignItemsTooltip")}
                           >
                             <PackagePlus className="w-3 h-3" /> {t("assign")}
                           </button>
-                          {canManage && (
+                          {canEdit && (
                             <button
                               onClick={() => setEditContainerTarget(c)}
-                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
+                              className="flex items-center gap-1 h-7 px-2 md:px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
                               title={t("editContainer")}
                             >
                               <Pencil className="w-3 h-3" /> {tc("edit")}
                             </button>
                           )}
-                          {canManage && (
+                          {canEdit && (
                             <button
                               onClick={() => setDeleteContainerTarget(c)}
-                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                              className="flex items-center gap-1 h-7 px-2 md:px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                               title={t("deleteContainer")}
                             >
                               <Trash2 className="w-3 h-3" /> {tc("delete")}
@@ -685,7 +694,7 @@ export const StockPage = (): JSX.Element => {
                     </div>
                     {expanded && (
                       <div className="border-t border-fg/[0.06]">
-                        <div className="flex items-center justify-between px-4 py-2 border-b border-fg/[0.06]">
+                        <div className="flex items-center justify-between px-3 md:px-4 py-1.5 md:py-2 border-b border-fg/[0.06]">
                           <span className="text-[10px] font-bold text-fg/40 uppercase tracking-wider">{t("equipmentLabel")}</span>
                           <button
                             onClick={() => toggleContainerCheckout.mutate(c.id)}
@@ -700,13 +709,13 @@ export const StockPage = (): JSX.Element => {
                           </button>
                         </div>
                         {c.items.length === 0 ? (
-                          <div className="flex items-center gap-2 px-4 py-3 text-xs text-fg/60 italic">
+                          <div className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 text-xs text-fg/60 italic">
                             <PackagePlus className="w-3.5 h-3.5" />
                             {t("noItemsAssigned")}
                           </div>
                         ) : (
                           c.items.map((item, i) => (
-                            <div key={item.id} className="animate-slide-down flex items-center gap-2 px-4 py-2 border-b border-fg/[0.03] last:border-0 hover:bg-fg/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
+                            <div key={item.id} className="animate-slide-down flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 border-b border-fg/[0.03] last:border-0 hover:bg-fg/[0.02]" style={{ animationDelay: `${i * 30}ms` }}>
                               <span className="text-xs text-fg/60 flex-1 truncate">{item.name}</span>
                               <span className="text-[10px] text-fg/50 flex-shrink-0">{item.category}</span>
                               <span className="text-[10px] font-mono text-fg/50 flex-shrink-0">{item.serialNumber ?? "—"}</span>
@@ -751,47 +760,51 @@ export const StockPage = (): JSX.Element => {
             <Boxes className="w-4 h-4 text-brand/60 flex-shrink-0" />
             <span className="text-sm font-semibold text-fg/50">{t("tabSets")}</span>
             <span className="text-xs text-fg/60">{equipmentSets.length}</span>
-            <div className="ml-auto">
-              <button
-                onClick={() => setAddSetsOpen(true)}
-                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "var(--brand)" }}
-              >
-                <Plus className="w-4 h-4" /> สร้างชุด
-              </button>
-            </div>
+            {stockEditMode && (
+              <div className="ml-auto">
+                <button
+                  onClick={() => setAddSetsOpen(true)}
+                  className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "var(--brand)" }}
+                >
+                  <Plus className="w-4 h-4" /> สร้างชุด
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Grid of sets */}
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-2.5 md:p-4">
             {equipmentSets.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
                 <Boxes className="w-10 h-10" />
                 <p className="text-sm">ยังไม่มีชุดอุปกรณ์ — คลิก "สร้างชุด" เพื่อรวมของที่ใช้ด้วยกันบ่อยๆ เป็นชุดเดียว</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                 {equipmentSets.map((s) => (
                   <div key={s.id} className="rounded-xl border border-fg/[0.08] bg-surface-1 overflow-hidden hover:border-brand/30 transition-colors">
                     <div className="flex">
                       {s.imageUrl
-                        ? <img src={s.imageUrl} alt="" className="w-24 h-24 object-cover flex-shrink-0" />
-                        : <div className="w-24 h-24 bg-brand/[0.06] flex items-center justify-center flex-shrink-0"><Layers className="w-6 h-6 text-brand/40" /></div>}
-                      <div className="flex-1 min-w-0 p-3 flex flex-col">
-                        <p className="text-sm font-bold text-fg truncate">{s.name}</p>
-                        <p className="text-[11px] text-fg/50 mt-0.5">{s.itemCount} รายการ · {s.totalQty} ชิ้น</p>
-                        {s.description && <p className="text-[11px] text-fg/40 mt-1 line-clamp-2">{s.description}</p>}
-                        <div className="mt-auto flex items-center gap-2 pt-2">
-                          <button
-                            onClick={() => { setEditingSetId(s.id); setSetBuilderOpen(true); }}
-                            className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
-                          >
-                            <Pencil className="w-3 h-3" /> แก้ไข
-                          </button>
-                          {canManage && (
+                        ? <img src={s.imageUrl} alt="" className="w-16 h-16 md:w-24 md:h-24 object-cover flex-shrink-0" />
+                        : <div className="w-16 h-16 md:w-24 md:h-24 bg-brand/[0.06] flex items-center justify-center flex-shrink-0"><Layers className="w-5 h-5 md:w-6 md:h-6 text-brand/40" /></div>}
+                      <div className="flex-1 min-w-0 p-2.5 md:p-3 flex flex-col">
+                        <p className="text-[13px] md:text-sm font-bold text-fg truncate">{s.name}</p>
+                        <p className="text-[10px] md:text-[11px] text-fg/50 mt-0.5">{s.itemCount} รายการ · {s.totalQty} ชิ้น</p>
+                        {s.description && <p className="text-[10px] md:text-[11px] text-fg/40 mt-1 line-clamp-2">{s.description}</p>}
+                        <div className="mt-auto flex items-center gap-1.5 md:gap-2 pt-1.5 md:pt-2">
+                          {stockEditMode && (
+                            <button
+                              onClick={() => { setEditingSetId(s.id); setSetBuilderOpen(true); }}
+                              className="flex items-center gap-1 h-7 px-2 md:px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
+                            >
+                              <Pencil className="w-3 h-3" /> แก้ไข
+                            </button>
+                          )}
+                          {canEdit && (
                             <button
                               onClick={() => setDeleteSetTarget({ id: s.id, name: s.name })}
-                              className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                              className="flex items-center gap-1 h-7 px-2 md:px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                             >
                               <Trash2 className="w-3 h-3" /> ลบ
                             </button>
@@ -835,7 +848,7 @@ export const StockPage = (): JSX.Element => {
             <Wrench className="w-4 h-4 text-brand/60 flex-shrink-0" />
             <span className="text-sm font-semibold text-fg/50">{t("maintenanceLog")}</span>
             <span className="text-xs text-fg/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
-            {canManage && selectedLogIds.size > 0 && (
+            {canEdit && selectedLogIds.size > 0 && (
               <div className="flex items-center gap-2 animate-fade-in">
                 <span className="text-xs text-brand/70 font-semibold">{t("selectedLogsCount", { count: selectedLogIds.size })}</span>
                 <button
@@ -854,15 +867,17 @@ export const StockPage = (): JSX.Element => {
                 </button>
               </div>
             )}
-            <div className="ml-auto">
-              <button
-                onClick={() => setAddMaintenanceLogOpen(true)}
-                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "var(--brand)" }}
-              >
-                <Plus className="w-4 h-4" /> {t("addLog")}
-              </button>
-            </div>
+            {stockEditMode && (
+              <div className="ml-auto">
+                <button
+                  onClick={() => setAddMaintenanceLogOpen(true)}
+                  className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: "var(--brand)" }}
+                >
+                  <Plus className="w-4 h-4" /> {t("addLog")}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-auto p-2 md:p-6">
@@ -872,14 +887,14 @@ export const StockPage = (): JSX.Element => {
               <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("maintenanceLog")}</span>
               <span className="text-[10px] text-fg/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
             </div>
-            {/* 9 columns with bulk-select checkboxes — swiping a properly-sized table beats
-                a crushed one. Card conversion tracked in SKILL.md Phase 3. */}
+            <ResponsiveTable
+              table={
             <div className="h-scroll">
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
-                  {canManage && <th className="py-2.5 pl-4 w-8" />}
-                  <th className={`py-2.5 text-left font-semibold ${canManage ? "" : "pl-4"}`}>{t("colAsset")}</th>
+                  {canEdit && <th className="py-2.5 pl-4 w-8" />}
+                  <th className={`py-2.5 text-left font-semibold ${canEdit ? "" : "pl-4"}`}>{t("colAsset")}</th>
                   <th className="py-2.5 text-left font-semibold">{t("colType")}</th>
                   <th className="py-2.5 text-left font-semibold">{tc("description")}</th>
                   <th className="py-2.5 text-left font-semibold">{tc("date")}</th>
@@ -893,8 +908,8 @@ export const StockPage = (): JSX.Element => {
                 {maintenanceLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={`msk-${i}`} className="animate-pulse border-b border-fg/[0.04]">
-                      {canManage && <td className="py-2.5 pl-4"><div className="h-3.5 w-3.5 rounded bg-fg/[0.06]" /></td>}
-                      <td className={`py-2.5 ${canManage ? "" : "pl-4"}`}><div className="h-3 rounded bg-fg/[0.06] w-28" /></td>
+                      {canEdit && <td className="py-2.5 pl-4"><div className="h-3.5 w-3.5 rounded bg-fg/[0.06]" /></td>}
+                      <td className={`py-2.5 ${canEdit ? "" : "pl-4"}`}><div className="h-3 rounded bg-fg/[0.06] w-28" /></td>
                       <td className="py-2.5"><div className="h-5 rounded bg-fg/[0.05] w-16" /></td>
                       <td className="py-2.5"><div className="h-3 rounded bg-fg/[0.04]" style={{ width: `${100 + (i * 27) % 100}px` }} /></td>
                       <td className="py-2.5"><div className="h-3 rounded bg-fg/[0.04] w-20" /></td>
@@ -916,9 +931,9 @@ export const StockPage = (): JSX.Element => {
                       className="cursor-pointer bg-fg/[0.03] hover:bg-fg/[0.05] border-b border-fg/[0.08] transition-colors select-none"
                       onClick={() => toggleMaintenanceCategory(category)}
                     >
-                      <td colSpan={canManage ? 9 : 8} className="py-2.5 px-4">
+                      <td colSpan={canEdit ? 9 : 8} className="py-2.5 px-4">
                         <div className="flex items-center gap-2.5">
-                          {canManage && (
+                          {canEdit && (
                             <div
                               role="checkbox"
                               aria-checked={catAllSelected}
@@ -947,7 +962,7 @@ export const StockPage = (): JSX.Element => {
                   const isEditing = editingLogId === log.id;
                   return (
                   <tr key={log.id} className="border-b border-fg/[0.04] hover:bg-fg/[0.02] transition-colors" data-testid={`maintenance-${log.id}`}>
-                    {canManage && (
+                    {canEdit && (
                       <td className="py-2.5 pl-4">
                         <div
                           role="checkbox"
@@ -960,7 +975,7 @@ export const StockPage = (): JSX.Element => {
                         </div>
                       </td>
                     )}
-                    <td className={`py-2.5 font-mono text-brand/70 text-xs ${canManage ? "" : "pl-4"}`}>
+                    <td className={`py-2.5 font-mono text-brand/70 text-xs ${canEdit ? "" : "pl-4"}`}>
                       {log.stockUnitId ? (unitLookup.get(log.stockUnitId) ?? log.stockUnitId) : t("generalLog")}
                     </td>
                     <td className="py-2.5">
@@ -1029,7 +1044,7 @@ export const StockPage = (): JSX.Element => {
                             {tc("save")}
                           </button>
                         </div>
-                      ) : canManage ? (
+                      ) : canEdit ? (
                         <div className="flex items-center gap-1 justify-end">
                           <button
                             onClick={() => startEditLog(log)}
@@ -1057,6 +1072,191 @@ export const StockPage = (): JSX.Element => {
               </tbody>
             </table>
             </div>
+              }
+              cards={
+                <div className="flex flex-col gap-2 p-2.5">
+                  {maintenanceLoading && Array.from({ length: 4 }).map((_, i) => (
+                    <div key={`msk-m-${i}`} className="animate-pulse bg-surface-2 border border-fg/[0.06] rounded-xl h-20" />
+                  ))}
+                  {!maintenanceLoading && groupedMaintenanceLogs.length === 0 && (
+                    <div className="flex flex-col items-center gap-2 py-10 text-center text-fg/40">
+                      <Wrench className="w-8 h-8" aria-hidden="true" />
+                      <p className="text-sm">{t("recordsCount", { count: 0 })}</p>
+                    </div>
+                  )}
+                  {!maintenanceLoading && groupedMaintenanceLogs.map(([category, logs]) => {
+                    const isCatOpen = expandedMaintenanceCategories.has(category);
+                    const inProgressCount = logs.filter((l: any) => l.status === "in_progress").length;
+                    const categoryLabel = category === GENERAL_MAINTENANCE_CATEGORY ? t("generalLog") : category;
+                    const catAllSelected = logs.length > 0 && logs.every((l: any) => selectedLogIds.has(l.id));
+                    const catSomeSelected = !catAllSelected && logs.some((l: any) => selectedLogIds.has(l.id));
+                    return (
+                      <div key={`m-${category}`} className="rounded-xl border border-fg/10 bg-surface-1 overflow-hidden">
+                        <button
+                          onClick={() => toggleMaintenanceCategory(category)}
+                          className="w-full text-left px-2.5 py-2.5 flex items-center gap-2 min-h-[46px] hover:bg-surface-2 transition-colors"
+                        >
+                          {canEdit && (
+                            <div
+                              role="checkbox"
+                              aria-checked={catAllSelected}
+                              onClick={(e) => { e.stopPropagation(); toggleCategorySelection(logs); }}
+                              className={`tap-target w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
+                                ${catAllSelected ? "border-brand bg-brand" : catSomeSelected ? "border-brand/60 bg-brand/20" : "border-fg/20"}`}
+                            >
+                              {catAllSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
+                              {catSomeSelected && <div className="w-1.5 h-0.5 bg-brand rounded-full" />}
+                            </div>
+                          )}
+                          <ChevronRightIcon className={`w-3.5 h-3.5 flex-shrink-0 text-brand/60 transition-transform duration-200 ${isCatOpen ? "rotate-90" : ""}`} aria-hidden="true" />
+                          <Wrench className="w-3.5 h-3.5 text-brand/40 flex-shrink-0" aria-hidden="true" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-[13px] text-brand truncate">{categoryLabel}</div>
+                            <div className="text-[10px] text-fg/60 mt-0.5">{t("recordsCount", { count: logs.length })}</div>
+                          </div>
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${
+                            inProgressCount > 0 ? "bg-amber-950/40 text-amber-500" : "bg-emerald-950/40 text-emerald-500"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${inProgressCount > 0 ? "bg-amber-500" : "bg-emerald-500"}`} />
+                            {inProgressCount > 0 ? t("inProgressCount", { count: inProgressCount }) : t("allLogsCompleted")}
+                          </span>
+                        </button>
+
+                        {isCatOpen && (
+                          <div className="flex flex-col gap-1.5 px-2 pb-2">
+                            {logs.map((log: any) => {
+                              const isEditing = editingLogId === log.id;
+                              const assetName = log.stockUnitId ? (unitLookup.get(log.stockUnitId) ?? log.stockUnitId) : t("generalLog");
+
+                              if (isEditing) {
+                                return (
+                                  <div key={log.id} className="bg-surface-2 border border-brand/30 rounded-xl p-3.5 flex flex-col gap-2.5">
+                                    <div className="font-semibold text-sm text-fg truncate">{assetName}</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <div className="text-[10px] uppercase tracking-wide text-fg/40 mb-1">{t("colCost")}</div>
+                                        <input
+                                          type="number" step="0.01"
+                                          className="h-9 w-full bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg focus:outline-none focus:border-brand/40 transition-colors"
+                                          value={logForm.cost}
+                                          onChange={(e) => setLogForm((f) => ({ ...f, cost: e.target.value }))}
+                                          placeholder={t("costPlaceholder")}
+                                        />
+                                      </div>
+                                      <div>
+                                        <div className="text-[10px] uppercase tracking-wide text-fg/40 mb-1">{tc("status")}</div>
+                                        <select
+                                          className="h-9 w-full bg-black/50 border border-fg/10 rounded px-2 text-sm text-fg focus:outline-none focus:border-brand/40 transition-colors appearance-none cursor-pointer"
+                                          value={logForm.status}
+                                          onChange={(e) => setLogForm((f) => ({ ...f, status: e.target.value }))}
+                                        >
+                                          <option value="in_progress" className="bg-surface-1">{tc("statusEnum.in_progress")}</option>
+                                          <option value="completed" className="bg-surface-1">{tc("statusEnum.completed")}</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 justify-end pt-1">
+                                      <button
+                                        onClick={() => setEditingLogId(null)}
+                                        className="tap-target h-9 px-3 rounded-lg text-xs text-fg/60 hover:text-fg border border-fg/10 hover:border-fg/20 transition-colors"
+                                      >
+                                        {tc("cancel")}
+                                      </button>
+                                      <button
+                                        onClick={() => saveEditLog(log.id)}
+                                        disabled={updateMaintenanceLog.isPending}
+                                        className="tap-target h-9 px-3 rounded-lg text-xs font-bold text-black flex items-center gap-1.5 disabled:opacity-50 transition-opacity hover:opacity-80"
+                                        style={{ backgroundColor: "var(--brand)" }}
+                                      >
+                                        {updateMaintenanceLog.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                        {tc("save")}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <DataCard
+                                  key={log.id}
+                                  data-testid={`maintenance-${log.id}`}
+                                  title={
+                                    <div className="flex items-center gap-2">
+                                      {canEdit && (
+                                        <div
+                                          role="checkbox"
+                                          aria-checked={selectedLogIds.has(log.id)}
+                                          onClick={(e) => { e.stopPropagation(); toggleLogSelection(log.id); }}
+                                          className={`tap-target w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all
+                                            ${selectedLogIds.has(log.id) ? "border-brand bg-brand" : "border-fg/20"}`}
+                                        >
+                                          {selectedLogIds.has(log.id) && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
+                                        </div>
+                                      )}
+                                      <span className="truncate">{assetName}</span>
+                                    </div>
+                                  }
+                                  subtitle={new Date(log.date).toLocaleDateString("en-GB")}
+                                  badge={
+                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${log.status === "completed" ? "text-emerald-400" : "text-amber-400"}`}>
+                                      {log.status === "completed" ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                                      {tc(`statusEnum.${log.status}`, { defaultValue: log.status })}
+                                    </span>
+                                  }
+                                  fields={[
+                                    {
+                                      label: t("colType"),
+                                      value: (
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                          log.type === "repair" ? "bg-red-500/10 text-red-400" : log.type === "preventive" ? "bg-blue-500/10 text-blue-400" : "bg-fg/5 text-fg/60"
+                                        }`}>{tc(`statusEnum.${log.type}`, { defaultValue: log.type })}</span>
+                                      ),
+                                    },
+                                    { label: t("colTech"), value: log.techId ? (crewLookup.get(log.techId) ?? "—") : "—" },
+                                    {
+                                      label: t("colCost"),
+                                      value: (
+                                        <span className="inline-flex items-center gap-1.5">
+                                          {log.cost ? `£${log.cost}` : "—"}
+                                          {log.receiptUrl && (
+                                            <a href={log.receiptUrl} target="_blank" rel="noopener noreferrer" title="View receipt"
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="text-fg/60 hover:text-brand transition-colors">
+                                              <Receipt className="w-3 h-3" />
+                                            </a>
+                                          )}
+                                        </span>
+                                      ),
+                                    },
+                                    { label: tc("description"), value: log.description || "—", full: true },
+                                  ]}
+                                  actions={canEdit ? (
+                                    <>
+                                      <button
+                                        onClick={() => startEditLog(log)}
+                                        className="tap-target flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 hover:bg-fg/10 transition-colors"
+                                      >
+                                        <Pencil className="w-3 h-3" /> {tc("edit")}
+                                      </button>
+                                      <button
+                                        onClick={() => setDeleteLogTarget(log)}
+                                        className="tap-target flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                      >
+                                        <Trash2 className="w-3 h-3" /> {tc("delete")}
+                                      </button>
+                                    </>
+                                  ) : undefined}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              }
+            />
           </div>
           </div>
 
@@ -1114,9 +1314,9 @@ export const StockPage = (): JSX.Element => {
             <span className="ml-auto text-[11px] text-fg/40 italic">{t("subRentalsManageHint")}</span>
           </div>
 
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-2.5 md:p-6">
           <div className="bg-surface-1 border border-purple-500/15 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-purple-500/10 flex items-center gap-2">
+            <div className="px-3 md:px-4 py-2.5 md:py-3 border-b border-purple-500/10 flex items-center gap-2">
               <ArrowRightLeft className="w-4 h-4 text-purple-400" />
               <span className="font-bold text-purple-400 text-xs tracking-widest uppercase">{t("tabSubRentals")}</span>
               <span className="text-[10px] text-fg/60">{t("activeCount", { count: subRentals.length })}</span>
@@ -1124,7 +1324,7 @@ export const StockPage = (): JSX.Element => {
             <div className="divide-y divide-fg/[0.04]">
               {subRentalsLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
-                  <div key={`srsk-${i}`} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+                  <div key={`srsk-${i}`} className="flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 animate-pulse">
                     <div className="w-1 h-8 rounded-full bg-purple-400/20" />
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-center gap-2">
@@ -1140,14 +1340,14 @@ export const StockPage = (): JSX.Element => {
                   </div>
                 ))
               ) : subRentals.map((sr) => (
-                <div key={sr.id} className="flex items-center gap-4 px-4 py-3 hover:bg-purple-500/[0.03] transition-colors" data-testid={`subrental-${sr.id}`}>
-                  <div className="w-1 h-8 rounded-full bg-purple-400/60" />
+                <div key={sr.id} className="flex flex-wrap items-center gap-2.5 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 hover:bg-purple-500/[0.03] transition-colors" data-testid={`subrental-${sr.id}`}>
+                  <div className="hidden md:block w-1 h-8 rounded-full bg-purple-400/60" />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-fg/80">{sr.itemName}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[13px] md:text-sm font-medium text-fg/80">{sr.itemName}</span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${sr.status === "active" ? "bg-purple-500/15 text-purple-400" : sr.status === "returned" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>{tc(`statusEnum.${sr.status}`, { defaultValue: sr.status })}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-fg/60 mt-0.5">
+                    <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-[11px] text-fg/60 mt-0.5 flex-wrap">
                       <span>{t("fromPartner", { partner: sr.partner })}</span>
                       <span className="text-blue-400/60">→ {sr.jobName}</span>
                     </div>
@@ -1164,7 +1364,7 @@ export const StockPage = (): JSX.Element => {
                     </p>
                     <p className="text-[10px] text-fg/60 flex items-center gap-1 justify-end"><Clock className="w-3 h-3" />{t("dueLabel", { date: new Date(sr.dueBack).toLocaleDateString("en-GB") })}</p>
                   </div>
-                  {canManage && sr.status !== "returned" && (
+                  {canEdit && sr.status !== "returned" && (
                     <button
                       onClick={() => returnSubRental.mutate(sr.id)}
                       disabled={returnSubRental.isPending && returnSubRental.variables === sr.id}
@@ -1191,7 +1391,7 @@ export const StockPage = (): JSX.Element => {
             <PackageMinus className="w-4 h-4 text-red-400/70 flex-shrink-0" />
             <span className="text-sm font-semibold text-fg/50">{t("tabDisposals")}</span>
             <span className="text-xs text-fg/60">{disposals.length}</span>
-            {canManage && (
+            {canEdit && (
               <button onClick={() => setDisposeOpen(true)}
                 className="ml-auto flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-fg bg-red-600 hover:bg-red-700 transition-colors">
                 <PackageMinus className="w-4 h-4" /> ขาย / ตัดออก
@@ -1208,7 +1408,7 @@ export const StockPage = (): JSX.Element => {
             ) : (
               <ResponsiveTable
                 cards={
-                  <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-2">
                     {disposals.map((d) => (
                       <DataCard
                         key={`m-${d.id}`}
