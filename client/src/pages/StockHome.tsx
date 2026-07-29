@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { Home, Boxes, Briefcase, DollarSign, Clock, Settings, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StockManagementHeaderSection } from "./sections/StockManagementHeaderSection";
 import { HomePage } from "./sections/HomePage";
@@ -13,6 +12,8 @@ import { useAppStore } from "@/store/appStore";
 import { useIsFetching } from "@tanstack/react-query";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { AppNavDrawer } from "@/components/AppNavDrawer";
+import { navItemsForRole } from "@/lib/navItems";
 
 const GlobalLoadingBar = () => {
   const n = useIsFetching();
@@ -27,24 +28,17 @@ const GlobalLoadingBar = () => {
 export const StockHome = (): JSX.Element => {
   const { activePage, setActivePage, userRole, theme } = useAppStore();
   const { t } = useTranslation("nav");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // sync ธีมที่เลือกไว้ (persist ใน localStorage) เข้า <html data-theme="..."> ทุกครั้งที่เปลี่ยน/โหลดแอป
   useEffect(() => {
     document.documentElement.dataset.theme = theme === "red" ? "red" : "";
   }, [theme]);
 
-  // กำหนด nav items ตาม role
+  // กำหนด nav items ตาม role — source เดียวกับ AppNavDrawer (lib/navItems.ts)
   // crew เห็นแค่ Home + Jobs
   // manager/admin เห็นทุกหน้า
-  const navItems = [
-    { key: "Home",     labelKey: "home",     Icon: Home,       roles: ["admin", "manager", "crew"] },
-    { key: "Stock",    labelKey: "stock",    Icon: Boxes,      roles: ["admin", "manager"] },
-    { key: "Finance",  labelKey: "finance",  Icon: DollarSign, roles: ["admin", "manager"] },
-    { key: "Jobs",     labelKey: "jobs",     Icon: Briefcase,  roles: ["admin", "manager", "crew"] },
-    { key: "Crew",     labelKey: "crew",     Icon: Users,      roles: ["admin", "manager"] },
-    { key: "History",  labelKey: "history",  Icon: Clock,      roles: ["admin", "manager"] },
-    { key: "Settings", labelKey: "settings", Icon: Settings,   roles: ["admin", "manager", "crew"] },
-  ].filter((item) => !userRole || item.roles.includes(userRole));
+  const navItems = navItemsForRole(userRole);
 
   const renderPage = () => {
     switch (activePage) {
@@ -60,12 +54,14 @@ export const StockHome = (): JSX.Element => {
   };
 
   return (
-    <div className="h-screen w-full bg-surface-0 flex flex-col overflow-hidden">
+    <div className="h-[100dvh] w-full bg-surface-0 flex flex-col overflow-hidden">
       <GlobalLoadingBar />
-      <StockManagementHeaderSection activeSection={activePage} />
+      <StockManagementHeaderSection activeSection={activePage} onOpenMenu={() => setDrawerOpen(true)} />
+      <AppNavDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
 
       <div className="flex flex-row flex-1 overflow-hidden">
-        <aside className="flex-shrink-0 w-16 bg-surface-1 border-r border-fg/[0.06] flex flex-col items-center pt-3 pb-4 z-10">
+        {/* Nav rail — tablet (>=768) and desktop only. Phones use the hamburger drawer instead. */}
+        <aside className="hidden md:flex flex-shrink-0 w-16 bg-surface-1 border-r border-fg/[0.06] flex-col items-center pt-3 pb-4 z-10">
           <nav className="flex flex-col gap-1 w-full px-2">
             {navItems.map(({ key, labelKey, Icon }) => {
               const isActive = activePage === key;
@@ -95,6 +91,8 @@ export const StockHome = (): JSX.Element => {
           </div>
         </aside>
 
+        {/* No page-level horizontal scroll, ever — every wide thing owns its own local
+            .h-scroll. See .claude/skills/stak-mobile-responsive/SKILL.md §4. */}
         <div className="flex flex-col flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
           {renderPage()}
         </div>

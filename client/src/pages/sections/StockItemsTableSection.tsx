@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
+import { ResponsiveTable } from "@/components/ResponsiveTable";
 import { stockApi } from "@/api";
 import type { StockUnitWithPlan, StockItemWithUnits } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
@@ -91,6 +92,34 @@ const ActionIcons = ({ onView, onEdit, onAccessories, onDelete }: { onView?: () 
         <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="p-1.5 rounded-md text-fg/60 hover:text-red-400 hover:bg-red-400/10 transition-colors" title={tc("delete")}>
           <Trash2 className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ── Mobile action row: same 4 actions as ActionIcons, but with visible labels and
+// 44px targets (icon-only 28px buttons in a 16%-wide column are unusable with a thumb).
+const MobileActionRow = ({ onView, onEdit, onAccessories, onDelete }: { onView?: () => void; onEdit?: () => void; onAccessories?: () => void; onDelete?: () => void }) => {
+  const { t } = useTranslation("stock");
+  const { t: tc } = useTranslation("common");
+  const base = "flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold transition-colors flex-shrink-0";
+  return (
+    <div className="h-scroll flex items-center gap-2">
+      <button onClick={(e) => { e.stopPropagation(); onView?.(); }} className={`${base} bg-fg/[0.06] text-fg/70 hover:bg-fg/10`}>
+        <Eye className="w-3 h-3" aria-hidden="true" /> {t("viewDetails")}
+      </button>
+      <button onClick={(e) => { e.stopPropagation(); onEdit?.(); }} className={`${base} bg-fg/[0.06] text-fg/70 hover:bg-fg/10`}>
+        <Pencil className="w-3 h-3" aria-hidden="true" /> {tc("edit")}
+      </button>
+      {onAccessories && (
+        <button onClick={(e) => { e.stopPropagation(); onAccessories(); }} className={`${base} bg-fg/[0.06] text-fg/70 hover:bg-fg/10`}>
+          <Link2 className="w-3 h-3" aria-hidden="true" /> {t("tabAccessories")}
+        </button>
+      )}
+      {onDelete && (
+        <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className={`${base} bg-red-500/10 text-red-400 hover:bg-red-500/20`}>
+          <Trash2 className="w-3 h-3" aria-hidden="true" /> {tc("delete")}
         </button>
       )}
     </div>
@@ -863,33 +892,134 @@ export const StockItemsTableSection = ({
   // When filtering/searching, treat all categories as expanded
   const isCategoryOpen = (cat: string) => isFiltering ? true : expandedCategories.has(cat);
 
-  return (
-    <section className="w-full bg-surface-1 rounded-xl border border-fg/10 overflow-hidden animate-fade-in">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-fg/10 flex items-center gap-3">
-        <Package className="w-5 h-5 text-brand" />
-        <h2 className="font-bold text-brand text-base tracking-widest uppercase">{t("stockItems")}</h2>
-        <div className="ml-auto flex items-center gap-3 text-xs text-fg/60 font-medium">
-          {isFiltering && <span className="text-brand/50">{t("filteredLabel")} ·</span>}
-          <span>{t("categoryCount", { count: grouped.length })}</span>
-          <span className="text-fg/40">·</span>
-          <span>{t("modelsCount", { count: totalItems })}</span>
-          <span className="text-fg/40">·</span>
-          <span>{t("unitsCount", { count: totalUnits })}</span>
+  // ── Mobile: category accordion → model cards (see SKILL.md §5/P4).
+  // The desktop <table> is squeezed to ~50px per column at 360px, which is why the
+  // presentation changes shape entirely here rather than just shrinking.
+  const mobileCards = (
+    <div className="flex flex-col gap-3 p-3">
+      {isLoading && Array.from({ length: 5 }).map((_, i) => (
+        <div key={`mskel-${i}`} className="animate-pulse bg-surface-2 border border-fg/[0.06] rounded-xl h-24" />
+      ))}
+
+      {!isLoading && grouped.length === 0 && (
+        <div className="flex flex-col items-center gap-2 py-16">
+          <Package className="w-8 h-8 text-fg/40" aria-hidden="true" />
+          <p className="text-fg/60 text-sm">{t("noItemsMatchFilters")}</p>
         </div>
-      </div>
+      )}
 
+      {!isLoading && grouped.map(([category, items]) => {
+        const catOpen = isCategoryOpen(category);
+        const catTotalUnits = items.reduce((s: number, i: StockItemWithCount) => s + pieceCount(i), 0);
+        const catAvail = items.reduce((s: number, i: StockItemWithCount) => s + i.availableCount, 0);
+        const allAvail = catAvail === catTotalUnits && catTotalUnits > 0;
+        const noneAvail = catAvail === 0;
+
+        return (
+          <div key={`m-${category}`} className="rounded-xl border border-fg/10 bg-surface-1 overflow-hidden">
+            <button
+              onClick={() => !isFiltering && toggleCategory(category)}
+              className="w-full text-left px-3 py-3 flex items-center gap-2.5 min-h-[52px] hover:bg-surface-2 transition-colors"
+            >
+              {!isFiltering && (
+                <ChevronRightIcon className={`w-4 h-4 flex-shrink-0 text-brand/60 transition-transform duration-200 ${catOpen ? "rotate-90" : ""}`} aria-hidden="true" />
+              )}
+              <Boxes className="w-4 h-4 text-brand/40 flex-shrink-0" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-sm text-brand truncate">{category}</div>
+                <div className="text-[11px] text-fg/50 mt-0.5">
+                  {t("modelsCount", { count: items.length })} · {t("unitsCount", { count: catTotalUnits })}
+                </div>
+              </div>
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold flex-shrink-0
+                ${allAvail ? "bg-emerald-950/40 text-emerald-500" : noneAvail ? "bg-red-950/40 text-red-500" : "bg-amber-950/40 text-amber-500"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${allAvail ? "bg-emerald-500" : noneAvail ? "bg-red-500" : "bg-amber-500"}`} />
+                {allAvail ? t("allAvailable") : noneAvail ? t("noneAvailable") : catAvail}
+              </span>
+            </button>
+
+            {catOpen && (
+              <div className="flex flex-col gap-2 px-2 pb-2">
+                {items.map((item: StockItemWithCount) => {
+                  const isBulk = item.trackingMode === "bulk";
+                  const isExpanded = !isBulk && expandedRows.has(item.id);
+                  const totalForBadge = isBulk ? (item.quantity ?? 0) : item.unitCount;
+                  return (
+                    <div
+                      key={`m-${item.id}`}
+                      className={`rounded-lg border ${isBulk ? "border-amber-400/25 bg-amber-500/[0.05]" : "border-fg/[0.08] bg-surface-2"}`}
+                    >
+                      <button
+                        onClick={isBulk ? undefined : () => toggleRow(item.id)}
+                        className={`w-full text-left px-3 py-3 flex items-start gap-2.5 ${isBulk ? "cursor-default" : ""}`}
+                      >
+                        {isBulk ? (
+                          <span className="w-5 h-5 mt-0.5 rounded-md bg-amber-400/15 flex items-center justify-center flex-shrink-0">
+                            <Layers className="w-3 h-3 text-amber-400" aria-hidden="true" />
+                          </span>
+                        ) : (
+                          <ChevronRightIcon className={`w-4 h-4 mt-1 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-90 text-brand" : "text-fg/50"}`} aria-hidden="true" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className={`font-semibold text-sm leading-snug break-words ${isBulk ? "text-amber-100/90" : "text-fg/90"}`}>
+                            {item.name}
+                          </div>
+                          <div className="text-[11px] text-fg/50 mt-1 truncate">
+                            {item.brand}{item.subCategory ? ` · ${item.subCategory}` : ""}
+                          </div>
+                          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold ${isBulk ? "bg-amber-400/15 text-amber-300" : "bg-fg/[0.08] text-fg/70"}`}>
+                              {totalForBadge} {isBulk ? "ชิ้น" : t("unitsCount", { count: totalForBadge }).replace(String(totalForBadge), "").trim()}
+                            </span>
+                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} />
+                          </div>
+                          {item.sets && item.sets.length > 0 && (
+                            <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-brand/10 text-brand/90 font-semibold max-w-full">
+                              <Boxes className="w-2.5 h-2.5 flex-shrink-0" aria-hidden="true" />
+                              <span className="truncate">{item.sets[0].name}{item.sets.length > 1 ? ` +${item.sets.length - 1}` : ""}</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+
+                      <div className="px-3 pb-2.5 pt-1 border-t border-fg/[0.06]">
+                        <MobileActionRow
+                          onView={() => onViewItem?.(item)}
+                          onEdit={() => onEditItem?.(item)}
+                          onAccessories={() => onManageAccessories?.(item)}
+                          onDelete={canManage ? () => { setDeleteError(null); setDeleteItemId(item.id); } : undefined}
+                        />
+                      </div>
+
+                      {/* Unit list reuses UnitRows verbatim (all edit/bulk/delete behaviour
+                          preserved) inside its own horizontal scroller. */}
+                      {isExpanded && (
+                        <div className="h-scroll border-t border-fg/[0.06]">
+                          <table className="w-full text-sm min-w-[760px]">
+                            <tbody>
+                              <UnitRows itemId={item.id} onViewItem={onViewItem} />
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const desktopTable = (
       <div className="overflow-x-auto">
-        <Table className="w-full table-fixed">
-          <colgroup>
-            <col className="w-[28%]" />
-            <col className="w-[16%]" />
-            <col className="w-[14%]" />
-            <col className="w-[8%]" />
-            <col className="w-[18%]" />
-            <col className="w-[16%]" />
-          </colgroup>
-
+        <Table className="w-full min-w-[900px]">
+          {/* No table-fixed + percentage colgroup here: that combination meant the table
+              could never exceed 100% width, so the overflow-x-auto wrapper never activated
+              and columns just crushed instead (SKILL.md R10). min-w-[900px] + auto layout
+              makes the wrapper actually scroll. */}
           <TableHeader>
             <TableRow className="border-fg/10 hover:bg-transparent">
               <TableHead className="py-3 pl-6 font-bold text-brand text-xs uppercase tracking-wider">{tc("name")}</TableHead>
@@ -1068,6 +1198,25 @@ export const StockItemsTableSection = ({
           </TableBody>
         </Table>
       </div>
+  );
+
+  return (
+    <section className="w-full bg-surface-1 rounded-xl border border-fg/10 overflow-hidden animate-fade-in">
+      {/* Header */}
+      <div className="px-3 md:px-6 py-3 md:py-4 border-b border-fg/10 flex items-center gap-2 md:gap-3">
+        <Package className="w-5 h-5 text-brand flex-shrink-0" aria-hidden="true" />
+        <h2 className="font-bold text-brand text-sm md:text-base tracking-widest uppercase truncate">{t("stockItems")}</h2>
+        <div className="ml-auto flex items-center gap-1.5 md:gap-3 text-[10px] md:text-xs text-fg/60 font-medium flex-shrink-0">
+          {isFiltering && <span className="text-brand/50 hidden sm:inline">{t("filteredLabel")} ·</span>}
+          <span>{t("categoryCount", { count: grouped.length })}</span>
+          <span className="text-fg/40">·</span>
+          <span>{t("modelsCount", { count: totalItems })}</span>
+          <span className="text-fg/40 hidden sm:inline">·</span>
+          <span className="hidden sm:inline">{t("unitsCount", { count: totalUnits })}</span>
+        </div>
+      </div>
+
+      <ResponsiveTable table={desktopTable} cards={mobileCards} />
 
       <AlertDialog open={!!deleteItemId} onOpenChange={(open) => { if (!open) { setDeleteItemId(null); setDeleteError(null); } }}>
         <AlertDialogContent className="bg-surface-1 border border-fg/[0.08]">

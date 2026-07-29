@@ -1,10 +1,14 @@
 import React from "react";
 import { X, Loader2 } from "lucide-react";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { ScrollTabs } from "./ScrollTabs";
 
 // ── Template โครงหน้าต่างมาตรฐาน (ใช้ร่วมกันทุก workspace เต็มจอ) ──
-// หัว: [ไอคอน + ชื่อ] ซ้าย · [แท็บ] กลาง · [actions + X] ขวา
-// ตัว: [แถบซ้าย?] + [เนื้อหาหลัก] + [แผงขวา?]  (แต่ละส่วน scroll เอง)
-// ท้าย: [ข้อมูล/สรุป] ซ้าย · [ปุ่ม] ขวา
+// หัว: [ไอคอน + ชื่อ] ซ้าย · [แท็บ] กลาง (เดสก์ท็อป) · [actions + X] ขวา
+// มือถือ (<768): แท็บ + sidebar (ถ้ามี) รวมเป็นแถบ ScrollTabs แถวเดียวใต้หัว
+//   แล้วแสดงทีละแผง — ดู .claude/skills/stak-mobile-responsive/SKILL.md §5/P7
+// ตัว: [แถบซ้าย?] + [เนื้อหาหลัก]  (แต่ละส่วน scroll เอง)
+// ท้าย: [ข้อมูล/สรุป] ซ้าย · [ปุ่ม] ขวา — มือถือ: ปุ่มหลักเต็มความกว้าง อยู่ล่างสุด
 // ปุ่มหลัก = สีเหลือง (WSButton variant="primary") อยู่ขวาล่างเสมอ
 
 export interface WSTab {
@@ -14,6 +18,17 @@ export interface WSTab {
   count?: number;
   /** แสดงแทน count ได้ (เช่น เศษ "0/5" หรือไอคอนเสร็จ) */
   badge?: React.ReactNode;
+}
+
+/** แผงเพิ่มเติมที่ปรากฏเป็นแท็บเฉพาะบนมือถือ (เช่น sidebar ของ shell, ตะกร้าที่ปกติอยู่คู่กับ catalog) */
+export interface WSMobilePane {
+  key: string;
+  label: string;
+  Icon?: React.ComponentType<{ className?: string }>;
+  badge?: React.ReactNode;
+  content: React.ReactNode;
+  /** ซ่อนด้วย hidden แทนการ unmount เมื่อไม่ active — ค่าเริ่มต้น true (ดู PaneTabs) */
+  keepMounted?: boolean;
 }
 
 interface WorkspaceShellProps {
@@ -27,89 +42,155 @@ interface WorkspaceShellProps {
   onClose: () => void;
   sidebar?: React.ReactNode;
   sidebarTitle?: string;
-  rightPanel?: React.ReactNode;
-  rightPanelTitle?: React.ReactNode;
+  /** แผงเสริมที่รวมเข้ากับ tabs เป็นแถบเดียวบนมือถือเท่านั้น (ดู WSMobilePane) */
+  mobilePanes?: WSMobilePane[];
   /** ท้าย: ควรใส่ 2 ก้อน — [ข้อมูล/สรุป] และ [ปุ่ม] (จัดชิดซ้าย/ขวาอัตโนมัติ) */
   footer?: React.ReactNode;
   children: React.ReactNode;
 }
 
+const MOBILE_SIDEBAR_KEY = "__sidebar";
+
 export const WorkspaceShell = ({
   icon, title, subtitle, tabs, activeTab, onTabChange, headerActions,
-  onClose, sidebar, sidebarTitle, rightPanel, rightPanelTitle, footer, children,
-}: WorkspaceShellProps): JSX.Element => (
-  <div className="fixed inset-0 z-50 bg-surface-0 flex flex-col animate-fade-in">
-    {/* หัว */}
-    <header className="flex items-center gap-3 px-6 py-3 border-b border-fg/[0.06] flex-shrink-0">
-      {icon && (
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
-          {icon}
-        </div>
-      )}
-      <div className="min-w-0">
-        <h1 className="text-lg font-bold text-fg truncate leading-tight">{title}</h1>
-        {subtitle && <p className="text-[10px] text-fg/50 truncate">{subtitle}</p>}
-      </div>
-      {tabs && tabs.length > 0 && (
-        <nav className="flex items-center gap-1 ml-4">
-          {tabs.map((tb) => (
-            <button
-              key={tb.key}
-              onClick={() => onTabChange?.(tb.key)}
-              className={`flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-bold transition-colors ${activeTab === tb.key ? "bg-brand text-black" : "text-fg/60 hover:text-fg hover:bg-fg/5"}`}
-            >
-              {tb.Icon && <tb.Icon className="w-3.5 h-3.5" />}
-              {tb.label}
-              {tb.badge != null
-                ? tb.badge
-                : typeof tb.count === "number" && (
-                    <span className={`text-[10px] ${activeTab === tb.key ? "text-black/60" : "text-fg/40"}`}>{tb.count}</span>
-                  )}
-            </button>
-          ))}
-        </nav>
-      )}
-      <div className="ml-auto flex items-center gap-2">
-        {headerActions}
-        <button onClick={onClose} className="w-9 h-9 rounded-lg flex items-center justify-center text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-    </header>
+  onClose, sidebar, sidebarTitle, mobilePanes, footer, children,
+}: WorkspaceShellProps): JSX.Element => {
+  const { isMobile } = useBreakpoint();
 
-    {/* ตัว */}
-    <div className="flex-1 flex min-h-0">
-      {sidebar && (
-        <aside className="w-[300px] lg:w-[340px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-1">
-          {sidebarTitle && (
-            <div className="px-4 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
-              <span className="text-xs font-bold text-fg/50">{sidebarTitle}</span>
-            </div>
-          )}
-          <div className="flex-1 overflow-y-auto">{sidebar}</div>
-        </aside>
+  // บนมือถือ: sidebar (ถ้ามี) กลายเป็นแท็บแรก ตามด้วย tabs เดิม แล้วตามด้วย mobilePanes ที่ส่งมา
+  const mobileStrip = isMobile
+    ? [
+        ...(sidebar ? [{ key: MOBILE_SIDEBAR_KEY, label: sidebarTitle || title, content: sidebar }] : []),
+        ...(tabs && tabs.length > 0
+          ? tabs.map((tb) => ({ key: tb.key, label: tb.label, Icon: tb.Icon, badge: tb.badge, count: tb.count, content: null as React.ReactNode }))
+          : []),
+        ...(mobilePanes ?? []),
+      ]
+    : [];
+
+  const hasMobileStrip = isMobile && mobileStrip.length > 0;
+  // แท็บที่ active บนมือถือ: ใช้ activeTab ถ้าตรงกับตัวใดตัวหนึ่งใน strip, ไม่งั้น sidebar ก่อน, ไม่งั้นตัวแรก
+  const mobileActive =
+    (activeTab && mobileStrip.some((p) => p.key === activeTab) && activeTab) ||
+    (sidebar ? MOBILE_SIDEBAR_KEY : mobileStrip[0]?.key);
+
+  const handleMobileTabChange = (key: string) => {
+    if (key === MOBILE_SIDEBAR_KEY) return; // sidebar pane มีปุ่มของตัวเอง ไม่ผ่าน onTabChange
+    onTabChange?.(key);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-surface-0 flex flex-col animate-fade-in h-[100dvh]">
+      {/* หัว */}
+      <header className="flex items-center gap-3 px-4 md:px-6 py-2.5 md:py-3 border-b border-fg/[0.06] flex-shrink-0">
+        {icon && (
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
+            {icon}
+          </div>
+        )}
+        <div className="min-w-0">
+          <h1 className="text-base md:text-lg font-bold text-fg truncate leading-tight">{title}</h1>
+          {subtitle && <p className="text-[10px] text-fg/50 truncate">{subtitle}</p>}
+        </div>
+        {/* แท็บเดสก์ท็อป/แท็บเล็ต — มือถือย้ายไปแถวใต้หัวแทน */}
+        {tabs && tabs.length > 0 && (
+          <nav className="hidden md:flex items-center gap-1 ml-4">
+            {tabs.map((tb) => (
+              <button
+                key={tb.key}
+                onClick={() => onTabChange?.(tb.key)}
+                className={`flex items-center gap-2 px-4 h-9 rounded-lg text-sm font-bold transition-colors ${activeTab === tb.key ? "bg-brand text-black" : "text-fg/60 hover:text-fg hover:bg-fg/5"}`}
+              >
+                {tb.Icon && <tb.Icon className="w-3.5 h-3.5" aria-hidden="true" />}
+                {tb.label}
+                {tb.badge != null
+                  ? tb.badge
+                  : typeof tb.count === "number" && (
+                      <span className={`text-[10px] ${activeTab === tb.key ? "text-black/60" : "text-fg/40"}`}>{tb.count}</span>
+                    )}
+              </button>
+            ))}
+          </nav>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          {headerActions}
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="w-11 h-11 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors tap-target"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      {/* แถบแท็บมือถือ: sidebar + tabs + mobilePanes รวมเป็นแถบเดียว */}
+      {hasMobileStrip && (
+        <ScrollTabs
+          tabs={mobileStrip.map((p) => ({ key: p.key, label: p.label, Icon: p.Icon, badge: p.badge, count: (p as WSTab).count }))}
+          active={mobileActive!}
+          onChange={handleMobileTabChange}
+          variant="pill"
+          className="px-3 py-2 border-b border-fg/[0.06] flex-shrink-0 bg-surface-1"
+        />
       )}
-      <main className="flex-1 flex flex-col min-w-0">{children}</main>
-      {rightPanel && (
-        <aside className="w-[300px] lg:w-[360px] flex-shrink-0 flex flex-col border-l border-fg/[0.06] bg-surface-1">
-          {rightPanelTitle && (
-            <div className="px-4 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
-              <span className="text-xs font-bold text-fg/50">{rightPanelTitle}</span>
+
+      {/* ตัว */}
+      <div className="flex-1 flex min-h-0">
+        {isMobile ? (
+          <>
+            {/* sidebar pane — แสดงเมื่อ active */}
+            {sidebar && (
+              <div className={`flex-1 min-h-0 flex flex-col ${mobileActive === MOBILE_SIDEBAR_KEY ? "" : "hidden"}`}>
+                <div className="flex-1 overflow-y-auto">{sidebar}</div>
+              </div>
+            )}
+            {/* children (เนื้อหาหลักของแท็บที่เลือกจาก tabs เดิม) — แสดงเมื่อ active ตรงกับแท็บใดแท็บหนึ่งใน tabs หรือไม่มี sidebar/mobilePanes เลย */}
+            <div
+              className={`flex-1 min-h-0 flex flex-col ${
+                (tabs && tabs.some((t) => t.key === mobileActive)) || (!sidebar && !mobilePanes?.length) ? "" : "hidden"
+              }`}
+            >
+              {children}
             </div>
-          )}
-          <div className="flex-1 overflow-y-auto">{rightPanel}</div>
-        </aside>
+            {/* mobilePanes เพิ่มเติม (เช่นตะกร้า) */}
+            {(mobilePanes ?? []).map((p) => {
+              const isActive = mobileActive === p.key;
+              const keepMounted = p.keepMounted !== false;
+              if (!isActive && !keepMounted) return null;
+              return (
+                <div key={p.key} className={`flex-1 min-h-0 flex flex-col ${isActive ? "" : "hidden"}`}>
+                  {p.content}
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          <>
+            {sidebar && (
+              <aside className="w-full md:w-[280px] lg:w-[340px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-1">
+                {sidebarTitle && (
+                  <div className="px-4 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
+                    <span className="text-xs font-bold text-fg/50">{sidebarTitle}</span>
+                  </div>
+                )}
+                <div className="flex-1 overflow-y-auto">{sidebar}</div>
+              </aside>
+            )}
+            <main className="flex-1 flex flex-col min-w-0">{children}</main>
+          </>
+        )}
+      </div>
+
+      {/* ท้าย */}
+      {footer && (
+        <footer className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4 px-4 md:px-6 py-3 md:py-4 border-t border-fg/[0.06] flex-shrink-0 safe-b">
+          {footer}
+        </footer>
       )}
     </div>
-
-    {/* ท้าย */}
-    {footer && (
-      <footer className="flex items-center justify-between gap-4 px-6 py-4 border-t border-fg/[0.06] flex-shrink-0">
-        {footer}
-      </footer>
-    )}
-  </div>
-);
+  );
+};
 
 // ปุ่มมาตรฐาน — ให้ทุกหน้าใช้สไตล์เดียวกัน
 export const WSButton = ({
@@ -119,7 +200,7 @@ export const WSButton = ({
   icon?: React.ReactNode;
   pending?: boolean;
 }): JSX.Element => {
-  const base = "h-9 px-4 rounded-lg text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-40 disabled:pointer-events-none";
+  const base = "h-9 px-4 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:pointer-events-none tap-target";
   const style =
     variant === "primary" ? "text-black hover:opacity-90"
     : variant === "danger" ? "text-red-400 border border-red-500/30 hover:bg-red-500/10"
@@ -130,7 +211,7 @@ export const WSButton = ({
       style={variant === "primary" ? { backgroundColor: "var(--brand)" } : undefined}
       {...rest}
     >
-      {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
+      {pending ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : icon}
       {children}
     </button>
   );

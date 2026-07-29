@@ -49,6 +49,7 @@ import { CreatePullSheetModal } from "./CreatePullSheetModal";
 import { JobOperationsModal } from "./JobOperationsModal";
 import { JobDetailModal } from "./JobDetailModal";
 import { JobDetailPanel } from "./JobDetailPanel";
+import { MasterDetail } from "@/components/MasterDetail";
 
 type JobTab = "jobs" | "pullsheets" | "incidents" | "schedule";
 
@@ -98,6 +99,9 @@ export const JobsPage = (): JSX.Element => {
   const { t } = useTranslation("jobs");
   const { t: tc } = useTranslation("common");
   const [activeTab, setActiveTab]   = useState<JobTab>("jobs");
+  // Mobile push/pop. Deliberately NOT derived from selectedJobId: selectedJobId === null
+  // is a real detail view (the shared calendar), not an empty state.
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [jobDetailTarget, setJobDetailTarget] = useState<any>(null);
   const [addIncidentOpen, setAddIncidentOpen] = useState(false);
   const [addJobOpen, setAddJobOpen] = useState(false);
@@ -219,7 +223,7 @@ export const JobsPage = (): JSX.Element => {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden p-4 gap-3" data-testid="page-jobs">
+    <div className="flex flex-col h-full overflow-hidden p-2 md:p-4 gap-2 md:gap-3" data-testid="page-jobs">
       {addJobOpen && (
         <AddJobsModal
           onClose={() => setAddJobOpen(false)}
@@ -320,36 +324,51 @@ export const JobsPage = (): JSX.Element => {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-fg" data-testid="text-jobs-title">{t("pageTitle")}</h1>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 text-xs">
+      <div className="flex items-center justify-between gap-2 flex-shrink-0">
+        <h1 className="text-lg md:text-xl font-bold text-fg truncate" data-testid="text-jobs-title">{t("pageTitle")}</h1>
+        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          {/* Status legend wraps rather than hides — these counts are the only
+              at-a-glance summary on the page. */}
+          <div className="hidden sm:flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
             <span className="flex items-center gap-1 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "active").length, status: tc("statusEnum.active") })}</span>
             <span className="flex items-center gap-1 text-blue-400"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "scheduled").length, status: tc("statusEnum.scheduled") })}</span>
             <span className="flex items-center gap-1 text-fg/60"><span className="w-1.5 h-1.5 rounded-full bg-fg/30" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "completed").length, status: tc("statusEnum.completed") })}</span>
           </div>
           <button
             onClick={() => setAddJobOpen(true)}
-            className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+            className="flex items-center gap-2 h-9 px-3 md:px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90 flex-shrink-0"
             style={{ backgroundColor: "var(--brand)" }}
           >
-            <Plus className="w-4 h-4" /> {t("addJob")}
+            <Plus className="w-4 h-4" aria-hidden="true" /> {t("addJob")}
           </button>
         </div>
       </div>
+      {/* Mobile: legend as its own scrollable strip so nothing is dropped. */}
+      <div className="h-scroll sm:hidden flex items-center gap-3 text-xs flex-shrink-0 [&>*]:flex-shrink-0">
+        <span className="flex items-center gap-1 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "active").length, status: tc("statusEnum.active") })}</span>
+        <span className="flex items-center gap-1 text-blue-400"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "scheduled").length, status: tc("statusEnum.scheduled") })}</span>
+        <span className="flex items-center gap-1 text-fg/60"><span className="w-1.5 h-1.5 rounded-full bg-fg/30" />{t("statusCount", { count: (jobs as any[]).filter((j) => j.status === "completed").length, status: tc("statusEnum.completed") })}</span>
+      </div>
 
       {activeTab === "jobs" && (
-        <div className="flex flex-1 min-h-0 border border-fg/[0.06] rounded-xl overflow-hidden bg-surface-1">
-          {/* LEFT: job list */}
-          <aside className="w-[280px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-1">
+        <MasterDetail
+          detailOpen={mobileDetailOpen}
+          onBack={() => setMobileDetailOpen(false)}
+          detailTitle={selectedJob ? selectedJob.name : "ปฏิทินรวม"}
+          className="flex-1 min-h-0 border border-fg/[0.06] rounded-xl overflow-hidden bg-surface-1"
+          masterClassName="w-full md:w-[280px] lg:w-[320px] flex-shrink-0 flex flex-col md:border-r border-fg/[0.06] bg-surface-1"
+          master={
+          <>
             <div className="px-3 py-2.5 border-b border-fg/[0.06] flex items-center gap-2 flex-shrink-0">
               <span className="text-xs font-bold text-fg/50">รายการงาน</span>
               <span className="text-[11px] text-fg/40">{(jobs as any[]).length}</span>
             </div>
             <div className="p-2 border-b border-fg/[0.04] flex-shrink-0">
-              <button onClick={() => setSelectedJobId(null)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${!selectedJobId ? "bg-brand/[0.1] text-brand border border-brand/30" : "text-fg/60 border border-fg/[0.08] hover:text-fg hover:border-fg/20"}`}>
-                <CalendarRange className="w-4 h-4" /> ปฏิทินรวม
+              {/* Opens the shared calendar. On mobile this must also push the detail view,
+                  otherwise the calendar is unreachable (it lives where the detail renders). */}
+              <button onClick={() => { setSelectedJobId(null); setMobileDetailOpen(true); }}
+                className={`w-full flex items-center gap-2 px-3 min-h-[44px] rounded-lg text-sm font-semibold transition-colors ${!selectedJobId ? "bg-brand/[0.1] text-brand border border-brand/30" : "text-fg/60 border border-fg/[0.08] hover:text-fg hover:border-fg/20"}`}>
+                <CalendarRange className="w-4 h-4" aria-hidden="true" /> ปฏิทินรวม
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -363,8 +382,8 @@ export const JobsPage = (): JSX.Element => {
                 const active = selectedJobId === job.id;
                 const dot = job.status === "active" ? "bg-emerald-400" : job.status === "scheduled" ? "bg-blue-400" : job.status === "completed" ? "bg-fg/40" : job.status === "cancelled" ? "bg-red-400" : "bg-fg/25";
                 return (
-                  <button key={job.id} onClick={() => setSelectedJobId(job.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${active ? "border-brand/50 bg-brand/[0.06]" : "border-transparent hover:bg-fg/[0.03]"}`}>
+                  <button key={job.id} onClick={() => { setSelectedJobId(job.id); setMobileDetailOpen(true); }}
+                    className={`w-full text-left px-3 py-2.5 min-h-[52px] rounded-lg border transition-colors ${active ? "border-brand/50 bg-brand/[0.06]" : "border-transparent hover:bg-fg/[0.03]"}`}>
                     <div className="flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
                       <p className={`text-sm font-medium truncate flex-1 ${active ? "text-brand" : "text-fg/85"}`}>{job.name}</p>
@@ -374,22 +393,22 @@ export const JobsPage = (): JSX.Element => {
                 );
               })}
             </div>
-          </aside>
-          {/* RIGHT: detail or schedule overview */}
-          <div className="flex-1 min-w-0">
-            {selectedJob ? (
-              <JobDetailPanel job={selectedJob} onDeleted={() => setSelectedJobId(null)} />
+          </>
+          }
+          detail={
+            selectedJob ? (
+              <JobDetailPanel job={selectedJob} onDeleted={() => { setSelectedJobId(null); setMobileDetailOpen(false); }} />
             ) : (
-              <div className="h-full overflow-y-auto p-5">
+              <div className="h-full overflow-y-auto p-3 md:p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <CalendarRange className="w-3.5 h-3.5 text-brand/40" />
+                  <CalendarRange className="w-3.5 h-3.5 text-brand/40 flex-shrink-0" aria-hidden="true" />
                   <span className="text-[10px] font-bold text-brand/40 uppercase tracking-wider">ตารางงาน — เลือกงานจากรายการซ้ายเพื่อจัดการ</span>
                 </div>
                 <JobScheduleView jobs={jobs as any[]} />
               </div>
-            )}
-          </div>
-        </div>
+            )
+          }
+        />
       )}
     </div>
   );

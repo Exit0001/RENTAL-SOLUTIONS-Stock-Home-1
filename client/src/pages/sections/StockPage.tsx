@@ -52,6 +52,11 @@ import { StockItemsTableSection } from "./StockItemsTableSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ResponsiveTable } from "@/components/ResponsiveTable";
+import { DataCard } from "@/components/DataCard";
+import { ScrollTabs } from "@/components/ScrollTabs";
 import { containersApi, disposalsApi, equipmentSetsApi, jobsApi, maintenanceApi, stockApi } from "@/api";
 import { useToast } from "@/hooks/use-toast";
 import type { ContainerWithItems, CrewMember, DisposalRow, EquipmentSetSummary, StockItemWithUnits, SubRentalWithJob } from "@/api";
@@ -92,6 +97,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 export const StockPage = (): JSX.Element => {
   const { t } = useTranslation("stock");
   const { t: tc } = useTranslation("common");
+  const { isMobile } = useBreakpoint();
   // state ที่ยังเป็น local อยู่ (เฉพาะหน้านี้ ไม่จำเป็นต้อง share)
   const [activeTab, setActiveTab] = useState<StockTab>("inventory");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -500,18 +506,21 @@ export const StockPage = (): JSX.Element => {
       {addSetsOpen && <AddSetsModal onClose={() => setAddSetsOpen(false)} />}
       {disposeOpen && <DisposeModal onClose={() => setDisposeOpen(false)} />}
 
-      <div className="flex items-center gap-1 px-4 pt-3 border-b border-fg/[0.06] bg-surface-1">
-        {stockTabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"}`} data-testid={`tab-stock-${tab.key}`}>
-            <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
-          </button>
-        ))}
-      </div>
+      <ScrollTabs
+        tabs={stockTabs.map((tab) => ({ key: tab.key, label: t(tab.labelKey), Icon: tab.icon }))}
+        active={activeTab}
+        onChange={(k) => setActiveTab(k as StockTab)}
+        variant="underline"
+        className="px-2 md:px-4 pt-2 md:pt-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0"
+        testIdPrefix="tab-stock"
+      />
 
       {activeTab === "inventory" && (
         <div className="flex flex-row flex-1 overflow-hidden">
-          {/* Filter sidebar */}
-          <div className={`flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${filterOpen ? "w-52" : "w-0"}`}>
+          {/* Filter sidebar — inline rail on tablet/desktop only. On mobile the same
+              component is rendered inside a left Sheet (below) so it gets the full
+              screen width instead of a 236px sliver. */}
+          <div className={`hidden md:block flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${filterOpen ? "w-52" : "w-0"}`}>
             <StockFilterSidebarSection
               selectedBrands={selectedBrands}
               selectedCategories={selectedCategories}
@@ -522,6 +531,21 @@ export const StockPage = (): JSX.Element => {
               onClearAll={clearAll}
             />
           </div>
+          {isMobile && (
+            <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+              <SheetContent side="left" overlayClassName="z-[70]" className="z-[70] w-[88vw] max-w-[320px] p-0 bg-surface-1 text-fg border-r border-fg/[0.06] gap-0">
+                <StockFilterSidebarSection
+                  selectedBrands={selectedBrands}
+                  selectedCategories={selectedCategories}
+                  selectedSubCategories={selectedSubCategories}
+                  onBrandChange={toggleBrand}
+                  onCategoryChange={toggleCategory}
+                  onSubCategoryChange={toggleSubCategory}
+                  onClearAll={clearAll}
+                />
+              </SheetContent>
+            </Sheet>
+          )}
           {/* Main content */}
           <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
             <StockFilterControlsSection
@@ -534,7 +558,7 @@ export const StockPage = (): JSX.Element => {
               onSearchChange={setSearchQuery}
             />
             <div className="flex flex-row flex-1 overflow-hidden">
-              <div className="flex-1 overflow-auto p-4">
+              <div className="flex-1 overflow-auto p-2 md:p-4">
                 <StockItemsTableSection
                   selectedBrands={selectedBrands}
                   selectedCategories={selectedCategories}
@@ -567,17 +591,17 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "containers" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
+          <div className="h-scroll flex flex-row items-center gap-2 md:gap-3 w-full px-3 md:px-4 py-2.5 md:py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in [&>*]:flex-shrink-0">
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => setRackBuildOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold border border-brand/40 text-brand transition-opacity hover:opacity-90 hover:bg-brand/10"
+                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold border border-brand/40 text-brand transition-opacity hover:opacity-90 hover:bg-brand/10"
               >
                 <ScanLine className="w-4 h-4" /> Rack Build Mode
               </button>
               <button
                 onClick={() => setAddContainerOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "var(--brand)" }}
               >
                 <Plus className="w-4 h-4" /> {t("addContainer")}
@@ -723,14 +747,14 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "sets" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
+          <div className="h-scroll flex flex-row items-center gap-2 md:gap-3 w-full px-3 md:px-4 py-2.5 md:py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in [&>*]:flex-shrink-0">
             <Boxes className="w-4 h-4 text-brand/60 flex-shrink-0" />
             <span className="text-sm font-semibold text-fg/50">{t("tabSets")}</span>
             <span className="text-xs text-fg/60">{equipmentSets.length}</span>
             <div className="ml-auto">
               <button
                 onClick={() => setAddSetsOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "var(--brand)" }}
               >
                 <Plus className="w-4 h-4" /> สร้างชุด
@@ -807,7 +831,7 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "maintenance" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
+          <div className="h-scroll flex flex-row items-center gap-2 md:gap-3 w-full px-3 md:px-4 py-2.5 md:py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in [&>*]:flex-shrink-0">
             <Wrench className="w-4 h-4 text-brand/60 flex-shrink-0" />
             <span className="text-sm font-semibold text-fg/50">{t("maintenanceLog")}</span>
             <span className="text-xs text-fg/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
@@ -833,7 +857,7 @@ export const StockPage = (): JSX.Element => {
             <div className="ml-auto">
               <button
                 onClick={() => setAddMaintenanceLogOpen(true)}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
+                className="flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black transition-opacity hover:opacity-90"
                 style={{ backgroundColor: "var(--brand)" }}
               >
                 <Plus className="w-4 h-4" /> {t("addLog")}
@@ -841,14 +865,17 @@ export const StockPage = (): JSX.Element => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-2 md:p-6">
           <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-brand" />
+              <Wrench className="w-4 h-4 text-brand flex-shrink-0" aria-hidden="true" />
               <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("maintenanceLog")}</span>
               <span className="text-[10px] text-fg/60">{t("recordsCount", { count: maintenanceLogs.length })}</span>
             </div>
-            <table className="w-full text-sm">
+            {/* 9 columns with bulk-select checkboxes — swiping a properly-sized table beats
+                a crushed one. Card conversion tracked in SKILL.md Phase 3. */}
+            <div className="h-scroll">
+            <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                   {canManage && <th className="py-2.5 pl-4 w-8" />}
@@ -1029,6 +1056,7 @@ export const StockPage = (): JSX.Element => {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
           </div>
 
@@ -1075,7 +1103,7 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "subrentals" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
+          <div className="h-scroll flex flex-row items-center gap-2 md:gap-3 w-full px-3 md:px-4 py-2.5 md:py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in [&>*]:flex-shrink-0">
             <ArrowRightLeft className="w-4 h-4 text-purple-400/70 flex-shrink-0" />
             <span className="text-sm font-semibold text-fg/50">{t("tabSubRentals")}</span>
             <span className="text-xs text-fg/60">{t("activeCount", { count: subRentals.length })}</span>
@@ -1159,25 +1187,49 @@ export const StockPage = (): JSX.Element => {
       {activeTab === "disposals" && (
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Action bar */}
-          <div className="flex flex-row items-center gap-3 w-full px-4 py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in">
+          <div className="h-scroll flex flex-row items-center gap-2 md:gap-3 w-full px-3 md:px-4 py-2.5 md:py-3 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0 animate-fade-in [&>*]:flex-shrink-0">
             <PackageMinus className="w-4 h-4 text-red-400/70 flex-shrink-0" />
             <span className="text-sm font-semibold text-fg/50">{t("tabDisposals")}</span>
             <span className="text-xs text-fg/60">{disposals.length}</span>
             {canManage && (
               <button onClick={() => setDisposeOpen(true)}
-                className="ml-auto flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-bold text-fg bg-red-600 hover:bg-red-700 transition-colors">
+                className="ml-auto flex items-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-fg bg-red-600 hover:bg-red-700 transition-colors">
                 <PackageMinus className="w-4 h-4" /> ขาย / ตัดออก
               </button>
             )}
           </div>
 
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-2 md:p-4">
             {disposals.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
-                <PackageMinus className="w-10 h-10" />
+                <PackageMinus className="w-10 h-10" aria-hidden="true" />
                 <p className="text-sm">ยังไม่มีประวัติการขาย/ตัดออก</p>
               </div>
             ) : (
+              <ResponsiveTable
+                cards={
+                  <div className="flex flex-col gap-2.5">
+                    {disposals.map((d) => (
+                      <DataCard
+                        key={`m-${d.id}`}
+                        title={d.itemName}
+                        subtitle={new Date(d.disposedAt).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}
+                        badge={
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-semibold ${d.reason === "sold" ? "bg-emerald-500/15 text-emerald-400" : d.reason === "damaged" ? "bg-amber-500/15 text-amber-400" : d.reason === "lost" ? "bg-red-500/15 text-red-400" : "bg-fg/10 text-fg/50"}`}>
+                            {REASON_LABEL[d.reason]}
+                          </span>
+                        }
+                        fields={[
+                          { label: "จำนวน", value: d.quantity },
+                          { label: "ราคาขาย", value: d.salePrice ? `฿${Number(d.salePrice).toLocaleString()}` : "—" },
+                          { label: "โดย", value: d.disposedByName ?? "—" },
+                          { label: "หมายเหตุ", value: d.note ?? "—", full: true },
+                        ]}
+                      />
+                    ))}
+                  </div>
+                }
+                table={
               <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
@@ -1208,6 +1260,8 @@ export const StockPage = (): JSX.Element => {
                   </tbody>
                 </table>
               </div>
+                }
+              />
             )}
           </div>
         </div>

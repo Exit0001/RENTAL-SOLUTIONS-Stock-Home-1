@@ -10,6 +10,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
+import { ScrollTabs } from "@/components/ScrollTabs";
 import { activityApi, analyticsApi } from "@/api";
 
 type HistoryFilter = "all" | "stock" | "finance" | "maintenance" | "jobs";
@@ -54,22 +55,27 @@ export const HistoryPage = (): JSX.Element => {
   const maxRevenue = revenueMonths.length > 0 ? Math.max(...revenueMonths.map((m) => m.revenue)) : 1;
 
   return (
-    <div className="flex-1 overflow-auto p-6 space-y-4" data-testid="page-history">
+    <div className="flex-1 overflow-auto p-3 md:p-6 space-y-3 md:space-y-4" data-testid="page-history">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-fg" data-testid="text-history-title">{t("pageTitle")}</h1>
+        <h1 className="text-lg md:text-xl font-bold text-fg" data-testid="text-history-title">{t("pageTitle")}</h1>
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-8 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 border-b border-fg/[0.06]">
-              {filters.map((f) => (
-                <button key={f.key} onClick={() => setFilter(f.key)} className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${filter === f.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"}`} data-testid={`tab-history-${f.key}`}>{f.key === "all" ? t("allActivity") : tc(`statusEnum.${f.key}`)}</button>
-              ))}
-            </div>
-            <div className="ml-auto relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} className="pl-8 pr-3 py-1.5 rounded-lg bg-fg/[0.04] border border-fg/[0.06] text-xs text-fg/70 placeholder:text-fg/40 w-52 focus:outline-none focus:border-brand/30" data-testid="input-history-search" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-4">
+        <div className="lg:col-span-8 space-y-3 md:space-y-4">
+          {/* 5 tabs + a 208px search input needed ~510px in one row. Search gets its own
+              row on mobile; the tabs scroll. */}
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <ScrollTabs
+              tabs={filters.map((f) => ({ key: f.key, label: f.key === "all" ? t("allActivity") : tc(`statusEnum.${f.key}`) }))}
+              active={filter}
+              onChange={(k) => setFilter(k as typeof filter)}
+              variant="underline"
+              className="border-b border-fg/[0.06] flex-1 min-w-0"
+              testIdPrefix="tab-history"
+            />
+            <div className="md:ml-auto relative flex-shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60" aria-hidden="true" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={t("searchPlaceholder")} className="pl-8 pr-3 py-2 rounded-lg bg-fg/[0.04] border border-fg/[0.06] text-xs text-fg/70 placeholder:text-fg/40 w-full md:w-52 focus:outline-none focus:border-brand/30" data-testid="input-history-search" />
             </div>
           </div>
 
@@ -111,7 +117,7 @@ export const HistoryPage = (): JSX.Element => {
           </div>
         </div>
 
-        <div className="col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-3 md:space-y-4">
           <div className="bg-surface-1 border border-fg/[0.06] rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <BarChart3 className="w-4 h-4 text-brand" />

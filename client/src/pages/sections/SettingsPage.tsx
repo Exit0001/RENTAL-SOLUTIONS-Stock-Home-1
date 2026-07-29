@@ -4,6 +4,7 @@ import { Building2, Users, User, LogOut, Shield, Trash2, Send, Loader2, Camera, 
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/store/appStore";
+import { ScrollTabs } from "@/components/ScrollTabs";
 import { authApi, pushApi, backupApi } from "@/api";
 import { FileUploadField, uploadAttachment } from "@/components/FileUploadField";
 
@@ -250,29 +251,27 @@ export const SettingsPage = (): JSX.Element => {
   };
 
   return (
-    <div className="flex-1 overflow-auto p-6 max-w-3xl" data-testid="page-settings">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-fg">{t("pageTitle")}</h1>
+    <div className="flex-1 overflow-auto p-3 md:p-6 max-w-3xl" data-testid="page-settings">
+      <div className="flex items-center justify-between gap-2 mb-4 md:mb-6">
+        <div className="min-w-0">
+          <h1 className="text-lg md:text-xl font-bold text-fg truncate">{t("pageTitle")}</h1>
           <p className="text-xs text-fg/60 mt-0.5">{t("pageSubtitle")}</p>
         </div>
         <button onClick={handleLogout}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-fg/[0.08] text-xs text-fg/60 hover:text-red-400 hover:border-red-400/20 transition-all">
-          <LogOut className="w-3.5 h-3.5" /> {tc("logout")}
+          className="flex items-center gap-2 px-3 min-h-[44px] rounded-lg border border-fg/[0.08] text-xs text-fg/60 hover:text-red-400 hover:border-red-400/20 transition-all flex-shrink-0">
+          <LogOut className="w-3.5 h-3.5" aria-hidden="true" /> {tc("logout")}
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-fg/[0.06] mb-6">
-        {tabs.map((tab) => (
-          <button key={tab.key} onClick={() => setSettingsTab(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-              settingsTab === tab.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"
-            }`}>
-            <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
-          </button>
-        ))}
-      </div>
+      <ScrollTabs
+        tabs={tabs.map((tab) => ({ key: tab.key, label: t(tab.labelKey), Icon: tab.icon }))}
+        active={settingsTab}
+        onChange={(k) => setSettingsTab(k as typeof settingsTab)}
+        variant="underline"
+        className="border-b border-fg/[0.06] mb-4 md:mb-6"
+        testIdPrefix="tab-settings"
+      />
 
       {/* ─── General ─────────────────────────────────────── */}
       {settingsTab === "general" && (

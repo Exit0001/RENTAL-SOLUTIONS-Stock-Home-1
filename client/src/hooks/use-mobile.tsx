@@ -1,19 +1,10 @@
-import * as React from "react"
+import { useBreakpoint } from "./use-breakpoint";
 
-const MOBILE_BREAKPOINT = 768
-
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
-
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
-
-  return !!isMobile
+// Kept as a thin re-export so existing imports (client/src/components/ui/sidebar.tsx)
+// keep compiling. Do NOT reimplement this — the old version returned `false` on the
+// first render (state started `undefined`), causing a desktop-layout flash on mobile.
+// useBreakpoint() fixes that with a synchronous matchMedia read. See
+// .claude/skills/stak-mobile-responsive/SKILL.md.
+export function useIsMobile(): boolean {
+  return useBreakpoint().isMobile;
 }

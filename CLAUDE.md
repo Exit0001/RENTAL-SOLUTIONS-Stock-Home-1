@@ -229,54 +229,31 @@ WHERE su.status = 'available'
   AND EXISTS (SELECT 1 FROM job_units ju WHERE ju.stock_unit_id = su.id);
 ```
 
-## Current State (as of 2026-07-19)
+## Current State (as of 2026-07-29)
 
-### Data
-- **2,188 stock_units** and **793 stock_items** migrated from `tenyear_backup_2026-06-09.sql` via `scripts/migrate-tenyear.js`
+### Data (verified against Supabase 2026-07-29)
+- **782 stock_items**, **1,961 stock_units** (originally migrated from
+  `tenyear_backup_2026-06-09.sql` via `scripts/migrate-tenyear.js`; the count drifts down as gear
+  is disposed/sold)
 - **145 brands**, **19 categories**, **90 sub-categories** populated from backup
-- Company in DB: `"test1"` (single tenant for now)
+- **42 tables** in the `public` schema
+- Company in DB: `TYAA` (slug `test1`, `82e68c40-1347-4553-b502-b83ec2295636`) — single tenant for now
 
-### Pending DB Migration ⚠️
-`stock_units` needs 2 new columns, and `users` needs 1 new column — run in **Supabase SQL Editor**:
-```sql
-ALTER TABLE stock_units ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMP;
-ALTER TABLE stock_units ADD COLUMN IF NOT EXISTS warranty_expires_at TIMESTAMP;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-```
-These are already in `shared/schema.ts` and `migrations/0004_medical_stone_men.sql` /
-`migrations/0007_lonely_famine.sql`.
-Until run, `GET /api/stock/:id` (fetch units) will fail → unit sub-rows won't show in Inventory,
-and `PUT /api/auth/me` (header profile/avatar update) will fail.
+### DB Migration status ✅
+**No pending migrations** — every migration in `migrations/` is applied to Supabase
+(verified 2026-07-29 by querying `information_schema`). The blocks below are kept as a
+per-feature record of what each one added; none of them need action.
 
-Also pending — new `notifications` table + `notification_type` enum (per-user notifications,
-e.g. job assign/remove/update, pull sheet assign, maintenance assign, stock added), already in
-`shared/schema.ts` and `migrations/0008_dark_blink.sql`:
-```sql
-CREATE TYPE "public"."notification_type" AS ENUM('job_assigned', 'job_removed', 'job_updated', 'pullsheet_assigned', 'maintenance_assigned', 'stock_added');
+**Already applied** — `stock_units.purchased_at` / `warranty_expires_at` and `users.avatar_url`
+(`migrations/0004_medical_stone_men.sql` / `migrations/0007_lonely_famine.sql`). Back
+`GET /api/stock/:id` (unit sub-rows in Inventory) and `PUT /api/auth/me` (profile/avatar).
 
-CREATE TABLE "notifications" (
-    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-    "company_id" uuid NOT NULL,
-    "user_id" uuid NOT NULL,
-    "actor_id" uuid,
-    "type" "notification_type" NOT NULL,
-    "meta" jsonb DEFAULT '{}'::jsonb,
-    "link" text,
-    "is_read" boolean DEFAULT false NOT NULL,
-    "created_at" timestamp DEFAULT now() NOT NULL
-);
+**Already applied** — `notifications` table + `notification_type` enum (per-user notifications,
+e.g. job assign/remove/update, pull sheet assign, maintenance assign, stock added), in
+`shared/schema.ts` and `migrations/0008_dark_blink.sql`. Backs `/api/notifications/*` and the
+header Bell dropdown.
 
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
-```
-Until run, `/api/notifications/*` endpoints and the header Bell dropdown will fail (table doesn't exist).
-
-**Pending (2026-06-16)** — `jobs.rehearsal_date` column, migration `0011_slim_typhoid_mary.sql`:
-```sql
-ALTER TABLE "jobs" ADD COLUMN "rehearsal_date" timestamp;
-```
-Until run, creating a job with a rehearsal date will fail.
+**Already applied** — `jobs.rehearsal_date` column, migration `0011_slim_typhoid_mary.sql`.
 
 **Already applied** — `companies` columns for LINE group push notifications (Settings →
 General → LINE Notifications card, admin-only), in `shared/schema.ts` and
@@ -297,123 +274,48 @@ Already created in Supabase, no action needed.
 in `shared/schema.ts` and `migrations/0013_brief_riptide.sql`. Already created in Supabase,
 no action needed.
 
-**Pending (2026-07-07)** — `stock_tracking_mode` enum + `stock_items.tracking_mode` column
+**Already applied** — `stock_tracking_mode` enum + `stock_items.tracking_mode` column
 for Bulk Quantity Mode (cables/consumables tracked by count, not individual units).
-Already in `shared/schema.ts`. Run in Supabase SQL Editor:
-```sql
-CREATE TYPE "public"."stock_tracking_mode" AS ENUM('unit', 'bulk');
-ALTER TABLE "stock_items" ADD COLUMN "tracking_mode" stock_tracking_mode DEFAULT 'unit' NOT NULL;
-```
-Until run, creating/editing a bulk-mode item will fail (column doesn't exist).
+In `shared/schema.ts`; verified present in Supabase 2026-07-29, no action needed.
 
-**Pending (2026-07-09)** — `jobs.company_id` index and `sub_rentals.job_id` made required.
-Already in `shared/schema.ts` and `migrations/0020_jobs_company_index.sql` /
-`migrations/0021_subrental_job_required.sql`. Run in Supabase SQL Editor:
-```sql
-CREATE INDEX IF NOT EXISTS "jobs_company_id_idx" ON "jobs" USING btree ("company_id");
+**Already applied** — `jobs.company_id` index and `sub_rentals.job_id` made required
+(`NOT NULL` + cascade FK). In `shared/schema.ts` and `migrations/0020_jobs_company_index.sql` /
+`migrations/0021_subrental_job_required.sql`; verified present in Supabase 2026-07-29, no action
+needed. (See "Sub-Rentals — Moved to Job-Scoped Management" below for why `jobId` is required.)
 
-ALTER TABLE "sub_rentals" DROP CONSTRAINT IF EXISTS "sub_rentals_job_id_jobs_id_fk";
-ALTER TABLE "sub_rentals" ALTER COLUMN "job_id" SET NOT NULL;
-ALTER TABLE "sub_rentals" ADD CONSTRAINT "sub_rentals_job_id_jobs_id_fk"
-  FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
-```
-The `SET NOT NULL` statement fails if any existing `sub_rentals` row has a null `job_id` —
-assign it to a job or delete it first (see "Sub-Rentals — Moved to Job-Scoped Management" below
-for why `jobId` is now required). Until run, the schema/DB are out of sync and `db:generate`
-will complain on next run; the app itself still works either way since the client now always
-sends a `jobId`.
+**Already applied** — `containers.image_url` column (reference photo per rack/container).
+In `shared/schema.ts` and `migrations/0022_container_image.sql`; verified present in Supabase
+2026-07-29, no action needed.
 
-**Pending (2026-07-09)** — `containers.image_url` column (reference photo per rack/container).
-Already in `shared/schema.ts` and `migrations/0022_container_image.sql`. Run in Supabase SQL Editor:
-```sql
-ALTER TABLE "containers" ADD COLUMN IF NOT EXISTS "image_url" text;
-```
-Until run, editing a container's photo will fail (column doesn't exist) — creating/listing containers
-still works since `imageUrl` is optional and simply omitted from the row.
-
-**Pending (2026-07-26)** — `job_day_schedules` + `job_day_crew` tables for the per-day job
+**Already applied (2026-07-29)** — `job_day_schedules` + `job_day_crew` tables for the per-day job
 schedule (JobDetailPanel → "รายวัน" tab): departure/arrival/wrap times shared by the whole crew
 per day, and a per-day crew subset + duty (people working can differ day-to-day on a multi-day
-job — not the same fixed team every day). Already in `shared/schema.ts` and
-`migrations/0024_job_day_schedules.sql`. Run in Supabase SQL Editor:
-```sql
-CREATE TABLE IF NOT EXISTS "job_day_schedules" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"job_id" uuid NOT NULL,
-	"date" timestamp NOT NULL,
-	"departure_time" text,
-	"arrival_time" text,
-	"end_time" text,
-	"note" text
-);
-
-CREATE TABLE IF NOT EXISTS "job_day_crew" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"job_id" uuid NOT NULL,
-	"date" timestamp NOT NULL,
-	"crew_member_id" uuid NOT NULL,
-	"role" text
-);
-
-ALTER TABLE "job_day_schedules" ADD CONSTRAINT "job_day_schedules_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
-ALTER TABLE "job_day_crew" ADD CONSTRAINT "job_day_crew_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
-ALTER TABLE "job_day_crew" ADD CONSTRAINT "job_day_crew_crew_member_id_crew_members_id_fk" FOREIGN KEY ("crew_member_id") REFERENCES "public"."crew_members"("id") ON DELETE cascade ON UPDATE no action;
-
-CREATE INDEX IF NOT EXISTS "job_day_schedules_job_id_idx" ON "job_day_schedules" USING btree ("job_id");
-CREATE INDEX IF NOT EXISTS "job_day_crew_job_id_idx" ON "job_day_crew" USING btree ("job_id");
-CREATE INDEX IF NOT EXISTS "job_day_crew_crew_member_id_idx" ON "job_day_crew" USING btree ("crew_member_id");
-```
-Until run, the "ทีม & รถ" tab's daily-schedule section's `GET/PUT /api/jobs/:id/day-schedules`
-and `/day-crew` endpoints will fail (tables don't exist) — the rest of the app is unaffected.
+job — not the same fixed team every day). In `shared/schema.ts` and
+`migrations/0024_job_day_schedules.sql`; applied to Supabase via
+`scripts/apply-pending-migrations.mjs`, no action needed. Backs
+`GET/PUT /api/jobs/:id/day-schedules` and `/day-crew`.
 (Originally its own "รายวัน" tab; later merged into "ทีม & รถ" — see that section below.)
 
-**Pending (2026-07-27)** — `job_unit_events` table (+ `job_unit_event_type` enum) for a
+**Already applied (2026-07-29)** — `job_unit_events` table (+ `job_unit_event_type` enum) for a
 per-job/unit change-history log: `added`/`removed`/`dispatched`/`returned`, with actor +
 timestamp, shown in `JobDetailPanel`'s "อุปกรณ์" tab. Lets staff see equipment that came back
 before the job's end date or got added to the plan after it started (flagged with a badge by
 comparing the event's `createdAt` against `jobs.startDate`/`endDate` — a simple calendar
-heuristic, not perfect for jobs finalized day-of). Already in `shared/schema.ts` and
-`migrations/0025_job_unit_events.sql`. Run in Supabase SQL Editor:
-```sql
-CREATE TYPE "public"."job_unit_event_type" AS ENUM('added', 'removed', 'dispatched', 'returned');
+heuristic, not perfect for jobs finalized day-of). In `shared/schema.ts` and
+`migrations/0025_job_unit_events.sql`; applied to Supabase via
+`scripts/apply-pending-migrations.mjs`, no action needed. Read side is
+`GET /api/jobs/:id/unit-events`. The write side (`logJobUnitEvents()` in
+`server/lib/jobUnitEvents.ts`, called from `POST /:id/units`, `POST /:id/apply-set/:setId`,
+`POST /:id/containers`, `DELETE /:id/containers/:containerId`,
+`POST /:id/containers/:containerId/load`, `PUT /:id/units/phase`, `POST /:id/duplicate`)
+deliberately swallows its own errors — a logging failure must never break those core equipment
+actions. Note the log only starts from the migration date; events from before it are absent.
 
-CREATE TABLE IF NOT EXISTS "job_unit_events" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"company_id" uuid NOT NULL,
-	"job_id" uuid NOT NULL,
-	"stock_unit_id" uuid NOT NULL,
-	"event_type" "job_unit_event_type" NOT NULL,
-	"actor_user_id" uuid,
-	"note" text,
-	"created_at" timestamp DEFAULT now() NOT NULL
-);
-
-ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE cascade ON UPDATE no action;
-ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;
-ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_stock_unit_id_stock_units_id_fk" FOREIGN KEY ("stock_unit_id") REFERENCES "public"."stock_units"("id") ON DELETE cascade ON UPDATE no action;
-ALTER TABLE "job_unit_events" ADD CONSTRAINT "job_unit_events_actor_user_id_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
-
-CREATE INDEX IF NOT EXISTS "job_unit_events_job_id_idx" ON "job_unit_events" USING btree ("job_id");
-CREATE INDEX IF NOT EXISTS "job_unit_events_stock_unit_id_idx" ON "job_unit_events" USING btree ("stock_unit_id");
-```
-Until run, `GET /api/jobs/:id/unit-events` will fail (table doesn't exist) and the history
-section shows nothing. The write side (`logJobUnitEvents()` in `server/lib/jobUnitEvents.ts`,
-called from `POST /:id/units`, `POST /:id/apply-set/:setId`, `POST /:id/containers`,
-`DELETE /:id/containers/:containerId`, `POST /:id/containers/:containerId/load`,
-`PUT /:id/units/phase`, `POST /:id/duplicate`) deliberately swallows its own errors —
-those core equipment actions keep working normally even before this migration runs; only the
-history log itself stays empty.
-
-**Pending (2026-07-28)** — `companies.company_logo_url` column for per-company logo upload
+**Already applied (2026-07-29)** — `companies.company_logo_url` column for per-company logo upload
 (Settings → General → "โลโก้บริษัท" card, admin-only), shown in the header
 (`StockManagementHeaderSection.tsx`) instead of the plain "STAK" text wordmark once set.
-Already in `shared/schema.ts` and `migrations/0026_company_logo.sql`. Run in Supabase SQL Editor:
-```sql
-ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "company_logo_url" text;
-```
-Until run, `PUT /api/auth/company` will fail whenever `companyLogoUrl` is included in the body
-(i.e. as soon as someone uploads a logo) — everything else (login, `/me`, the rest of Settings)
-is unaffected since the column is simply omitted/null everywhere else until then.
+In `shared/schema.ts` and `migrations/0026_company_logo.sql`; applied to Supabase via
+`scripts/apply-pending-migrations.mjs`, no action needed. Consumed by `PUT /api/auth/company`.
 
 **Already applied (2026-07-19)** — `equipment_sets` + `equipment_set_items` tables for the
 Equipment Sets (ชุดอุปกรณ์ / Kits) feature. In `shared/schema.ts` and
@@ -424,7 +326,21 @@ already created. `equipment_set_items.unit_id` is nullable — `null` = auto-pic
 (quantity of a model), non-null = pinned specific unit. See "Equipment Sets" below.
 
 ### Migration script state
-`npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal. Workaround: run SQL statements directly in Supabase SQL Editor.
+`npm run db:migrate` fails because of a duplicate `0004_` migration tag conflict in the journal
+(there are both a `0004_job_units.sql` and a `0004_medical_stone_men.sql`, plus a second
+`0014`/`0015`/`0016`/`0017` series from a later branch — the journal is permanently out of sync).
+
+**Apply migrations with `scripts/apply-pending-migrations.mjs` instead:**
+```bash
+node scripts/apply-pending-migrations.mjs 0024_job_day_schedules.sql 0025_job_unit_events.sql
+```
+It connects with raw `pg` over `DATABASE_URL`, splits the file on `;`, and runs each statement
+individually — reporting `OK` / `SKIP` (already-exists codes 42710/42P07/42701/42P06/42P16) /
+`FAIL`, so re-running is safe and one bad statement doesn't hide the rest. Pasting into the
+Supabase SQL Editor still works as a manual fallback.
+
+Note `db:generate` emits a drift-polluted file because of the same journal desync — hand-trim
+the generated `.sql` down to just the new statements before committing it.
 
 ### Containers tab (`client/src/pages/sections/StockPage.tsx`)
 - **Card grid layout** (like the Equipment Sets tab) instead of list rows — each card shows a

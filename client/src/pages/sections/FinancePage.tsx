@@ -25,6 +25,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
+import { ScrollTabs } from "@/components/ScrollTabs";
+import { ResponsiveTable } from "@/components/ResponsiveTable";
+import { DataCard } from "@/components/DataCard";
 import { financeApi } from "@/api";
 import { JobExpensesModal } from "./JobExpensesModal";
 import { AddQuoteModal } from "./AddQuoteModal";
@@ -167,48 +170,98 @@ export const FinancePage = (): JSX.Element => {
   ];
 
   return (
-    <div className="flex-1 overflow-auto p-6 space-y-4" data-testid="page-finance">
+    <div className="flex-1 overflow-auto p-3 md:p-6 space-y-3 md:space-y-4" data-testid="page-finance">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-fg" data-testid="text-finance-title">{t("pageTitle")}</h1>
+        <h1 className="text-lg md:text-xl font-bold text-fg" data-testid="text-finance-title">{t("pageTitle")}</h1>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-3">
         {summaryCards.map((c) => (
-          <div key={c.key} className="bg-surface-1 border border-fg/[0.06] rounded-xl p-4" data-testid={`card-${c.key}`}>
+          <div key={c.key} className="bg-surface-1 border border-fg/[0.06] rounded-xl p-3 md:p-4" data-testid={`card-${c.key}`}>
             <div className="flex items-start justify-between mb-2">
-              <div className="p-1.5 rounded-lg bg-brand/10"><c.icon className="w-4 h-4 text-brand" /></div>
-              <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-400"><ArrowUpRight className="w-3 h-3" />{c.change}</span>
+              <div className="p-1.5 rounded-lg bg-brand/10"><c.icon className="w-4 h-4 text-brand" aria-hidden="true" /></div>
+              {c.change && <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-400"><ArrowUpRight className="w-3 h-3" aria-hidden="true" />{c.change}</span>}
             </div>
-            <p className="text-xl font-bold text-fg">{c.value}</p>
-            <p className="text-[10px] text-fg/60">{c.label}</p>
+            <p className="text-lg md:text-xl font-bold text-fg tabular-nums">{c.value}</p>
+            <p className="text-[10px] text-fg/60 leading-snug">{c.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center gap-1 border-b border-fg/[0.06]">
-        {financeTabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.key ? "border-brand text-brand" : "border-transparent text-fg/60 hover:text-fg"}`} data-testid={`tab-${tab.key}`}>
-            <tab.icon className="w-3.5 h-3.5" />{t(tab.labelKey)}
-          </button>
-        ))}
-      </div>
+      <ScrollTabs
+        tabs={financeTabs.map((tab) => ({ key: tab.key, label: t(tab.labelKey), Icon: tab.icon }))}
+        active={activeTab}
+        onChange={(k) => setActiveTab(k as typeof activeTab)}
+        variant="underline"
+        className="border-b border-fg/[0.06]"
+        testIdPrefix="tab"
+      />
 
       {activeTab === "quotes" && (
         <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
-            <FileText className="w-4 h-4 text-brand" />
+          <div className="px-3 md:px-4 py-3 border-b border-fg/[0.06] flex flex-wrap items-center gap-2">
+            <FileText className="w-4 h-4 text-brand flex-shrink-0" aria-hidden="true" />
             <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("smartQuotes")}</span>
-            <span className="ml-auto text-[10px] text-fg/60">{t("linkedToStock")}</span>
+            <span className="hidden md:inline ml-auto text-[10px] text-fg/60">{t("linkedToStock")}</span>
             <button
               onClick={() => setAddQuoteOpen(true)}
-              className="h-9 px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black"
+              className="ml-auto md:ml-0 h-9 px-3 md:px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black flex-shrink-0"
               style={{ backgroundColor: "var(--brand)" }}
               data-testid="button-add-quote"
             >
-              <Plus className="w-4 h-4" />{t("newQuote")}
+              <Plus className="w-4 h-4" aria-hidden="true" />{t("newQuote")}
             </button>
           </div>
-          <table className="w-full text-sm">
+          <ResponsiveTable
+            cards={
+              <div className="flex flex-col gap-2.5 p-3">
+                {(quotes as any[]).map((q) => (
+                  <DataCard
+                    key={`m-${q.id}`}
+                    title={<span className="font-mono text-brand/80">{q.quoteNumber ?? q.id}</span>}
+                    subtitle={q.client}
+                    badge={
+                      <select
+                        value={q.status}
+                        onChange={(e) => updateQuoteStatus.mutate({ id: q.id, status: e.target.value })}
+                        className={`px-2 py-1 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40 ${statusColors[q.status] ?? "bg-fg/5 text-fg/60"}`}
+                      >
+                        {QUOTE_STATUSES.map((s) => (
+                          <option key={s} value={s} className="bg-surface-1 text-fg">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
+                        ))}
+                      </select>
+                    }
+                    fields={[
+                      { label: t("colProject"), value: q.jobName ?? "—" },
+                      { label: t("colValue"), value: `£${Number(q.totalValue).toLocaleString()}` },
+                      { label: tc("items"), value: "—" },
+                      { label: t("colStock"), value: "—" },
+                    ]}
+                    actions={
+                      <>
+                        <button className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70" title={tc("send")} data-testid={`button-send-quote-${q.id}`}><Send className="w-3 h-3" aria-hidden="true" />{tc("send")}</button>
+                        <button
+                          onClick={() => handleDownloadQuotePdf(q.id, q.quoteNumber ?? q.id)}
+                          disabled={downloadingId === q.id}
+                          className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 disabled:opacity-40"
+                          data-testid={`button-download-quote-${q.id}`}
+                        >
+                          {downloadingId === q.id ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <Download className="w-3 h-3" aria-hidden="true" />}PDF
+                        </button>
+                        {canManage && (
+                          <button onClick={() => setQuoteToDelete(q.id)} className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400" data-testid={`button-delete-quote-${q.id}`}>
+                            <Trash2 className="w-3 h-3" aria-hidden="true" />{tc("delete")}
+                          </button>
+                        )}
+                      </>
+                    }
+                  />
+                ))}
+              </div>
+            }
+            table={
+          <div className="h-scroll">
+          <table className="w-full text-sm min-w-[860px]">
             <thead>
               <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                 <th className="py-2.5 pl-4 text-left font-semibold">{t("colQuote")}</th>
@@ -269,24 +322,86 @@ export const FinancePage = (): JSX.Element => {
               ))}
             </tbody>
           </table>
+          </div>
+            }
+          />
         </div>
       )}
 
       {activeTab === "invoices" && (
         <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-brand" />
+          <div className="px-3 md:px-4 py-3 border-b border-fg/[0.06] flex flex-wrap items-center gap-2">
+            <Receipt className="w-4 h-4 text-brand flex-shrink-0" aria-hidden="true" />
             <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("invoicesAndPayments")}</span>
             <button
               onClick={() => setAddInvoiceOpen(true)}
-              className="ml-auto h-9 px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black"
+              className="ml-auto h-9 px-3 md:px-4 text-sm font-bold gap-2 hover:opacity-90 rounded-lg flex items-center text-black flex-shrink-0"
               style={{ backgroundColor: "var(--brand)" }}
               data-testid="button-add-invoice"
             >
-              <Plus className="w-4 h-4" />{t("newInvoice")}
+              <Plus className="w-4 h-4" aria-hidden="true" />{t("newInvoice")}
             </button>
           </div>
-          <table className="w-full text-sm">
+          <ResponsiveTable
+            cards={
+              <div className="flex flex-col gap-2.5 p-3">
+                {(invoices as any[]).map((inv) => {
+                  const daysLeft = Math.round((new Date(inv.dueDate).getTime() - Date.now()) / 86400000);
+                  return (
+                    <DataCard
+                      key={`m-${inv.id}`}
+                      title={<span className="font-mono text-brand/80">{inv.invoiceNumber ?? inv.id}</span>}
+                      subtitle={inv.client}
+                      badge={
+                        <select
+                          value={inv.status}
+                          onChange={(e) => updateInvoiceStatus.mutate({ id: inv.id, status: e.target.value })}
+                          className={`px-2 py-1 rounded-full text-[10px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40 ${statusColors[inv.status] ?? "bg-fg/5 text-fg/60"}`}
+                        >
+                          {INVOICE_STATUSES.map((s) => (
+                            <option key={s} value={s} className="bg-surface-1 text-fg">{tc(`statusEnum.${s}`, { defaultValue: s })}</option>
+                          ))}
+                        </select>
+                      }
+                      fields={[
+                        { label: t("colAmount"), value: <span className="font-semibold">£{Number(inv.amount).toLocaleString()}</span> },
+                        { label: t("colIssued"), value: new Date(inv.issuedDate).toLocaleDateString("en-GB") },
+                        {
+                          label: t("colDue"),
+                          value: (
+                            <>
+                              <span className={inv.status === "overdue" ? "text-red-400" : ""}>{new Date(inv.dueDate).toLocaleDateString("en-GB")}</span>
+                              {daysLeft < 0 && <span className="ml-1 text-red-400/70 text-[10px]">{t("daysOverdue", { days: Math.abs(daysLeft) })}</span>}
+                            </>
+                          ),
+                          full: true,
+                        },
+                      ]}
+                      actions={
+                        <>
+                          <button
+                            onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber ?? inv.id)}
+                            disabled={downloadingId === inv.id}
+                            className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-fg/[0.06] text-fg/70 disabled:opacity-40"
+                            data-testid={`button-download-invoice-${inv.id}`}
+                          >
+                            {downloadingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <Download className="w-3 h-3" aria-hidden="true" />}PDF
+                          </button>
+                          {canManage && (
+                            <button onClick={() => setInvoiceToDelete(inv.id)} className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400" data-testid={`button-delete-invoice-${inv.id}`}>
+                              <Trash2 className="w-3 h-3" aria-hidden="true" />{tc("delete")}
+                            </button>
+                          )}
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            }
+            table={
+          <div className="h-scroll">
+          <table className="w-full text-sm min-w-[820px]">
             <thead>
               <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                 <th className="py-2.5 pl-4 text-left font-semibold">{t("colInvoice")}</th>
@@ -350,16 +465,58 @@ export const FinancePage = (): JSX.Element => {
               })}
             </tbody>
           </table>
+          </div>
+            }
+          />
         </div>
       )}
 
       {activeTab === "costing" && (
         <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-brand" />
+          <div className="px-3 md:px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
+            <Calculator className="w-4 h-4 text-brand flex-shrink-0" aria-hidden="true" />
             <span className="font-bold text-brand text-xs tracking-widest uppercase">{t("projectCostingRoi")}</span>
           </div>
-          <table className="w-full text-sm">
+          <ResponsiveTable
+            cards={
+              <div className="flex flex-col gap-2.5 p-3">
+                {projectCosts.map((p) => {
+                  const totalCost = p.staff + p.transport + p.subRentals;
+                  const profit = p.revenue - totalCost;
+                  return (
+                    <DataCard
+                      key={`m-${p.project}`}
+                      title={p.project}
+                      badge={<span className={`px-2 py-1 rounded-full text-[10px] font-bold ${p.roi >= 200 ? "bg-emerald-500/15 text-emerald-400" : p.roi >= 150 ? "bg-brand/15 text-brand" : "bg-amber-500/15 text-amber-400"}`}>ROI {p.roi}%</span>}
+                      fields={[
+                        { label: t("colRevenue"), value: <span className="text-emerald-400 font-semibold">£{p.revenue.toLocaleString()}</span> },
+                        { label: t("colProfit"), value: <span className="text-emerald-400 font-bold">£{profit.toLocaleString()}</span> },
+                        {
+                          label: t("colStaff"),
+                          value: (
+                            <button onClick={() => setExpensesJob({ jobId: p.jobId, project: p.project })} className="text-fg/85 hover:text-brand underline-offset-2 hover:underline">
+                              £{p.staff.toLocaleString()}
+                            </button>
+                          ),
+                        },
+                        {
+                          label: t("colTransport"),
+                          value: (
+                            <button onClick={() => setExpensesJob({ jobId: p.jobId, project: p.project })} className="text-fg/85 hover:text-brand underline-offset-2 hover:underline">
+                              £{p.transport.toLocaleString()}
+                            </button>
+                          ),
+                        },
+                        { label: t("colSubRentals"), value: p.subRentals ? `£${p.subRentals.toLocaleString()}` : "—", full: true },
+                      ]}
+                    />
+                  );
+                })}
+              </div>
+            }
+            table={
+          <div className="h-scroll">
+          <table className="w-full text-sm min-w-[780px]">
             <thead>
               <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                 <th className="py-2.5 pl-4 text-left font-semibold">{t("colProject")}</th>
@@ -401,9 +558,12 @@ export const FinancePage = (): JSX.Element => {
               })}
             </tbody>
           </table>
-          <div className="px-4 py-3 border-t border-fg/[0.06] flex items-center justify-between">
+          </div>
+            }
+          />
+          <div className="px-3 md:px-4 py-3 border-t border-fg/[0.06] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <span className="text-xs text-fg/60">{t("totalAcrossProjects")}</span>
-            <div className="flex items-center gap-6 text-xs">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 md:gap-6 text-xs">
               <span className="text-fg/50">{t("revenueLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue, 0).toLocaleString()}</span></span>
               <span className="text-fg/50">{t("profitLabel")} <span className="text-emerald-400 font-bold">£{projectCosts.reduce((s, p) => s + p.revenue - p.staff - p.transport - p.subRentals, 0).toLocaleString()}</span></span>
               <span className="text-fg/50">{t("avgRoiLabel")} <span className="text-brand font-bold">{projectCosts.length > 0 ? Math.round(projectCosts.reduce((s, p) => s + p.roi, 0) / projectCosts.length) : 0}%</span></span>
@@ -413,27 +573,51 @@ export const FinancePage = (): JSX.Element => {
       )}
 
       {activeTab === "loss" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-4 gap-3">
+        <div className="space-y-3 md:space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-3">
             {lossItems.map((l) => (
-              <div key={l.category} className="bg-surface-1 border border-fg/[0.06] rounded-xl p-4" data-testid={`loss-${l.category.toLowerCase().replace(/\s+/g, "-")}`}>
+              <div key={l.category} className="bg-surface-1 border border-fg/[0.06] rounded-xl p-3 md:p-4" data-testid={`loss-${l.category.toLowerCase().replace(/\s+/g, "-")}`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-red-400/60" />
-                  <span className="text-xs font-semibold text-fg/50">{l.category}</span>
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-400/60 flex-shrink-0" aria-hidden="true" />
+                  <span className="text-xs font-semibold text-fg/50 truncate">{l.category}</span>
                 </div>
-                <p className="text-xl font-bold text-red-400">{l.amount}</p>
-                <p className="text-[10px] text-fg/60 mt-1">{l.desc}</p>
+                <p className="text-lg md:text-xl font-bold text-red-400 tabular-nums">{l.amount}</p>
+                <p className="text-[10px] text-fg/60 mt-1 leading-snug">{l.desc}</p>
               </div>
             ))}
           </div>
 
           <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-red-400" />
+            <div className="px-3 md:px-4 py-3 border-b border-fg/[0.06] flex flex-wrap items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-red-400 flex-shrink-0" aria-hidden="true" />
               <span className="font-bold text-red-400 text-xs tracking-widest uppercase">{t("automatedDamageLossBilling")}</span>
-              <span className="ml-auto text-[10px] text-fg/60">{t("autoCalculatedHint")}</span>
+              <span className="hidden md:inline ml-auto text-[10px] text-fg/60">{t("autoCalculatedHint")}</span>
             </div>
-            <table className="w-full text-sm">
+            <ResponsiveTable
+              cards={
+                <div className="flex flex-col gap-2.5 p-3">
+                  {autoBillingItems.map((ab) => {
+                    const typeLabels: Record<string, string> = { Lost: t("typeLost"), Damaged: t("typeDamaged") };
+                    return (
+                      <DataCard
+                        key={`m-${ab.id}`}
+                        title={<span className="font-mono">{ab.id}</span>}
+                        subtitle={ab.client}
+                        badge={<span className={`px-2 py-1 rounded-full text-[10px] font-semibold ${statusColors[ab.status]}`}>{tc(`statusEnum.${ab.status}`, { defaultValue: ab.status })}</span>}
+                        fields={[
+                          { label: t("colAsset"), value: <span className="font-mono text-brand/70 text-xs">{ab.asset}</span> },
+                          { label: t("colType"), value: <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${ab.type === "Lost" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>{typeLabels[ab.type] ?? ab.type}</span> },
+                          { label: t("colAmount"), value: <span className="text-red-400 font-semibold">{ab.amount}</span> },
+                          { label: t("colContract"), value: ab.contract },
+                        ]}
+                      />
+                    );
+                  })}
+                </div>
+              }
+              table={
+            <div className="h-scroll">
+            <table className="w-full text-sm min-w-[780px]">
               <thead>
                 <tr className="border-b border-fg/[0.06] text-[10px] text-brand/50 uppercase tracking-wider">
                   <th className="py-2.5 pl-4 text-left font-semibold">{t("colRef")}</th>
@@ -465,6 +649,9 @@ export const FinancePage = (): JSX.Element => {
                 })}
               </tbody>
             </table>
+            </div>
+              }
+            />
           </div>
         </div>
       )}

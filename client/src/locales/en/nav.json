@@ -7,6 +7,8 @@
   "history": "History",
   "settings": "Settings",
   "language": "Language",
+  "openMenu": "Open menu",
+  "closeMenu": "Close menu",
   "switchToThai": "Switch to Thai",
   "switchToEnglish": "Switch to English",
   "userMenu": {

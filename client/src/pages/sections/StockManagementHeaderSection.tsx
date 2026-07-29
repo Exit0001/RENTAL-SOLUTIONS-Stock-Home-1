@@ -1,4 +1,4 @@
-import { Bell, User, LogOut } from "lucide-react";
+import { Bell, User, LogOut, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
@@ -15,6 +15,8 @@ import {
 
 interface HeaderProps {
   activeSection?: string;
+  /** shows the hamburger trigger (mobile only) and opens the AppNavDrawer */
+  onOpenMenu?: () => void;
 }
 
 const UserAvatar = ({ avatarUrl, initials, name, className }: { avatarUrl: string | null; initials: string | null; name: string | null; className: string }) =>
@@ -39,6 +41,7 @@ const formatRelativeTime = (createdAt: string | Date, tn: (key: string, opts?: R
 
 export const StockManagementHeaderSection = ({
   activeSection = "Home",
+  onOpenMenu,
 }: HeaderProps): JSX.Element => {
   const { t } = useTranslation("nav");
   const { t: tc } = useTranslation("common");
@@ -92,47 +95,56 @@ export const StockManagementHeaderSection = ({
   };
 
   return (
-    <header className="w-full h-14 bg-surface-1 border-b border-fg/10 flex items-center justify-between px-6 flex-shrink-0">
-      <div className="flex items-center gap-3">
+    <header className="w-full h-14 bg-surface-1 border-b border-fg/10 flex items-center justify-between px-3 md:px-6 gap-2 md:gap-4 flex-shrink-0">
+      <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={onOpenMenu}
+          aria-label={t("openMenu")}
+          className="md:hidden -ml-1 w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-fg/5 transition-colors tap-target"
+          data-testid="button-nav-menu"
+        >
+          <Menu className="w-5 h-5 text-fg/70" aria-hidden="true" />
+        </button>
         {companyLogoUrl ? (
           <img
             src={companyLogoUrl}
             alt={companyName ?? "logo"}
-            className="h-7 max-w-[140px] object-contain flex-shrink-0"
+            className="h-7 max-w-[100px] md:max-w-[140px] object-contain flex-shrink-0"
             data-testid="img-logo"
           />
         ) : (
           <div
-            className="font-black text-brand text-xl tracking-[0.2em]"
+            className="font-black text-brand text-lg md:text-xl tracking-[0.2em] flex-shrink-0"
             data-testid="text-logo"
           >
             STAK
           </div>
         )}
-        <div className="w-px h-6 bg-fg/10" />
+        <div className="hidden md:block w-px h-6 bg-fg/10 flex-shrink-0" />
         <div
-          className="font-semibold text-fg/60 text-sm tracking-wide uppercase"
+          className="hidden md:block font-semibold text-fg/60 text-sm tracking-wide uppercase truncate min-w-0"
           data-testid="text-header-title"
         >
           {t(`pageTitles.${activeSection}`, { defaultValue: activeSection })}
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-1 md:gap-4 flex-shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="relative p-2 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer focus:outline-none"
+              className="relative p-2 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer focus:outline-none tap-target"
               data-testid="button-notifications"
               aria-label={tn("title")}
             >
-              <Bell className="w-4.5 h-4.5 text-fg/60" />
+              <Bell className="w-4.5 h-4.5 text-fg/60" aria-hidden="true" />
               {unreadCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full" />
               )}
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 p-0 bg-surface-1 border border-fg/[0.08] text-fg">
+          <DropdownMenuContent align="end" className="w-[calc(100vw-1.5rem)] sm:w-80 p-0 bg-surface-1 border border-fg/[0.08] text-fg">
             <div className="flex items-center justify-between px-3 py-2.5 border-b border-fg/[0.08]">
               <span className="text-sm font-semibold text-fg">{tn("title")}</span>
               {unreadCount > 0 && (
@@ -145,7 +157,7 @@ export const StockManagementHeaderSection = ({
                 </button>
               )}
             </div>
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-[60vh] overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="px-3 py-6 text-center text-sm text-fg/40">{tn("empty")}</div>
               ) : (
@@ -172,11 +184,11 @@ export const StockManagementHeaderSection = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-2.5 pl-2 pr-1.5 py-1.5 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer focus:outline-none"
+              className="flex items-center gap-2.5 pl-2 pr-1.5 py-1.5 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer focus:outline-none tap-target"
               data-testid="button-user-menu"
             >
               <span
-                className="font-medium text-fg/50 text-sm"
+                className="hidden md:inline font-medium text-fg/50 text-sm"
                 data-testid="text-user-name"
               >
                 {userName || "—"}

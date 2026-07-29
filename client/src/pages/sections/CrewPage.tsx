@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
-  Users, Truck, Plus, Pencil, Trash2, Check, Minus, BadgeCheck, CalendarClock,
+  Users, Truck, Plus, Pencil, Trash2, Check, Minus, BadgeCheck, CalendarClock, ClipboardList,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -8,6 +8,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { ScrollTabs } from "@/components/ScrollTabs";
 import { crewApi, vehiclesApi, jobsApi, jobVehiclesApi } from "@/api";
 import type { CrewMemberRow, VehicleRow, JobCrewMember, JobVehicleRow, CrewType } from "@/api";
 import { AddCrewMemberModal } from "./AddCrewMemberModal";
@@ -30,11 +32,15 @@ const initialsOf = (name: string): string => {
 };
 const fmt = (d?: string | Date | null) => d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "";
 
+type MobilePane = "roster" | "schedule" | "callsheet";
+
 export const CrewPage = (): JSX.Element => {
   const { token, userRole } = useAppStore();
   const canManage = userRole === "admin" || userRole === "manager";
   const qc = useQueryClient();
 
+  const { isMobile } = useBreakpoint();
+  const [mobilePane, setMobilePane] = useState<MobilePane>("schedule");
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [groupMode, setGroupMode] = useState<"role" | "type">("role");
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +70,12 @@ export const CrewPage = (): JSX.Element => {
   const assignedVehicle = useMemo(() => new Map(jobVehicles.filter((v) => v.vehicleId).map((v) => [v.vehicleId as string, v.id])), [jobVehicles]);
   const countByType = useMemo(() => { const m = new Map<CrewType, number>(); for (const r of jobCounts) m.set(r.type, r.count); return m; }, [jobCounts]);
   const totalCount = COUNT_TYPES.reduce((s, ty) => s + (countByType.get(ty) ?? 0), 0);
+
+  // Picking a job on mobile jumps to its call sheet. Keyed on the id (not the object) so
+  // it fires once per selection and doesn't fight a user who tabs back to the roster.
+  useEffect(() => {
+    if (isMobile && sid) setMobilePane("callsheet");
+  }, [sid, isMobile]);
 
   const onErr = (e: any) => setError(e?.message ?? "ผิดพลาด");
   const invCrew = () => { qc.invalidateQueries({ queryKey: ["job-crew", sid] }); qc.invalidateQueries({ queryKey: ["crew-matrix"] }); };
@@ -151,19 +163,56 @@ export const CrewPage = (): JSX.Element => {
     );
   };
 
+  // The job picker strip lives inside the centre pane on desktop, but on mobile it is
+  // hoisted above the pane tabs: the roster's tap-to-assign is gated on a selected job,
+  // so without this the roster tab would be unusable without tab-hopping.
+  const jobPickerStrip = (
+    <div className="h-scroll flex items-center gap-2 px-3 md:px-4 py-2 border-b border-fg/10 bg-surface-1 flex-shrink-0">
+      <span className="text-xs font-semibold text-fg/50 flex-shrink-0">เลือกงาน:</span>
+      {staffableJobs.length === 0 ? <span className="text-xs text-fg/30">ยังไม่มีงาน</span> : staffableJobs.map((j) => {
+        const cnt = perJobCount.get(j.id) ?? 0;
+        const active = sid === j.id;
+        return (
+          <button key={j.id} onClick={() => setSelectedJob(j)}
+            className={`flex items-center gap-2 h-9 px-3 rounded-lg border transition-colors flex-shrink-0 ${active ? "border-brand bg-brand/10" : "border-fg/10 bg-fg/[0.02] hover:border-brand/40"}`}>
+            <span className={`text-xs font-semibold whitespace-nowrap ${active ? "text-brand" : "text-fg/80"}`}>{j.name}</span>
+            <span className="text-[10px] text-fg/40 whitespace-nowrap">{new Date(j.startDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
+            {cnt > 0 && <span className="text-[10px] font-bold text-brand bg-brand/10 px-1.5 rounded-full">{cnt}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Page header */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-fg/[0.06] flex-shrink-0">
-        <Users className="w-5 h-5 text-brand" />
-        <h1 className="text-lg font-bold text-fg">ทีมงานและรถ</h1>
-        {error && <span className="ml-auto text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-1">{error}</span>}
+      <div className="flex items-center gap-3 px-3 md:px-6 py-3 border-b border-fg/[0.06] flex-shrink-0">
+        <Users className="w-5 h-5 text-brand flex-shrink-0" aria-hidden="true" />
+        <h1 className="text-base md:text-lg font-bold text-fg truncate">ทีมงานและรถ</h1>
+        {error && <span className="ml-auto text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-1 flex-shrink-0">{error}</span>}
       </div>
+
+      {isMobile && jobPickerStrip}
+      {isMobile && (
+        <ScrollTabs
+          tabs={[
+            { key: "roster", label: "คลังคน/รถ", Icon: Users },
+            { key: "schedule", label: "ตาราง", Icon: CalendarClock },
+            { key: "callsheet", label: "ใบเรียกทีม", Icon: ClipboardList, count: selectedJob ? jobCrew.length + totalCount : undefined },
+          ]}
+          active={mobilePane}
+          onChange={(k) => setMobilePane(k as MobilePane)}
+          variant="underline"
+          className="border-b border-fg/[0.06] flex-shrink-0 px-2"
+          testIdPrefix="tab-crew"
+        />
+      )}
 
       <div className="flex-1 flex min-h-0">
 
         {/* ── LEFT: roster ──────────────────────────────── */}
-        <aside className="w-[250px] lg:w-[280px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-1">
+        <aside className={`${isMobile ? (mobilePane === "roster" ? "flex w-full" : "hidden") : "flex w-[250px] lg:w-[280px] flex-shrink-0 border-r"} flex-col border-fg/[0.06] bg-surface-1`}>
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
             <span className="text-xs font-bold text-fg/50">คลังคน/รถ</span>
             {canManage && (
@@ -218,22 +267,8 @@ export const CrewPage = (): JSX.Element => {
         </aside>
 
         {/* ── CENTER: schedule ──────────────────────────── */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-fg/10 bg-surface-1 flex-shrink-0 overflow-x-auto">
-            <span className="text-xs font-semibold text-fg/50 flex-shrink-0">เลือกงาน:</span>
-            {staffableJobs.length === 0 ? <span className="text-xs text-fg/30">ยังไม่มีงาน</span> : staffableJobs.map((j) => {
-              const cnt = perJobCount.get(j.id) ?? 0;
-              const active = sid === j.id;
-              return (
-                <button key={j.id} onClick={() => setSelectedJob(j)}
-                  className={`flex items-center gap-2 h-8 px-3 rounded-lg border transition-colors flex-shrink-0 ${active ? "border-brand bg-brand/10" : "border-fg/10 bg-fg/[0.02] hover:border-brand/40"}`}>
-                  <span className={`text-xs font-semibold whitespace-nowrap ${active ? "text-brand" : "text-fg/80"}`}>{j.name}</span>
-                  <span className="text-[10px] text-fg/40 whitespace-nowrap">{new Date(j.startDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
-                  {cnt > 0 && <span className="text-[10px] font-bold text-brand bg-brand/10 px-1.5 rounded-full">{cnt}</span>}
-                </button>
-              );
-            })}
-          </div>
+        <div className={`${isMobile ? (mobilePane === "schedule" ? "flex w-full" : "hidden") : "flex flex-1"} flex-col min-w-0`}>
+          {!isMobile && jobPickerStrip}
           <div className="flex-1 overflow-hidden">
             <ResourceScheduleView rows={scheduleRows} jobs={jobs} assignments={scheduleAssignments}
               onBarClick={(job) => setSelectedJob(job)} emptyText="ยังไม่มีทีมงาน/รถ — เพิ่มทางซ้าย" />
@@ -241,7 +276,7 @@ export const CrewPage = (): JSX.Element => {
         </div>
 
         {/* ── RIGHT: call sheet ─────────────────────────── */}
-        <aside className="w-[320px] lg:w-[380px] flex-shrink-0 flex flex-col border-l border-fg/[0.06] bg-surface-1">
+        <aside className={`${isMobile ? (mobilePane === "callsheet" ? "flex w-full" : "hidden") : "flex w-[320px] lg:w-[380px] flex-shrink-0 border-l"} flex-col border-fg/[0.06] bg-surface-1`}>
           {!selectedJob ? (
             <div className="flex flex-col items-center justify-center h-full text-fg/25 gap-2 px-6 text-center">
               <CalendarClock className="w-10 h-10" />

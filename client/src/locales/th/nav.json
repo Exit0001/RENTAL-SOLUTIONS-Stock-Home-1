@@ -7,6 +7,8 @@
   "history": "ประวัติ",
   "settings": "ตั้งค่า",
   "language": "ภาษา",
+  "openMenu": "เปิดเมนู",
+  "closeMenu": "ปิดเมนู",
   "switchToThai": "เปลี่ยนเป็นภาษาไทย",
   "switchToEnglish": "เปลี่ยนเป็นภาษาอังกฤษ",
   "userMenu": {

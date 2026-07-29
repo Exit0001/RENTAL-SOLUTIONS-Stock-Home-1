@@ -45,6 +45,105 @@
   display: none;
 }
 
+/* ── Mobile responsive utilities (2026-07-29) ───────────────────────────
+   See .claude/skills/stak-mobile-responsive/SKILL.md for the full contract.
+
+   z-index scale:
+     10    — sidebar rail (StockHome.tsx)
+     50    — overlays: WorkspaceShell, the 24 hand-rolled dialogs, Radix dropdowns
+     60    — nested overlays (StockItemsTableSection portal, UnitDetailModal)
+     70    — AppNavDrawer (hamburger)
+     9999  — GlobalLoadingBar
+*/
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  overscroll-behavior: none; /* kill iOS rubber-band on the whole page */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent iOS Safari's zoom-on-focus (triggers under 16px). Required because the
+   viewport meta no longer sets maximum-scale=1 (that blocked pinch-zoom, a WCAG
+   1.4.4 issue). Do NOT "fix" this by shrinking inputs again. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@layer components {
+  /* The ONLY approved way to make something scroll horizontally. The app hides
+     scrollbars globally (see above), so mobile users get no affordance without
+     this — it re-enables a thin one just for elements that opt in. */
+  .h-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain; /* NOT overscroll-behavior — that would also block vertical scroll-chaining out of the strip */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .h-scroll::-webkit-scrollbar {
+    display: block;
+    height: 3px;
+  }
+  .h-scroll::-webkit-scrollbar-thumb {
+    background: rgb(var(--fg-rgb) / 0.25);
+    border-radius: 3px;
+  }
+
+  /* Expands the tap hit-area to 44x44 (WCAG 2.5.5) without changing a single
+     visible pixel. Caveat: the ::after can steal taps meant for a neighbouring
+     control when two icons sit <44px apart — for tight clusters, add real
+     spacing on mobile instead (gap >= 8px). */
+  .tap-target {
+    position: relative;
+    touch-action: manipulation; /* also kills the 300ms tap delay */
+  }
+  @media (pointer: coarse) {
+    .tap-target::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 44px;
+      height: 44px;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  /* Bottom-pinned footers (CenteredModal, WorkspaceShell, AppNavDrawer) need
+     this so their buttons aren't flush against the home-indicator/gesture bar. */
+  .safe-b {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  /* Right-edge fade for .h-scroll strips. Because scrollbars are hidden globally,
+     a strip that overflows looks identical to one that doesn't — this is the only
+     hint that more tabs/buttons exist off-screen. Parent needs `relative`.
+     Uses --surface-1 so it works in both the dark and the light (red) theme. */
+  .scroll-fade-r {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 2rem;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--surface-1));
+  }
+}
+
+/* Debug helper: toggle in console with
+   document.documentElement.toggleAttribute('data-debug-overflow')
+   to outline every element — makes the "overflow-x-hidden silently clips
+   content" failure mode visible during development. */
+html[data-debug-overflow] * {
+  outline: 1px solid rgba(255, 0, 0, 0.35);
+}
+
 .animate-fade-in {
   animation: fade-in 0.5s var(--animation-delay, 0s) ease both;
 }
