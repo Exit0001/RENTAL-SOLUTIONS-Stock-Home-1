@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Package, Layers, Boxes, Save } from "lucide-react";
+import { Package, Layers, Boxes, Save, ShoppingCart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, jobsApi, catalogApi } from "@/api";
@@ -31,6 +32,7 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose, initialSearch }: 
   const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
   const qc = useQueryClient();
+  const { isMobile } = useBreakpoint();
 
   const [search,         setSearch]         = useState(initialSearch ?? "");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -444,6 +446,24 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose, initialSearch }: 
 
   const cartCount = cartUnits.size + Array.from(cartBulkLines.values()).reduce((s, l) => s + l.quantity, 0);
 
+  // Rendered once, placed either inside the row (desktop, alongside the picker) or as its own
+  // WorkspaceShell mobilePane tab (mobile) — never both at once, so it's never double-mounted.
+  const cartPaneNode = (
+    <ManageJobStockCartPane
+      stockGroups={stockGroups}
+      zones={zones}
+      cartUnits={cartUnits}
+      cartBulkLines={cartBulkLines}
+      onUnitPositionChange={onUnitPositionChange}
+      onUnitRemove={onUnitRemove}
+      onGroupApplyPositionToUnits={onGroupApplyPositionToUnits}
+      onBulkLineQtyChange={onBulkLineQtyChange}
+      onBulkLinePositionChange={onBulkLinePositionChange}
+      onBulkLineRemove={onBulkLineRemove}
+      onBulkLineAdd={onBulkLineAdd}
+    />
+  );
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -492,6 +512,14 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose, initialSearch }: 
       ]}
       activeTab={pickerMode}
       onTabChange={(k) => setPickerMode(k as typeof pickerMode)}
+      mobilePanes={[
+        {
+          key: "cart", label: t("manageJobStock.cartTitle"), Icon: ShoppingCart,
+          badge: cartCount > 0 ? <span className="text-[10px] font-bold text-brand">{cartCount}</span> : undefined,
+          keepMounted: true,
+          content: cartPaneNode,
+        },
+      ]}
       footer={
         <>
           <div className="text-xs text-red-400">{error}</div>
@@ -537,19 +565,9 @@ export const ManageJobStockModal = ({ jobId, jobName, onClose, initialSearch }: 
           {pickerMode === "sets" && (
             <ManageJobStockSetPane jobId={jobId} onApplied={handleSetApplied} />
           )}
-          <ManageJobStockCartPane
-            stockGroups={stockGroups}
-            zones={zones}
-            cartUnits={cartUnits}
-            cartBulkLines={cartBulkLines}
-            onUnitPositionChange={onUnitPositionChange}
-            onUnitRemove={onUnitRemove}
-            onGroupApplyPositionToUnits={onGroupApplyPositionToUnits}
-            onBulkLineQtyChange={onBulkLineQtyChange}
-            onBulkLinePositionChange={onBulkLinePositionChange}
-            onBulkLineRemove={onBulkLineRemove}
-            onBulkLineAdd={onBulkLineAdd}
-          />
+          {/* Mobile reaches the cart via its own WorkspaceShell mobilePane tab (above) instead —
+              rendering it here too would double-mount it and squeeze it into the picker's row. */}
+          {!isMobile && cartPaneNode}
         </div>
     </WorkspaceShell>
   );

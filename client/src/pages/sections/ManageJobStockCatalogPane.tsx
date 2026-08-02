@@ -119,9 +119,9 @@ export const ManageJobStockCatalogPane = ({
   };
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col border-r border-fg/[0.06]">
+    <div className="flex-1 min-w-0 flex flex-col md:border-r border-fg/[0.06]">
       {/* Search + category chips */}
-      <div className="px-4 pt-4 pb-2 flex-shrink-0 space-y-2">
+      <div className="px-3 md:px-4 pt-3 md:pt-4 pb-2 flex-shrink-0 space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-fg/60" />
           <input
@@ -129,14 +129,14 @@ export const ManageJobStockCatalogPane = ({
             placeholder={t("manageContainerUnits.searchPlaceholder")}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg
+            className="w-full h-11 md:h-9 pl-9 pr-3 rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg
               placeholder-fg/20 focus:outline-none focus:border-brand/40 transition-all"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => handleCategoryClick(null)}
-            className={`h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border
+            className={`tap-target h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border
               ${!categoryFilter ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
           >
             {t("manageJobStock.allCategories")}
@@ -176,7 +176,7 @@ export const ManageJobStockCatalogPane = ({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 pb-4 space-y-3">
         {isLoading && (
           <div className="flex items-center justify-center gap-2 py-12 text-fg/60">
             <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">{tc("loading")}</span>

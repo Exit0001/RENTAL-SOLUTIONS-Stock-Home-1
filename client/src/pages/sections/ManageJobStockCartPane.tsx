@@ -217,7 +217,7 @@ export const ManageJobStockCartPane = ({
     <button
       onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
       onClick={(e) => { e.stopPropagation(); handleRowSelect(key, e.shiftKey); }}
-      className={`select-none w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
+      className={`tap-target select-none w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
         ${selected.has(key) ? "border-brand bg-brand" : "border-fg/20 hover:border-fg/40"}`}
     >
       {selected.has(key) && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
@@ -243,7 +243,7 @@ export const ManageJobStockCartPane = ({
             <button
               onClick={(e) => { e.stopPropagation(); toggleGroupSelect(); }}
               title={t("manageJobStock.selectGroupHint")}
-              className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
+              className={`tap-target w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
                 ${groupAllSelected ? "border-brand bg-brand" : groupSomeSelected ? "border-brand/60 bg-brand/20" : "border-fg/20 hover:border-fg/40"}`}
             >
               {groupAllSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
@@ -279,7 +279,7 @@ export const ManageJobStockCartPane = ({
                 )}
               </div>
               {zoneSelect(line.position, (v) => onUnitPositionChange(line.unitId, v))}
-              <button onClick={(e) => { e.stopPropagation(); onUnitRemove(line.unitId); }} className="text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
+              <button onClick={(e) => { e.stopPropagation(); onUnitRemove(line.unitId); }} className="tap-target text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -300,21 +300,21 @@ export const ManageJobStockCartPane = ({
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={(e) => { e.stopPropagation(); onBulkLineQtyChange(line.lineId, -1); }}
-                className="w-5 h-5 rounded border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
+                className="tap-target w-5 h-5 rounded border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
               >
                 <Minus className="w-2.5 h-2.5" />
               </button>
               <span className="w-6 text-center text-xs font-bold text-brand">{line.quantity}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onBulkLineQtyChange(line.lineId, 1); }}
-                className="w-5 h-5 rounded border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
+                className="tap-target w-5 h-5 rounded border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
               >
                 <Plus className="w-2.5 h-2.5" />
               </button>
             </div>
             <div className="flex-1" />
             {zoneSelect(line.position, (v) => onBulkLinePositionChange(line.lineId, v))}
-            <button onClick={(e) => { e.stopPropagation(); onBulkLineRemove(line.lineId); }} className="text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
+            <button onClick={(e) => { e.stopPropagation(); onBulkLineRemove(line.lineId); }} className="tap-target text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -335,19 +335,19 @@ export const ManageJobStockCartPane = ({
   };
 
   return (
-    <div className="w-[38%] min-w-[260px] flex flex-col">
-      <div className="px-4 pt-4 pb-2 flex-shrink-0 flex items-center justify-between">
+    <div className="w-full md:w-[38%] md:min-w-[260px] flex flex-col">
+      <div className="px-3 md:px-4 pt-4 pb-2 flex-shrink-0 flex items-center justify-between">
         <span className="text-xs font-bold text-fg/80">{t("manageJobStock.cartTitle")}</span>
         <span className="text-[10px] text-fg/60">{t("manageContainerUnits.selectedCount", { count: totalCount })}</span>
       </div>
 
       {tabs.length > 1 && (
-        <div className="px-4 pb-2 flex-shrink-0 flex flex-wrap gap-1.5">
+        <div className="px-3 md:px-4 pb-2 flex-shrink-0 flex flex-wrap gap-1.5">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`h-6 px-2.5 rounded-full text-[10px] font-semibold transition-colors border
+              className={`tap-target h-6 px-2.5 rounded-full text-[10px] font-semibold transition-colors border
                 ${activeTab === tab ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
             >
               {tabLabel(tab)} <span className="opacity-60">{tabCount(tab)}</span>
@@ -357,10 +357,10 @@ export const ManageJobStockCartPane = ({
       )}
 
       {groups.length > 0 && (
-        <div className="px-4 pb-2 flex-shrink-0 flex items-center gap-2">
+        <div className="px-3 md:px-4 pb-2 flex-shrink-0 flex items-center gap-2">
           <button
             onClick={toggleSelectAllVisible}
-            className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
+            className={`tap-target w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
               ${allVisibleSelected ? "border-brand bg-brand" : "border-fg/20 hover:border-fg/40"}`}
           >
             {allVisibleSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
@@ -388,7 +388,7 @@ export const ManageJobStockCartPane = ({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 select-none">
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 pb-4 space-y-4 select-none">
         {groups.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <PackageOpen className="w-8 h-8 text-fg/30" />
