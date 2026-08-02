@@ -18,10 +18,10 @@ Full plan (Thai, with rationale): `C:\Users\tcgmc\.claude\plans\hamburgers-100-r
 | 0 | This skill file | ✅ done 2026-07-29 |
 | 1 | Shell + hamburger + 8 primitives | ✅ done 2026-07-29 — `npm run check` clean, verified live. Only the shell (rail/hamburger/drawer/header) + the primitives were touched. |
 | 2 | 7 pages responsive | ✅ done 2026-07-29 — all 7 done. See per-page notes below. |
-| 3 | 8 tables → cards | 🔄 **7 of 8 done.** **Maintenance** done 2026-07-29 — `ResponsiveTable` wraps the existing 9-col `<table>` (`table` prop, unchanged) alongside a new grouped `DataCard` list (`cards` prop): category header keeps its own custom accordion (checkbox + chevron + count + status badge, not a DataCard), each log renders as a `DataCard` (bulk-select checkbox folded into the `title` slot, status in `badge`, type/tech/cost/description in `fields`), and the inline status+cost edit form bypasses `DataCard` entirely (a custom bordered block matches the desktop `isEditing` branch — a 2-col grid form doesn't fit `DataCard`'s fixed title/fields/actions shape). Remaining: **RackBuild** (`RackBuildModal.tsx:346`, deferrable to Phase 4a since it lives inside a workspace modal). |
+| 3 | 8 tables → cards | ✅ done 2026-08-03 — all 8 done. **Maintenance** done 2026-07-29 (see below). **RackBuild** (`RackBuildModal.tsx`) done 2026-08-03 as part of Phase 4a — see that row. |
 | 3.5 | StockPage mobile tab nav upgrade | ✅ done 2026-08-02 — `StockPage.tsx`'s top `<ScrollTabs>` is now `hidden md:block`; mobile gets a fixed bottom tab bar instead (6-col grid, icon + label, `.safe-b`, thumb reach) plus left/right swipe (touchstart/touchend, wraps at ends) to move between tabs. Same `activeTab`/`setActiveTab` drives both — not a separate state. Superseded the plain-ScrollTabs note from Phase 2's per-page table below. |
-| 4a | WorkspaceShell + 11 workspace modals | ⬜ not started — **next up.** Biggest remaining block. |
-| 4b | CenteredModal + 24 dialogs | ⬜ not started. `CenteredModal` primitive exists and is unused so far. |
+| 4a | WorkspaceShell + 11 workspace modals | ✅ done 2026-08-03 — all 11 done. See per-modal notes below. |
+| 4b | CenteredModal + 24 dialogs | ⬜ not started — **next up.** `CenteredModal` primitive exists and is unused so far. |
 | 5 | Gantt + touch targets + polish | ⬜ not started |
 
 Mark `🔄 in progress` / `✅ done <date>` and note anything that deviated from the plan.
@@ -40,6 +40,24 @@ Mark `🔄 in progress` / `✅ done <date>` and note anything that deviated from
 | `JobsPage.tsx` | → `<MasterDetail>` with `mobileDetailOpen` state. Status legend gets its own `.h-scroll` strip below `sm` rather than being hidden. |
 | `JobDetailPanel.tsx` | Sub-tabs → `<ScrollTabs>`; overview `grid-cols-2`→`grid-cols-1 sm:grid-cols-2`; the three `p-1.5` icon buttons got `.tap-target` + `aria-label`. |
 | `CrewPage.tsx` | 3 columns → 3 `<ScrollTabs>` panes (`hidden`, never unmounted). **The job picker strip is hoisted above the tabs on mobile** — without it the roster tab can't assign anyone, because assignment is gated on a job selected in the centre pane. |
+
+### Phase 4a per-modal record (what was actually done, 2026-08-03)
+
+| File | Change |
+|---|---|
+| `BrandCategoryModal.tsx` | No pane work needed (no `sidebar`, no internal split). Found and fixed a real bug: category/brand card edit/delete icons were `group-hover`-only → unreachable on touch. Now `opacity-100 md:opacity-0 md:group-hover:opacity-100`. Touch targets + `px-3 md:px-6` padding. |
+| `AddResourcesModal.tsx` | `sidebar` auto-tabs on mobile for free via `WorkspaceShell`. Row grids `grid-cols-2/3` → `grid-cols-1 sm:grid-cols-2/3`, inputs `h-11 md:h-9`. |
+| `AddJobsModal.tsx` | Same pattern as AddResourcesModal. `JobDailyScheduleDraftEditor`'s nested `grid-cols-3` of native `type="time"` inputs left as-is — narrow columns are fine for a native time picker. |
+| `QuickAddItemsModal.tsx` | Kept the dense rem-based compact grid (spreadsheet-style entry, intentionally small even on desktop) — added `.tap-target` to every icon button instead of resizing, so the 44px hit area exists without changing visual density. |
+| `ScanModal.tsx` | Fixed 2-col (manifest flex-1 + 280px scan panel) → `flex-col md:flex-row` with the **scan panel first** on mobile (thumb reach, stays visible without a tab switch mid-scan), manifest below in its own scroll region. |
+| `EquipmentPicker.tsx` (shared by SetBuilderModal + AddSetsModal) | `EquipmentCatalogPane`/`EquipmentCartPane` width classes made dual-purpose: full-width when `<PaneTabs>` shows one at a time on mobile, original `flex-1`/`w-72 lg:w-80` when `PaneTabs` renders both in a plain row on desktop (byte-identical desktop DOM). Catalog pane's local `search`/filter state → its `PaneTabs` entry is `keepMounted: true` wherever it's used. |
+| `SetBuilderModal.tsx`, `AddSetsModal.tsx` | Wrapped the catalog+cart split in `<PaneTabs>` (catalog `keepMounted`, cart gets an item-count badge). AddSetsModal's outer per-draft-set tabs were already handled by `WorkspaceShell.tabs` — only the inner split needed `PaneTabs`. |
+| `RackBuildModal.tsx` | Rack list ⇄ active rack contents is a **master-detail** flow, not co-equal panes → used `<MasterDetail>` instead of `PaneTabs` (full list on mobile until a rack is tapped, then a pushed detail view with a back bar). Items-in-rack table (the last Phase 3 holdout, deferred here since it lives in a workspace modal) converted to `<ResponsiveTable>`/`<DataCard>`. |
+| `ManageContainerUnitsModal.tsx` | 3-way split: `sidebar` (rack picker) auto-tabs for free; added `PaneTabs` for the remaining catalog+cart split. Cart pane width `w-[38%]` → `w-full md:w-[38%]`. |
+| `ManageJobStockModal.tsx` | **The reference case for the `keepMounted` warning.** Cart was a persistent column *outside* the items/racks/sets tab swap — unreachable on mobile before this. Built once as `cartPaneNode`, rendered either inside the row (desktop, `!isMobile &&`) or as a `WorkspaceShell.mobilePanes` entry (mobile) — never both, so never double-mounted. `keepMounted: true` since the cart owns local zone-filter/selection state. |
+| `JobOperationsModal.tsx` | Largest file (1200+ lines). All 3 tabs (Pack/Dispatch/Return) shared one layout: fixed `w-[400px]` scanner rail + `flex-1` list. Each → `flex-col md:flex-row` with the scanner rail `w-full md:w-[400px]` + `max-h-[42vh] md:max-h-none` (caps its height on mobile so its internal log feed can still scroll) stacked above the list. Also fixed a real overflow bug in the dispatch tab's rack-load row (icon + name + 128px progress bar + status + button in one non-wrapping row, silently clipped past ~400px by the app's global `overflow-x-hidden`) — now `flex-wrap` with a narrower mobile progress bar. Verified via the `grep -c onClick` before/after check (18 → 18, no handlers dropped). |
+
+**Pattern used to choose `PaneTabs` vs `MasterDetail` vs `mobilePanes`:** co-equal panes the user flips between (catalog↔cart, manifest↔scanner) → `PaneTabs` (or plain CSS stacking if one side is clearly primary, like ScanModal/JobOperationsModal's scanner-first layouts). A list where picking one item reveals its own workspace → `MasterDetail`. An extra pane that isn't part of an existing `WorkspaceShell.tabs` switch (e.g. a cart sitting outside an items/racks/sets tab set) → `WorkspaceShell.mobilePanes`.
 
 ### Known-good verification result (re-run after any change)
 

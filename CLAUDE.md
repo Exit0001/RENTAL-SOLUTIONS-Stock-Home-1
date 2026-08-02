@@ -867,17 +867,22 @@ even if out of scope.
 Row dividers use `border-fg/10` (item/model rows) and `border-fg/[0.06]` (unit sub-rows) — the
 older `fg/[0.05]` / `fg/[0.03]` were effectively invisible on the dark rows.
 
-## Next Up — Mobile-Responsive Pass (handoff, 2026-07-29)
+## Next Up — Mobile-Responsive Pass (handoff, 2026-08-03)
 
-Repo is clean and pushed to `origin/main` (`8da727e`) — pull on the other machine to continue.
+**Load the `stak-mobile-responsive` skill first** — it's the single source of truth for this app's
+breakpoint contract, `useBreakpoint`, table→card patterns, `WorkspaceShell`/`ScrollTabs`/
+`MasterDetail`/`PaneTabs` mobile behavior, touch targets, and safe-area handling. Its own progress
+tracker (§0) is the up-to-date phase status — check that first, this note is a snapshot.
 
-Next task: make the UI usable on mobile/tablet. **Load the `stak-mobile-responsive` skill first**
-— it's the single source of truth for this app's breakpoint contract, `useBreakpoint`, table→card
-patterns, `WorkspaceShell`/`ScrollTabs`/`MasterDetail` mobile behavior, touch targets, and safe-area
-handling. Nothing mobile-specific has been built yet; this is a fresh pass across the whole app, not
-a continuation of in-progress work. Good starting points given the page inventory above: `StockPage.tsx`
-tables (Inventory/Containers/Maintenance), `JobsPage.tsx`'s master-detail layout, and `CrewPage.tsx`'s
-3-column layout — all currently assume desktop width.
+As of 2026-08-03: Phases 0–3 (shell/hamburger, 7 pages, all 8 tables→cards) and Phase 4a (all 11
+`WorkspaceShell` workspace modals — `QuickAddItemsModal`, `BrandCategoryModal`, `SetBuilderModal`,
+`ManageJobStockModal`, `ScanModal`, `JobOperationsModal`, `RackBuildModal`, `ManageContainerUnitsModal`,
+`AddResourcesModal`, `AddSetsModal`, `AddJobsModal`) are done. **Next: Phase 4b** — the 24 smaller
+centered dialogs (`AddContainerModal`, `AddIncidentModal`, `AddQuoteModal`, etc.) via the `CenteredModal`
+primitive, which exists in `client/src/components/CenteredModal.tsx` but has no consumers yet. After
+that, Phase 5 (Gantt timelines + a touch-target/overflow audit pass + real-device verification — the
+whole pass so far has been verified via `npm run check` + code review only, no browser/device testing
+was available in this environment).
 
 ## Adding a New Feature
 
