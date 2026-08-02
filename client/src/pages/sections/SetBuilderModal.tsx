@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Boxes, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { Boxes, Save, ChevronDown, ChevronUp, Search, ShoppingCart } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, equipmentSetsApi } from "@/api";
@@ -7,6 +7,7 @@ import type { StockItemWithUnits } from "@/api";
 import type { StockUnit } from "@shared/schema";
 import { FileUploadField } from "@/components/FileUploadField";
 import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
+import { PaneTabs } from "@/components/PaneTabs";
 import {
   EquipmentCatalogPane, EquipmentCartPane,
   type PickerAutoMap, type PickerPinMap,
@@ -25,6 +26,7 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl]       = useState<string | null>(null);
   const [metaOpen, setMetaOpen]       = useState(false);
+  const [activePane, setActivePane]   = useState<"catalog" | "cart">("catalog");
   const [autoQty, setAutoQty]         = useState<PickerAutoMap>(new Map());
   const [pinned, setPinned]           = useState<PickerPinMap>(new Map());
   const [saving, setSaving]           = useState(false);
@@ -134,24 +136,24 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
       }
     >
         {/* Meta: name always visible (compact); note/image tucked behind a toggle */}
-        <div className="px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0 flex items-center gap-2.5">
+        <div className="px-3 md:px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0 flex items-center gap-2.5">
           <input value={name} onChange={(e) => setName(e.target.value)}
             placeholder="ชื่อชุด * เช่น ชุดกลอง Yamaha BG2"
-            className="flex-1 h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/50" />
+            className="flex-1 h-11 md:h-9 px-3 rounded-lg bg-fg/[0.04] border border-fg/10 text-sm text-fg placeholder:text-fg/30 focus:outline-none focus:border-brand/50" />
           <button
             type="button"
             onClick={() => setMetaOpen((v) => !v)}
-            className={`h-9 px-3 rounded-lg text-xs font-medium border flex items-center gap-1.5 flex-shrink-0 transition-colors
+            className={`tap-target h-11 md:h-9 px-3 rounded-lg text-xs font-medium border flex items-center gap-1.5 flex-shrink-0 transition-colors
               ${metaOpen ? "bg-fg/[0.06] border-fg/20 text-fg" : "border-fg/10 text-fg/50 hover:border-fg/30 hover:text-fg/80"}`}
           >
             {(description || imageUrl) && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
-            หมายเหตุ / รูปชุด
+            <span className="hidden sm:inline">หมายเหตุ / รูปชุด</span>
             {metaOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
 
         {metaOpen && (
-          <div className="px-6 py-3 border-b border-fg/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
+          <div className="px-3 md:px-6 py-3 border-b border-fg/[0.06] flex-shrink-0 flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <label className="block text-[11px] font-bold text-fg/70 mb-1">หมายเหตุ</label>
               <input value={description} onChange={(e) => setDescription(e.target.value)}
@@ -165,26 +167,43 @@ export const SetBuilderModal = ({ setId, onClose }: Props): JSX.Element => {
           </div>
         )}
 
-        {/* Two-pane: catalog (left) + selected cart (right) */}
-        <div className="flex-1 min-h-0 flex flex-row">
-          <EquipmentCatalogPane
-            stockGroups={stockGroups}
-            isLoading={isLoading}
-            autoQty={autoQty}
-            pinned={pinned}
-            onAdjustAuto={adjustAuto}
-            onTogglePin={togglePin}
-            onToggleSelectAll={toggleSelectAllUnits}
-          />
-          <EquipmentCartPane
-            stockGroups={stockGroups}
-            autoQty={autoQty}
-            pinned={pinned}
-            onAdjustAuto={adjustAuto}
-            onTogglePin={togglePin}
-            onClearItem={clearItem}
-          />
-        </div>
+        {/* Two-pane: catalog (left) + selected cart (right) — tabs on mobile,
+            side-by-side on md+. Catalog pane holds local search/filter state, so
+            it stays mounted (keepMounted) when switched away from on mobile. */}
+        <PaneTabs
+          active={activePane}
+          onChange={(k) => setActivePane(k as "catalog" | "cart")}
+          panes={[
+            {
+              key: "catalog", label: "เลือกของ", Icon: Search, keepMounted: true,
+              node: (
+                <EquipmentCatalogPane
+                  stockGroups={stockGroups}
+                  isLoading={isLoading}
+                  autoQty={autoQty}
+                  pinned={pinned}
+                  onAdjustAuto={adjustAuto}
+                  onTogglePin={togglePin}
+                  onToggleSelectAll={toggleSelectAllUnits}
+                />
+              ),
+            },
+            {
+              key: "cart", label: "ของในชุด", Icon: ShoppingCart,
+              badge: totalPieces > 0 ? <span className="text-[10px] font-bold text-brand">{totalPieces}</span> : undefined,
+              node: (
+                <EquipmentCartPane
+                  stockGroups={stockGroups}
+                  autoQty={autoQty}
+                  pinned={pinned}
+                  onAdjustAuto={adjustAuto}
+                  onTogglePin={togglePin}
+                  onClearItem={clearItem}
+                />
+              ),
+            },
+          ]}
+        />
     </WorkspaceShell>
   );
 };
