@@ -7,6 +7,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, containersApi, jobsApi } from "@/api";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
+import { MasterDetail } from "@/components/MasterDetail";
+import { ResponsiveTable } from "@/components/ResponsiveTable";
+import { DataCard } from "@/components/DataCard";
 import type { ContainerWithItems } from "@/api";
 
 interface ScanFeedback {
@@ -167,10 +170,14 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
       subtitle={jobName || undefined}
       onClose={onClose}
     >
-        {/* ── Body ── */}
-        <div className="flex flex-1 min-h-0">
-          {/* LEFT — Rack List */}
-          <div className="w-64 flex-shrink-0 border-r border-fg/10 flex flex-col">
+        {/* ── Body — rack list ⇄ active rack detail, push/pop on mobile ── */}
+        <MasterDetail
+          masterClassName="w-full md:w-64"
+          detailOpen={!!activeRackId}
+          onBack={() => setActiveRackId(null)}
+          detailTitle={activeRack?.name}
+          master={
+          <div className="h-full flex flex-col md:border-r border-fg/10">
             {/* Search */}
             <div className="px-3 py-2 border-b border-fg/[0.06]">
               <div className="flex items-center gap-2 bg-fg/[0.04] rounded-lg px-3 py-1.5">
@@ -231,7 +238,7 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                 <button
                   onClick={handleDownload}
                   disabled={downloading || racks.length === 0}
-                  className="w-full flex items-center justify-center gap-2 h-9 px-4 text-sm font-bold rounded-lg
+                  className="tap-target w-full flex items-center justify-center gap-2 h-11 md:h-9 px-4 text-sm font-bold rounded-lg
                     disabled:opacity-40 hover:opacity-90"
                   style={{ backgroundColor: "var(--brand)", color: "#000" }}
                 >
@@ -244,9 +251,9 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
               </div>
             )}
           </div>
-
-          {/* RIGHT — Active Rack + Scan */}
-          <div className="flex-1 flex flex-col min-w-0">
+          }
+          detail={
+          <div className="h-full flex flex-col min-w-0">
             {!activeRack ? (
               /* ยังไม่เลือก rack */
               <div className="flex-1 flex flex-col items-center justify-center gap-4 text-fg/30">
@@ -274,7 +281,7 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
             ) : (
               <>
                 {/* Rack Info Header */}
-                <div className="px-5 py-3 border-b border-fg/10 flex-shrink-0 bg-fg/[0.02]">
+                <div className="px-3 md:px-5 py-3 border-b border-fg/10 flex-shrink-0 bg-fg/[0.02]">
                   <div className="flex items-center gap-3">
                     <div>
                       <p className="font-bold text-brand">{activeRack.name}</p>
@@ -293,7 +300,7 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                 </div>
 
                 {/* Scan Input */}
-                <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
+                <div className="px-3 md:px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
                   <label className="text-[11px] text-fg/40 font-bold uppercase tracking-wider mb-2 block">
                     สแกน barcode อุปกรณ์
                   </label>
@@ -309,7 +316,7 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                           if (e.key === "Enter") handleScan(value);
                         }}
                         placeholder="สแกนหรือพิมพ์ barcode แล้วกด Enter..."
-                        className="w-full bg-fg/[0.06] border border-fg/10 rounded-lg pl-10 pr-4 py-2.5 text-sm
+                        className="w-full h-11 md:h-auto bg-fg/[0.06] border border-fg/10 rounded-lg pl-10 pr-4 py-2.5 text-sm
                           text-fg placeholder-fg/30 outline-none focus:border-brand/50"
                       />
                     </div>
@@ -343,55 +350,89 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                       <p className="text-sm">ยังไม่มีของในแร็คนี้</p>
                     </div>
                   ) : (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-fg/[0.06]">
-                          <th className="text-left px-5 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Category</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">อุปกรณ์</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">S/N</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Barcode</th>
-                          <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Status</th>
-                          <th className="px-3 py-2.5 w-10" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedItems.map((item, idx) => (
-                          <tr
-                            key={item.id}
-                            className={`border-b border-fg/[0.04] ${idx % 2 === 0 ? "" : "bg-fg/[0.015]"}`}
-                          >
-                            <td className="px-5 py-2.5 text-xs text-fg/50">{item.category || "—"}</td>
-                            <td className="px-3 py-2.5 font-medium text-fg">{item.itemName || item.name || "—"}</td>
-                            <td className="px-3 py-2.5 text-xs text-fg/50 font-mono">{item.serialNumber || "—"}</td>
-                            <td className="px-3 py-2.5 text-xs text-fg/50 font-mono">{item.barcode || "—"}</td>
-                            <td className="px-3 py-2.5">
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium
-                                ${item.status === "available" ? "bg-green-500/15 text-green-400" :
-                                  item.status === "out"       ? "bg-amber-500/15 text-amber-400" :
-                                  item.status === "maintenance" ? "bg-red-500/15 text-red-400" :
-                                                                 "bg-fg/10 text-fg/50"}`}>
-                                {item.status}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <button
-                                onClick={() => handleRemoveUnit(item.id)}
-                                className="p-1 rounded text-fg/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                title="ลบออกจากแร็ค"
+                    <ResponsiveTable
+                      table={
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-fg/[0.06]">
+                              <th className="text-left px-5 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Category</th>
+                              <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">อุปกรณ์</th>
+                              <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">S/N</th>
+                              <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Barcode</th>
+                              <th className="text-left px-3 py-2.5 text-[10px] font-bold text-fg/30 uppercase tracking-wider">Status</th>
+                              <th className="px-3 py-2.5 w-10" />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortedItems.map((item, idx) => (
+                              <tr
+                                key={item.id}
+                                className={`border-b border-fg/[0.04] ${idx % 2 === 0 ? "" : "bg-fg/[0.015]"}`}
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                                <td className="px-5 py-2.5 text-xs text-fg/50">{item.category || "—"}</td>
+                                <td className="px-3 py-2.5 font-medium text-fg">{item.itemName || item.name || "—"}</td>
+                                <td className="px-3 py-2.5 text-xs text-fg/50 font-mono">{item.serialNumber || "—"}</td>
+                                <td className="px-3 py-2.5 text-xs text-fg/50 font-mono">{item.barcode || "—"}</td>
+                                <td className="px-3 py-2.5">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium
+                                    ${item.status === "available" ? "bg-green-500/15 text-green-400" :
+                                      item.status === "out"       ? "bg-amber-500/15 text-amber-400" :
+                                      item.status === "maintenance" ? "bg-red-500/15 text-red-400" :
+                                                                     "bg-fg/10 text-fg/50"}`}>
+                                    {item.status}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <button
+                                    onClick={() => handleRemoveUnit(item.id)}
+                                    className="tap-target p-1 rounded text-fg/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    title="ลบออกจากแร็ค"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      }
+                      className="px-3 pt-3"
+                      cards={sortedItems.map((item) => (
+                        <DataCard
+                          key={item.id}
+                          title={item.itemName || item.name || "—"}
+                          badge={
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap
+                              ${item.status === "available" ? "bg-green-500/15 text-green-400" :
+                                item.status === "out"       ? "bg-amber-500/15 text-amber-400" :
+                                item.status === "maintenance" ? "bg-red-500/15 text-red-400" :
+                                                               "bg-fg/10 text-fg/50"}`}>
+                              {item.status}
+                            </span>
+                          }
+                          fields={[
+                            { label: "Category", value: item.category || "—" },
+                            { label: "S/N", value: item.serialNumber || "—" },
+                            { label: "Barcode", value: item.barcode || "—" },
+                          ]}
+                          actions={
+                            <button
+                              onClick={() => handleRemoveUnit(item.id)}
+                              className="tap-target flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[11px] font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />ลบออกจากแร็ค
+                            </button>
+                          }
+                        />
+                      ))}
+                    />
                   )}
                 </div>
               </>
             )}
           </div>
-        </div>
+          }
+        />
     </WorkspaceShell>
   );
 };
