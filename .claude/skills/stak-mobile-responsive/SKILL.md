@@ -46,16 +46,16 @@ Mark `🔄 in progress` / `✅ done <date>` and note anything that deviated from
 | File | Change |
 |---|---|
 | `BrandCategoryModal.tsx` | No pane work needed (no `sidebar`, no internal split). Found and fixed a real bug: category/brand card edit/delete icons were `group-hover`-only → unreachable on touch. Now `opacity-100 md:opacity-0 md:group-hover:opacity-100`. Touch targets + `px-3 md:px-6` padding. |
-| `AddResourcesModal.tsx` | `sidebar` auto-tabs on mobile for free via `WorkspaceShell`. Row grids `grid-cols-2/3` → `grid-cols-1 sm:grid-cols-2/3`, inputs `h-11 md:h-9`. |
-| `AddJobsModal.tsx` | Same pattern as AddResourcesModal. `JobDailyScheduleDraftEditor`'s nested `grid-cols-3` of native `type="time"` inputs left as-is — narrow columns are fine for a native time picker. |
-| `QuickAddItemsModal.tsx` | Kept the dense rem-based compact grid (spreadsheet-style entry, intentionally small even on desktop) — added `.tap-target` to every icon button instead of resizing, so the 44px hit area exists without changing visual density. |
+| `AddResourcesModal.tsx` | `sidebar` + real `tabs`/`activeTab` (crew/vehicle) — `children` reachable on mobile from the first render since `activeTab` already matches a `tabs` entry. Row grids `grid-cols-2/3` → `grid-cols-1 sm:grid-cols-2/3`, inputs `h-11 md:h-9`. |
+| `AddJobsModal.tsx` | Initially built like AddResourcesModal but with **no `tabs` prop** (single form, no mode-switching) — this left `children` permanently hidden on mobile behind the sidebar pill (see the `WorkspaceShell.sidebar` warning above). Fixed 2026-08-03: main content built once as `mainContent`, exposed via a `mobilePanes` entry on mobile / `children` on desktop. `JobDailyScheduleDraftEditor`'s nested `grid-cols-3` of native `type="time"` inputs left as-is — narrow columns are fine for a native time picker. |
+| `QuickAddItemsModal.tsx` | Same `sidebar`-without-`tabs` bug as AddJobsModal, same `mainContent`/`mobilePanes` fix (2026-08-03). Kept the dense rem-based compact grid (spreadsheet-style entry, intentionally small even on desktop) — added `.tap-target` to every icon button instead of resizing, so the 44px hit area exists without changing visual density. |
 | `ScanModal.tsx` | Fixed 2-col (manifest flex-1 + 280px scan panel) → `flex-col md:flex-row` with the **scan panel first** on mobile (thumb reach, stays visible without a tab switch mid-scan), manifest below in its own scroll region. |
 | `EquipmentPicker.tsx` (shared by SetBuilderModal + AddSetsModal) | `EquipmentCatalogPane`/`EquipmentCartPane` width classes made dual-purpose: full-width when `<PaneTabs>` shows one at a time on mobile, original `flex-1`/`w-72 lg:w-80` when `PaneTabs` renders both in a plain row on desktop (byte-identical desktop DOM). Catalog pane's local `search`/filter state → its `PaneTabs` entry is `keepMounted: true` wherever it's used. |
 | `SetBuilderModal.tsx`, `AddSetsModal.tsx` | Wrapped the catalog+cart split in `<PaneTabs>` (catalog `keepMounted`, cart gets an item-count badge). AddSetsModal's outer per-draft-set tabs were already handled by `WorkspaceShell.tabs` — only the inner split needed `PaneTabs`. |
-| `RackBuildModal.tsx` | Rack list ⇄ active rack contents is a **master-detail** flow, not co-equal panes → used `<MasterDetail>` instead of `PaneTabs` (full list on mobile until a rack is tapped, then a pushed detail view with a back bar). Items-in-rack table (the last Phase 3 holdout, deferred here since it lives in a workspace modal) converted to `<ResponsiveTable>`/`<DataCard>`. |
-| `ManageContainerUnitsModal.tsx` | 3-way split: `sidebar` (rack picker) auto-tabs for free; added `PaneTabs` for the remaining catalog+cart split. Cart pane width `w-[38%]` → `w-full md:w-[38%]`. |
+| `RackBuildModal.tsx` | Rack list ⇄ active rack contents is a **master-detail** flow, not co-equal panes → used `<MasterDetail>` instead of `PaneTabs` (full list on mobile until a rack is tapped, then a pushed detail view with a back bar). Items-in-rack table (the last Phase 3 holdout, deferred here since it lives in a workspace modal) converted to `<ResponsiveTable>`/`<DataCard>`. **Follow-up 2026-08-03**: the "scan a rack barcode" input originally lived only in the detail pane's empty state — unreachable on mobile before a rack is picked (chicken-and-egg, `MasterDetail` shows the master until `detailOpen`). Moved it into the master (list) pane permanently, with its own ref/state (`rackScanRef`/`rackScanValue`) separate from the detail pane's item-scan input, since both are mounted simultaneously on desktop. |
+| `ManageContainerUnitsModal.tsx` | 3-way split: `sidebar` (rack picker) + catalog + cart. **Initially shipped with the same `sidebar`-without-`tabs` bug** (children permanently hidden on mobile) — fixed 2026-08-03 with the `mainContent`/`mobilePanes` pattern, same as AddJobsModal. Cart pane width `w-[38%]` → `w-full md:w-[38%]`. |
 | `ManageJobStockModal.tsx` | **The reference case for the `keepMounted` warning.** Cart was a persistent column *outside* the items/racks/sets tab swap — unreachable on mobile before this. Built once as `cartPaneNode`, rendered either inside the row (desktop, `!isMobile &&`) or as a `WorkspaceShell.mobilePanes` entry (mobile) — never both, so never double-mounted. `keepMounted: true` since the cart owns local zone-filter/selection state. |
-| `JobOperationsModal.tsx` | Largest file (1200+ lines). All 3 tabs (Pack/Dispatch/Return) shared one layout: fixed `w-[400px]` scanner rail + `flex-1` list. Each → `flex-col md:flex-row` with the scanner rail `w-full md:w-[400px]` + `max-h-[42vh] md:max-h-none` (caps its height on mobile so its internal log feed can still scroll) stacked above the list. Also fixed a real overflow bug in the dispatch tab's rack-load row (icon + name + 128px progress bar + status + button in one non-wrapping row, silently clipped past ~400px by the app's global `overflow-x-hidden`) — now `flex-wrap` with a narrower mobile progress bar. Verified via the `grep -c onClick` before/after check (18 → 18, no handlers dropped). |
+| `JobOperationsModal.tsx` | Largest file (1200+ lines). All 3 tabs (Pack/Dispatch/Return) shared one layout: fixed `w-[400px]` scanner rail + `flex-1` list. Each → `flex-col md:flex-row` with the scanner rail `w-full md:w-[400px]` + `max-h-[36vh] md:max-h-none` (caps its height on mobile so its internal log feed can still scroll; tightened from an initial 42vh 2026-08-03 after screenshots showed too much dead space above the download button) stacked above the list. Also fixed a real overflow bug in the dispatch tab's rack-load row (icon + name + 128px progress bar + status + button in one non-wrapping row, silently clipped past ~400px by the app's global `overflow-x-hidden`) — now `flex-wrap` with a narrower mobile progress bar. **Follow-up 2026-08-03**: de-emphasized the pack tab's "download packing sheet" button to a ghost style (was full-width brand-yellow, competing visually with the empty scan-log state above it) and fixed stale "เลือกจากรายการทางขวา" copy that no longer matched the stacked mobile layout (now `md:hidden`/`hidden md:inline` variants). Verified via the `grep -c onClick` before/after check (18 → 18, no handlers dropped) both times. |
 
 **Pattern used to choose `PaneTabs` vs `MasterDetail` vs `mobilePanes`:** co-equal panes the user flips between (catalog↔cart, manifest↔scanner) → `PaneTabs` (or plain CSS stacking if one side is clearly primary, like ScanModal/JobOperationsModal's scanner-first layouts). A list where picking one item reveals its own workspace → `MasterDetail`. An extra pane that isn't part of an existing `WorkspaceShell.tabs` switch (e.g. a cart sitting outside an items/racks/sets tab set) → `WorkspaceShell.mobilePanes`.
 
@@ -223,6 +223,28 @@ Desktop: renders every pane in a flex row with its original widths → **byte-id
 
 > **`keepMounted` is a correctness requirement, not an optimization.** Panes holding uncommitted local state must be hidden with `hidden`, never unmounted. `EquipmentPicker` and `ManageJobStockCatalogPane` hold a local `search` string — unmounting on tab switch silently clears what the user typed.
 
+> ⚠️ **`WorkspaceShell.sidebar` + no `tabs` = `children` permanently hidden on mobile.** This bit
+> Phase 4a: `WorkspaceShell`'s mobile strip shows `sidebar` first, and `children` only becomes
+> visible if it matches a `tabs` entry (or there's no `sidebar`/`mobilePanes` at all — see the
+> component's own visibility condition). A modal that passes `sidebar` but no `tabs` (e.g. a
+> "defaults panel + one form", no mode-switching) has `children` stuck behind the sidebar pill
+> forever, on every device — this shipped and passed `npm run check` because it's a *visibility*
+> bug, not a type error; it only showed up in real screenshots. **Whenever you pass `sidebar`,
+> either also pass a real `tabs` set the main content can be reached through, or wrap `children`
+> in a `mobilePanes` entry** (build it once as a variable, e.g. `mainContent`, then
+> `{!isMobile && mainContent}` for desktop's `children` slot and `content: mainContent` in
+> `mobilePanes` — never both at once, see `ManageJobStockModal`'s `cartPaneNode` pattern in the
+> table above). `AddJobsModal`, `QuickAddItemsModal`, and `ManageContainerUnitsModal` all needed
+> this retrofit 2026-08-03.
+>
+> Related: the sidebar's own mobile strip tab used to be a **permanent no-op once you tapped away
+> from it** — `WorkspaceShell`'s `handleMobileTabChange` intentionally doesn't forward the
+> synthetic `__sidebar` key to the parent's `onTabChange` (it has no domain meaning there), but
+> the component also had no *other* way to remember "user tapped back to sidebar." Fixed
+> 2026-08-03 with a local `manualMobileKey` override inside `WorkspaceShell` itself — already
+> fixed for every consumer, no per-modal action needed, just don't reintroduce a `mobileActive`
+> computation that ignores manual taps if you ever touch this file.
+
 ### `<AppNavDrawer>` + `lib/navItems.ts`
 Hamburger drawer, mobile only. Built on the already-installed shadcn `ui/sheet.tsx` (Radix Dialog — no new dependency). `NAV_ITEMS` / `navItemsForRole(role)` is the **single source** for nav items; the rail and the drawer both read it.
 
@@ -309,6 +331,7 @@ All three already have `.h-scroll` + `useResponsiveDayCount(ref, dayW, labelW, m
 | R10 | `table-fixed` + percentage `<colgroup>` means the table can never overflow, so `overflow-x-auto` never activates. Adding `min-w-[900px]` alone **changes nothing** | must remove `table-fixed` AND the colgroup together |
 | R11 | `pl-16` indents = 18% of a 360px screen | indent nested cards with a border, not padding |
 | R12 | Nested overlays need `z-[60]` | `layer="nested"` |
+| R13 | `WorkspaceShell.sidebar` with no `tabs` prop → `children` permanently `hidden` on mobile (no strip entry it can ever match). `tsc` is silent; this is a visibility bug, not a type error | on mobile, actually tap through: does the modal's main content ever appear, or only the sidebar/defaults pane? See §5's `WorkspaceShell.sidebar` warning |
 
 ---
 
