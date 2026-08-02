@@ -1,4 +1,4 @@
-import { Fragment, useState, useMemo } from "react";
+import { Fragment, useState, useMemo, useRef } from "react";
 import {
   Package,
   ChevronRightIcon,
@@ -455,6 +455,32 @@ export const StockPage = (): JSX.Element => {
     );
   };
 
+  // ปัดซ้าย-ขวาเปลี่ยนแท็บบนมือถือ (วนกลับเมื่อสุดขอบ) — คู่กับแถบแท็บด้านล่างจอ
+  // (mobile bottom tab bar ด้านล่าง). ใช้ touchstart/touchend เท่านั้น (ไม่ preventDefault
+  // ระหว่างทาง) ไม่ให้ไปแย่ง scroll แนวตั้งหรือการแตะปุ่ม/แถวที่ขยายได้ปกติ
+  const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const goToAdjacentTab = (direction: 1 | -1) => {
+    const i = stockTabs.findIndex((tb) => tb.key === activeTab);
+    const next = (i + direction + stockTabs.length) % stockTabs.length;
+    setActiveTab(stockTabs[next].key);
+  };
+  const handleTabSwipeStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  };
+  const handleTabSwipeEnd = (e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const dt = Date.now() - start.t;
+    const isSwipe = Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 600;
+    if (!isSwipe) return;
+    goToAdjacentTab(dx < 0 ? 1 : -1);
+  };
+
   return (
     <>
       {brandCategoryOpen && (
@@ -510,18 +536,30 @@ export const StockPage = (): JSX.Element => {
       {addSetsOpen && <AddSetsModal onClose={() => setAddSetsOpen(false)} />}
       {disposeOpen && <DisposeModal onClose={() => setDisposeOpen(false)} />}
 
-      <div className="flex items-center gap-2 pr-2 md:pr-4 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0">
+      {/* Desktop/tablet: tabs live in this top bar (ScrollTabs). Mobile: tabs move to
+          a fixed bottom bar (below) — reachable with a thumb — and this strip just
+          keeps the edit-lock toggle visible; ScrollTabs itself is hidden, not unmounted
+          state-wise, it's the same activeTab driving both. */}
+      <div className="flex items-center gap-2 pr-2 md:pr-4 py-2 md:py-0 border-b border-fg/[0.06] bg-surface-1 flex-shrink-0">
         <ScrollTabs
           tabs={stockTabs.map((tab) => ({ key: tab.key, label: t(tab.labelKey), Icon: tab.icon }))}
           active={activeTab}
           onChange={(k) => setActiveTab(k as StockTab)}
           variant="underline"
-          className="flex-1 min-w-0 px-2 md:px-4 pt-2 md:pt-3"
+          className="hidden md:block flex-1 min-w-0 px-2 md:px-4 pt-2 md:pt-3"
           testIdPrefix="tab-stock"
         />
-        {canManage && <StockEditModeToggle />}
+        {canManage && <div className="ml-auto"><StockEditModeToggle /></div>}
       </div>
 
+      {/* Swipe left/right on mobile to move between tabs, wrapping at the ends —
+          pairs with the bottom tab bar below. touchstart/touchend only (no
+          preventDefault mid-gesture) so vertical scroll and taps are untouched. */}
+      <div
+        className="flex flex-col flex-1 overflow-hidden"
+        onTouchStart={handleTabSwipeStart}
+        onTouchEnd={handleTabSwipeEnd}
+      >
       {activeTab === "inventory" && (
         <div className="flex flex-row flex-1 overflow-hidden">
           {/* Filter sidebar — inline rail on tablet/desktop only. On mobile the same
@@ -565,7 +603,7 @@ export const StockPage = (): JSX.Element => {
               onSearchChange={setSearchQuery}
             />
             <div className="flex flex-row flex-1 overflow-hidden">
-              <div className="flex-1 overflow-auto p-2 md:p-4">
+              <div className="flex-1 overflow-auto p-2 pb-24 md:p-4">
                 <StockItemsTableSection
                   selectedBrands={selectedBrands}
                   selectedCategories={selectedCategories}
@@ -618,7 +656,7 @@ export const StockPage = (): JSX.Element => {
             )}
           </div>
 
-          <div className="flex-1 overflow-auto p-2.5 md:p-4">
+          <div className="flex-1 overflow-auto p-2.5 pb-24 md:p-4">
           {containers.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
               <Layers className="w-10 h-10" />
@@ -774,7 +812,7 @@ export const StockPage = (): JSX.Element => {
           </div>
 
           {/* Grid of sets */}
-          <div className="flex-1 overflow-auto p-2.5 md:p-4">
+          <div className="flex-1 overflow-auto p-2.5 pb-24 md:p-4">
             {equipmentSets.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
                 <Boxes className="w-10 h-10" />
@@ -880,7 +918,7 @@ export const StockPage = (): JSX.Element => {
             )}
           </div>
 
-          <div className="flex-1 overflow-auto p-2 md:p-6">
+          <div className="flex-1 overflow-auto p-2 pb-24 md:p-6">
           <div className="bg-surface-1 border border-fg/[0.06] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2">
               <Wrench className="w-4 h-4 text-brand flex-shrink-0" aria-hidden="true" />
@@ -1314,7 +1352,7 @@ export const StockPage = (): JSX.Element => {
             <span className="ml-auto text-[11px] text-fg/40 italic">{t("subRentalsManageHint")}</span>
           </div>
 
-          <div className="flex-1 overflow-auto p-2.5 md:p-6">
+          <div className="flex-1 overflow-auto p-2.5 pb-24 md:p-6">
           <div className="bg-surface-1 border border-purple-500/15 rounded-xl overflow-hidden">
             <div className="px-3 md:px-4 py-2.5 md:py-3 border-b border-purple-500/10 flex items-center gap-2">
               <ArrowRightLeft className="w-4 h-4 text-purple-400" />
@@ -1399,7 +1437,7 @@ export const StockPage = (): JSX.Element => {
             )}
           </div>
 
-          <div className="flex-1 overflow-auto p-2 md:p-4">
+          <div className="flex-1 overflow-auto p-2 pb-24 md:p-4">
             {disposals.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-16 text-center text-fg/40">
                 <PackageMinus className="w-10 h-10" aria-hidden="true" />
@@ -1466,6 +1504,34 @@ export const StockPage = (): JSX.Element => {
           </div>
         </div>
       )}
+      </div>
+
+      {/* Mobile-only fixed bottom tab bar — replaces the top ScrollTabs on phones so
+          the tabs sit within thumb reach. Pairs with the swipe handlers above (same
+          activeTab/setActiveTab, wraps at the ends via goToAdjacentTab). */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-1 border-t border-fg/[0.06] safe-b">
+        <div className="grid grid-cols-6">
+          {stockTabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                aria-current={isActive ? "page" : undefined}
+                className={`tap-target flex flex-col items-center justify-center gap-1 min-h-[58px] py-1.5 px-0.5 transition-colors ${
+                  isActive ? "text-brand" : "text-fg/50"
+                }`}
+                data-testid={`bottomtab-stock-${tab.key}`}
+              >
+                <Icon className="w-7 h-7 flex-shrink-0" aria-hidden="true" />
+                <span className="text-[9px] font-semibold leading-none truncate max-w-full">{t(tab.labelKey)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </>
   );
 };
