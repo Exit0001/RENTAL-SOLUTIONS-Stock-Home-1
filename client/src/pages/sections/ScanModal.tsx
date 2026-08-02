@@ -149,12 +149,13 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
         </div>
       }
     >
-        {/* Body — two columns */}
-        <div className="flex flex-1 overflow-hidden">
+        {/* Body — two columns on tablet/desktop; stacked (scan panel first) on mobile
+            so the live scan input stays visible without a tab switch mid-scan */}
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
-          {/* LEFT: Manifest */}
-          <div className="flex-1 border-r border-fg/[0.06] flex flex-col overflow-hidden">
-            <div className="px-5 py-2.5 border-b border-fg/[0.04] flex items-center gap-2 flex-shrink-0">
+          {/* Manifest — second on mobile, left column on md+ */}
+          <div className="flex-1 min-h-0 order-2 md:order-1 md:border-r border-fg/[0.06] flex flex-col overflow-hidden">
+            <div className="px-3 md:px-5 py-2.5 border-b border-fg/[0.04] flex items-center gap-2 flex-shrink-0">
               <Package className="w-3.5 h-3.5 text-brand/40" />
               <span className="text-[10px] font-bold text-brand/40 uppercase tracking-widest">{t("scan.manifest")}</span>
               <div className="ml-auto flex items-center gap-2">
@@ -170,7 +171,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+            <div className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-5">
               {isLoading && (
                 <div className="flex items-center gap-2 text-fg/60 text-xs py-6">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("scan.loadingManifest")}
@@ -240,14 +241,14 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
             </div>
           </div>
 
-          {/* RIGHT: Scan panel */}
-          <div className="w-[280px] flex-shrink-0 flex flex-col px-5 py-4 gap-4">
+          {/* Scan panel — first on mobile (thumb reach, stays visible while scanning), right column on md+ */}
+          <div className="w-full md:w-[280px] flex-shrink-0 order-1 md:order-2 flex flex-col px-3 md:px-5 py-3 md:py-4 gap-3 md:gap-4 border-b md:border-b-0 border-fg/[0.06]">
 
             {/* Mode Toggle */}
             <div className="flex rounded-xl overflow-hidden border border-fg/[0.08] p-0.5 gap-0.5 bg-fg/[0.02]">
               <button
                 onClick={() => setMode("checkout")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`tap-target flex-1 flex items-center justify-center gap-1.5 py-2.5 md:py-2 rounded-lg text-xs font-bold transition-all ${
                   modeCheckout ? "bg-blue-500/20 text-blue-400" : "text-fg/60 hover:text-fg"
                 }`}
               >
@@ -255,7 +256,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
               </button>
               <button
                 onClick={() => setMode("return")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`tap-target flex-1 flex items-center justify-center gap-1.5 py-2.5 md:py-2 rounded-lg text-xs font-bold transition-all ${
                   !modeCheckout ? "bg-emerald-500/20 text-emerald-400" : "text-fg/60 hover:text-fg"
                 }`}
               >
@@ -334,7 +335,7 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
               </div>
               <button
                 onClick={onClose}
-                className="w-full h-9 rounded-xl text-sm font-medium text-fg/60 hover:text-fg hover:bg-fg/[0.06] border border-fg/[0.06] transition-colors"
+                className="tap-target w-full h-11 md:h-9 rounded-xl text-sm font-medium text-fg/60 hover:text-fg hover:bg-fg/[0.06] border border-fg/[0.06] transition-colors"
               >
                 {tc("done")}
               </button>
