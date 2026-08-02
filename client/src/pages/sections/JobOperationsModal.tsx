@@ -51,7 +51,7 @@ const phaseLabel = (phase: string) => {
 
 // Shared scan-log feed — same look across Pack / Dispatch / Return tabs
 const LogFeed = ({ entries, emptyHint }: { entries: LogEntry[]; emptyHint: string }): JSX.Element => (
-  <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1.5">
+  <div className="flex-1 overflow-y-auto px-3 md:px-5 py-3 space-y-1.5">
     {entries.length === 0 ? (
       <div className="flex flex-col items-center justify-center h-full text-fg/20 gap-2">
         <Hash className="w-8 h-8" />
@@ -547,16 +547,17 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             Left: scanner station  Right: inventory
         ════════════════════════════════════════ */}
         {!isLoading && tab === "pack" && (
-          <div className="flex flex-1 min-h-0">
+          <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
-            {/* ── Left: Scanner Station ──────────────────────── */}
+            {/* ── Left: Scanner Station — full width & capped height on mobile
+                (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-[400px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[42vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Active rack display — big, scanner-visible */}
               {activeRack ? (
-                <div className="px-5 pt-5 pb-4 border-b border-brand/15 bg-brand/[0.04] flex-shrink-0">
+                <div className="px-3 md:px-5 pt-5 pb-4 border-b border-brand/15 bg-brand/[0.04] flex-shrink-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <BoxSelect className="w-4 h-4 text-brand/60 flex-shrink-0 mt-0.5" />
@@ -595,7 +596,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                   )}
                 </div>
               ) : (
-                <div className="px-5 pt-5 pb-4 border-b border-fg/[0.06] flex-shrink-0">
+                <div className="px-3 md:px-5 pt-5 pb-4 border-b border-fg/[0.06] flex-shrink-0">
                   <p className="text-[10px] font-bold text-fg/30 uppercase tracking-widest mb-1">ยังไม่ได้เลือกแร็ค</p>
                   <p className="text-base font-bold text-fg/50">สแกน barcode แร็ค</p>
                   <p className="text-[11px] text-fg/30 mt-1">หรือเลือกจากรายการทางขวา</p>
@@ -603,7 +604,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               )}
 
               {/* Scan input */}
-              <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
+              <div className="px-3 md:px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
                 <div className="relative">
                   <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30 pointer-events-none" />
                   {scanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40 animate-spin" />}
@@ -626,7 +627,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               </div>
 
               {/* Scan log feed */}
-              <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1.5">
+              <div className="flex-1 overflow-y-auto px-3 md:px-5 py-3 space-y-1.5">
                 {scanLog.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-fg/20 gap-2">
                     <Hash className="w-8 h-8" />
@@ -681,7 +682,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                 <button
                   onClick={handleDownload}
                   disabled={downloading}
-                  className="w-full flex items-center justify-center gap-2 h-9 px-4 text-sm font-bold rounded-lg disabled:opacity-40 hover:opacity-90"
+                  className="tap-target w-full flex items-center justify-center gap-2 h-11 md:h-9 px-4 text-sm font-bold rounded-lg disabled:opacity-40 hover:opacity-90"
                   style={{ backgroundColor: "var(--brand)", color: "#000" }}
                 >
                   {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
@@ -693,7 +694,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Right: Inventory + Rack List ───────────────── */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               {/* Top bar: progress + rack chips + buttons */}
-              <div className="px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015] space-y-2">
+              <div className="px-3 md:px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015] space-y-2">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 bg-fg/10 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500" style={{ width: `${packProgress}%`, backgroundColor: "var(--brand)" }} />
@@ -925,15 +926,16 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             Left: scanner station  Right: rack list
         ════════════════════════════════════════ */}
         {!isLoading && tab === "dispatch" && (
-          <div className="flex flex-1 min-h-0">
+          <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
-            {/* ── Left: Scanner Station ──────────────────────── */}
+            {/* ── Left: Scanner Station — full width & capped height on mobile
+                (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-[400px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[42vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Mode context header */}
-              <div className="px-5 pt-5 pb-4 border-b border-blue-500/15 bg-blue-500/[0.04] flex-shrink-0">
+              <div className="px-3 md:px-5 pt-5 pb-4 border-b border-blue-500/15 bg-blue-500/[0.04] flex-shrink-0">
                 <div className="flex items-center gap-2 mb-2.5">
                   <Truck className="w-4 h-4 text-blue-400/60 flex-shrink-0" />
                   <div>
@@ -953,7 +955,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               </div>
 
               {/* Scan input */}
-              <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
+              <div className="px-3 md:px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
                 <div className="relative">
                   <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30 pointer-events-none" />
                   {scanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40 animate-spin" />}
@@ -978,7 +980,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Right: Rack list ───────────────────────────── */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               {/* Top bar: progress + dispatch button */}
-              <div className="px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015]">
+              <div className="px-3 md:px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015]">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 bg-fg/10 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500"
@@ -1005,10 +1007,10 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               {rackStats.map(({ rack, total, dispatched, isLoaded, isPartial }) => {
                 const pct = total > 0 ? Math.round((dispatched / total) * 100) : 0;
                 return (
-                  <div key={rack.id} className={`flex items-center gap-4 px-5 py-4 rounded-xl border transition-colors
+                  <div key={rack.id} className={`flex flex-wrap items-center gap-2 md:gap-4 px-3 md:px-5 py-3 md:py-4 rounded-xl border transition-colors
                     ${isLoaded ? "bg-green-500/5 border-green-500/20" : isPartial ? "bg-amber-500/5 border-amber-500/20" : "bg-fg/[0.02] border-fg/[0.06]"}`}>
                     {isLoaded ? <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" /> : <div className="w-5 h-5 rounded-full border-2 border-fg/20 flex-shrink-0" />}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-[140px]">
                       <div className="flex items-center gap-2">
                         <p className={`text-sm font-medium ${isLoaded ? "text-green-400" : "text-fg"}`}>{rack.name}</p>
                         {rack.type && <span className="text-xs text-fg/40">{rack.type}</span>}
@@ -1016,7 +1018,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                       </div>
                       <p className="text-xs text-fg/40 mt-0.5">{dispatched}/{total} dispatched</p>
                     </div>
-                    <div className="w-32 flex-shrink-0">
+                    <div className="w-20 md:w-32 flex-shrink-0">
                       <div className="bg-fg/10 rounded-full h-1.5 overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-500"
                           style={{ width: `${pct}%`, backgroundColor: isLoaded ? "#4ade80" : isPartial ? "#f59e0b" : "var(--brand)" }} />
@@ -1033,7 +1035,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                           qc.invalidateQueries({ queryKey: ["containers"] });
                           qc.invalidateQueries({ queryKey: ["stock"] });
                         }}
-                        className="flex items-center gap-1 h-7 px-3 rounded-lg text-xs font-bold border border-fg/10 text-fg/50 hover:text-fg hover:border-fg/30 transition-colors flex-shrink-0"
+                        className="tap-target flex items-center gap-1 h-7 px-3 rounded-lg text-xs font-bold border border-fg/10 text-fg/50 hover:text-fg hover:border-fg/30 transition-colors flex-shrink-0"
                       >
                         <Truck className="w-3 h-3" /> โหลด
                       </button>
@@ -1047,7 +1049,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                   <p className="text-[10px] font-bold text-fg/30 uppercase tracking-wider mb-2 px-1">ของที่ไม่อยู่ในแร็ค ({looseJobUnits.length})</p>
                   <div className="bg-fg/[0.02] border border-fg/[0.06] rounded-xl overflow-hidden">
                     {looseJobUnits.map((u, idx) => (
-                      <div key={u.id} className={`flex items-center gap-3 px-5 py-2.5 ${idx < looseJobUnits.length - 1 ? "border-b border-fg/[0.04]" : ""}`}>
+                      <div key={u.id} className={`flex items-center gap-3 px-3 md:px-5 py-2.5 ${idx < looseJobUnits.length - 1 ? "border-b border-fg/[0.04]" : ""}`}>
                         <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${phaseDot(u.phase)}`} />
                         <div className="flex-1 min-w-0">
                           <span className="text-sm text-fg">{u.itemName}</span>
@@ -1073,15 +1075,16 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             Left: scanner station  Right: manifest list
         ════════════════════════════════════════ */}
         {!isLoading && tab === "return" && (
-          <div className="flex flex-1 min-h-0">
+          <div className="flex flex-col md:flex-row flex-1 min-h-0">
 
-            {/* ── Left: Scanner Station ──────────────────────── */}
+            {/* ── Left: Scanner Station — full width & capped height on mobile
+                (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-[400px] flex-shrink-0 flex flex-col border-r border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[42vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => returnScanRef.current?.focus()}
             >
               {/* Mode context header */}
-              <div className="px-5 pt-5 pb-4 border-b border-emerald-500/15 bg-emerald-500/[0.04] flex-shrink-0">
+              <div className="px-3 md:px-5 pt-5 pb-4 border-b border-emerald-500/15 bg-emerald-500/[0.04] flex-shrink-0">
                 <div className="flex items-center gap-2 mb-2.5">
                   <RotateCcw className="w-4 h-4 text-emerald-400/60 flex-shrink-0" />
                   <div>
@@ -1101,7 +1104,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
               </div>
 
               {/* Scan input */}
-              <div className="px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
+              <div className="px-3 md:px-5 py-4 border-b border-fg/[0.06] flex-shrink-0">
                 <div className="relative">
                   <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30 pointer-events-none" />
                   {returnScanning && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40 animate-spin" />}
@@ -1126,7 +1129,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Right: Manifest list ───────────────────────── */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               {/* Top bar: progress */}
-              <div className="px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015]">
+              <div className="px-3 md:px-5 py-3 border-b border-fg/[0.06] flex-shrink-0 bg-fg/[0.015]">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 bg-fg/10 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500 bg-emerald-400"
