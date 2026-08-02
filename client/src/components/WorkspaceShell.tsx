@@ -69,12 +69,20 @@ export const WorkspaceShell = ({
     : [];
 
   const hasMobileStrip = isMobile && mobileStrip.length > 0;
-  // แท็บที่ active บนมือถือ: ใช้ activeTab ถ้าตรงกับตัวใดตัวหนึ่งใน strip, ไม่งั้น sidebar ก่อน, ไม่งั้นตัวแรก
+
+  // แท็บที่ active บนมือถือ: จำการแตะล่าสุดไว้เอง (manualMobileKey) เพราะ __sidebar ไม่มีอยู่ใน
+  // domain ของ activeTab ที่ parent ควบคุม — ถ้าอิง activeTab เป็นหลักอย่างเดียว การแตะกลับไปที่
+  // แท็บ sidebar จะไม่มีทางเกิดขึ้นได้เลยหลังจากออกจากมันไปแท็บอื่นแล้ว (แก้บั๊ก 2026-08-03)
+  const [manualMobileKey, setManualMobileKey] = React.useState<string | null>(null);
+  React.useEffect(() => { setManualMobileKey(null); }, [activeTab]);
+
   const mobileActive =
+    (manualMobileKey && mobileStrip.some((p) => p.key === manualMobileKey) && manualMobileKey) ||
     (activeTab && mobileStrip.some((p) => p.key === activeTab) && activeTab) ||
     (sidebar ? MOBILE_SIDEBAR_KEY : mobileStrip[0]?.key);
 
   const handleMobileTabChange = (key: string) => {
+    setManualMobileKey(key);
     if (key === MOBILE_SIDEBAR_KEY) return; // sidebar pane มีปุ่มของตัวเอง ไม่ผ่าน onTabChange
     onTabChange?.(key);
   };

@@ -552,12 +552,12 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Left: Scanner Station — full width & capped height on mobile
                 (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[42vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Active rack display — big, scanner-visible */}
               {activeRack ? (
-                <div className="px-3 md:px-5 pt-5 pb-4 border-b border-brand/15 bg-brand/[0.04] flex-shrink-0">
+                <div className="px-3 md:px-5 pt-3 pb-3 md:pt-5 md:pb-4 border-b border-brand/15 bg-brand/[0.04] flex-shrink-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <BoxSelect className="w-4 h-4 text-brand/60 flex-shrink-0 mt-0.5" />
@@ -596,10 +596,12 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                   )}
                 </div>
               ) : (
-                <div className="px-3 md:px-5 pt-5 pb-4 border-b border-fg/[0.06] flex-shrink-0">
+                <div className="px-3 md:px-5 pt-3 pb-3 md:pt-5 md:pb-4 border-b border-fg/[0.06] flex-shrink-0">
                   <p className="text-[10px] font-bold text-fg/30 uppercase tracking-widest mb-1">ยังไม่ได้เลือกแร็ค</p>
                   <p className="text-base font-bold text-fg/50">สแกน barcode แร็ค</p>
-                  <p className="text-[11px] text-fg/30 mt-1">หรือเลือกจากรายการทางขวา</p>
+                  <p className="text-[11px] text-fg/30 mt-1">
+                    หรือเลือกแร็คจากรายการ<span className="md:hidden">ด้านล่าง</span><span className="hidden md:inline">ทางขวา</span>
+                  </p>
                 </div>
               )}
 
@@ -677,13 +679,13 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                 )}
               </div>
 
-              {/* Download packing sheet */}
+              {/* Download packing sheet — secondary/utility action, kept low-key so it
+                  doesn't visually compete with the live scan log above it */}
               <div className="border-t border-fg/10 p-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={handleDownload}
                   disabled={downloading}
-                  className="tap-target w-full flex items-center justify-center gap-2 h-11 md:h-9 px-4 text-sm font-bold rounded-lg disabled:opacity-40 hover:opacity-90"
-                  style={{ backgroundColor: "var(--brand)", color: "#000" }}
+                  className="tap-target w-full flex items-center justify-center gap-2 h-11 md:h-9 px-4 text-sm font-medium rounded-lg border border-fg/10 text-fg/60 hover:text-fg hover:border-fg/20 disabled:opacity-40 transition-colors"
                 >
                   {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                   ดาวน์โหลด Packing Sheet
@@ -931,11 +933,11 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Left: Scanner Station — full width & capped height on mobile
                 (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[42vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Mode context header */}
-              <div className="px-3 md:px-5 pt-5 pb-4 border-b border-blue-500/15 bg-blue-500/[0.04] flex-shrink-0">
+              <div className="px-3 md:px-5 pt-3 pb-3 md:pt-5 md:pb-4 border-b border-blue-500/15 bg-blue-500/[0.04] flex-shrink-0">
                 <div className="flex items-center gap-2 mb-2.5">
                   <Truck className="w-4 h-4 text-blue-400/60 flex-shrink-0" />
                   <div>
@@ -1080,11 +1082,11 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Left: Scanner Station — full width & capped height on mobile
                 (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[42vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => returnScanRef.current?.focus()}
             >
               {/* Mode context header */}
-              <div className="px-3 md:px-5 pt-5 pb-4 border-b border-emerald-500/15 bg-emerald-500/[0.04] flex-shrink-0">
+              <div className="px-3 md:px-5 pt-3 pb-3 md:pt-5 md:pb-4 border-b border-emerald-500/15 bg-emerald-500/[0.04] flex-shrink-0">
                 <div className="flex items-center gap-2 mb-2.5">
                   <RotateCcw className="w-4 h-4 text-emerald-400/60 flex-shrink-0" />
                   <div>

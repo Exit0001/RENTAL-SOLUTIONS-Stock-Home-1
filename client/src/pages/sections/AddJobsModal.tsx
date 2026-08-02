@@ -5,6 +5,7 @@ import { jobsApi, jobTemplatesApi, crewApi, vehiclesApi, jobVehiclesApi } from "
 import type { CrewMemberRow, VehicleRow } from "@/api";
 import { useAppStore } from "@/store/appStore";
 import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { JobDailyScheduleDraftEditor, type DraftDaySchedule, type DraftDayCrewEntry } from "./JobDailyScheduleDraftEditor";
 import type { InsertJob } from "@shared/schema";
 
@@ -34,6 +35,7 @@ interface Props {
 
 export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
   const { token } = useAppStore();
+  const { isMobile } = useBreakpoint();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shortfallWarn, setShortfallWarn] = useState<number | null>(null);
@@ -146,73 +148,8 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
     }
   };
 
-  return (
-    <WorkspaceShell
-      icon={<Briefcase className="w-4 h-4 text-black" />}
-      title="เพิ่มงาน"
-      subtitle="สร้างงานหลายงานในหน้าเดียว — ใช้ค่าร่วมจากแถบซ้าย"
-      onClose={onClose}
-      sidebarTitle="ค่าร่วม (ใช้กับทุกงาน)"
-      sidebar={
-        <div className="p-4 flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>ลูกค้า (ค่าเริ่มต้น)</label>
-            <input value={defClient} onChange={(e) => setDefClient(e.target.value)} placeholder="เช่น Event Co. Ltd." className={inputCls} />
-            <p className="text-[9px] text-fg/30">ใส่ต่อแถวได้ถ้าลูกค้าต่างกัน</p>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>สถานที่</label>
-            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="เช่น BITEC Bangkok" className={inputCls} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>สถานะ</label>
-            <div className="flex gap-1.5">
-              {(["draft", "scheduled"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatus(s)}
-                  className={`tap-target flex-1 h-8 rounded-lg text-xs font-bold capitalize transition-colors ${status === s ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}
-                >
-                  {s === "draft" ? "ฉบับร่าง" : "กำหนดการแล้ว"}
-                </button>
-              ))}
-            </div>
-          </div>
-          {templates.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <label className={`${labelCls} flex items-center gap-1.5`}>
-                <LayoutTemplate className="w-3 h-3 text-brand/60" /> จากเทมเพลต
-              </label>
-              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={`${inputCls} [color-scheme:dark]`}>
-                <option value="">ไม่ใช้เทมเพลต</option>
-                {templates.map((tp) => (
-                  <option key={tp.id} value={tp.id}>{tp.name} ({tp.totalQty})</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {templateId && (
-            <p className="text-[10px] text-brand/70">อุปกรณ์จากเทมเพลตจะถูกเพิ่มให้ทุกงานที่สร้าง</p>
-          )}
-        </div>
-      }
-      footer={
-        <>
-          <div className="flex flex-col gap-1">
-            <div className="text-sm text-fg/70 font-medium">รวม {validRows.length} งาน</div>
-            {shortfallWarn !== null && shortfallWarn > 0 && (
-              <span className="text-[11px] text-amber-400">อุปกรณ์ไม่พอ {shortfallWarn} รายการ (สร้างงานแล้ว)</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <WSButton variant="ghost" onClick={onClose}>ยกเลิก</WSButton>
-            <WSButton variant="primary" onClick={submit} disabled={!canSave} pending={saving} icon={<Briefcase className="w-4 h-4" />}>
-              สร้างงานทั้งหมด
-            </WSButton>
-          </div>
-        </>
-      }
-    >
+  const mainContent = (
+    <>
       <div className="flex items-center gap-2 px-3 md:px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
         <span className="text-xs font-bold text-fg/50">รายการงานที่จะสร้าง</span>
         <button
@@ -322,6 +259,83 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
           <Plus className="w-4 h-4" />เพิ่มงาน
         </button>
       </div>
+    </>
+  );
+
+  return (
+    <WorkspaceShell
+      icon={<Briefcase className="w-4 h-4 text-black" />}
+      title="เพิ่มงาน"
+      subtitle="สร้างงานหลายงานในหน้าเดียว — ใช้ค่าร่วมจากแถบซ้าย"
+      onClose={onClose}
+      sidebarTitle="ค่าร่วม (ใช้กับทุกงาน)"
+      sidebar={
+        <div className="p-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>ลูกค้า (ค่าเริ่มต้น)</label>
+            <input value={defClient} onChange={(e) => setDefClient(e.target.value)} placeholder="เช่น Event Co. Ltd." className={inputCls} />
+            <p className="text-[9px] text-fg/30">ใส่ต่อแถวได้ถ้าลูกค้าต่างกัน</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>สถานที่</label>
+            <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="เช่น BITEC Bangkok" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>สถานะ</label>
+            <div className="flex gap-1.5">
+              {(["draft", "scheduled"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s)}
+                  className={`tap-target flex-1 h-8 rounded-lg text-xs font-bold capitalize transition-colors ${status === s ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}
+                >
+                  {s === "draft" ? "ฉบับร่าง" : "กำหนดการแล้ว"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {templates.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className={`${labelCls} flex items-center gap-1.5`}>
+                <LayoutTemplate className="w-3 h-3 text-brand/60" /> จากเทมเพลต
+              </label>
+              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className={`${inputCls} [color-scheme:dark]`}>
+                <option value="">ไม่ใช้เทมเพลต</option>
+                {templates.map((tp) => (
+                  <option key={tp.id} value={tp.id}>{tp.name} ({tp.totalQty})</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {templateId && (
+            <p className="text-[10px] text-brand/70">อุปกรณ์จากเทมเพลตจะถูกเพิ่มให้ทุกงานที่สร้าง</p>
+          )}
+        </div>
+      }
+      footer={
+        <>
+          <div className="flex flex-col gap-1">
+            <div className="text-sm text-fg/70 font-medium">รวม {validRows.length} งาน</div>
+            {shortfallWarn !== null && shortfallWarn > 0 && (
+              <span className="text-[11px] text-amber-400">อุปกรณ์ไม่พอ {shortfallWarn} รายการ (สร้างงานแล้ว)</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <WSButton variant="ghost" onClick={onClose}>ยกเลิก</WSButton>
+            <WSButton variant="primary" onClick={submit} disabled={!canSave} pending={saving} icon={<Briefcase className="w-4 h-4" />}>
+              สร้างงานทั้งหมด
+            </WSButton>
+          </div>
+        </>
+      }
+      // Mobile has no way to reach `children` when only `sidebar` is set (no `tabs`) —
+      // expose the job-rows list as its own mobilePane tab instead; desktop keeps
+      // rendering it via `children` in the row next to the sidebar, unchanged.
+      mobilePanes={[
+        { key: "form", label: "รายการงาน", Icon: Briefcase, keepMounted: true, content: mainContent },
+      ]}
+    >
+      {!isMobile && mainContent}
     </WorkspaceShell>
   );
 };

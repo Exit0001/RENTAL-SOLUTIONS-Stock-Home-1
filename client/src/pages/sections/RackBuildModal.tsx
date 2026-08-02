@@ -29,9 +29,11 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
   const { token }      = useAppStore();
   const qc             = useQueryClient();
   const inputRef       = useRef<HTMLInputElement>(null);
+  const rackScanRef    = useRef<HTMLInputElement>(null);
 
   const [activeRackId, setActiveRackId]   = useState<string | null>(null);
   const [value, setValue]                 = useState("");
+  const [rackScanValue, setRackScanValue] = useState("");
   const [scanning, setScanning]           = useState(false);
   const [feedback, setFeedback]           = useState<ScanFeedback | null>(null);
   const [search, setSearch]               = useState("");
@@ -76,7 +78,9 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
     return () => clearTimeout(t);
   }, [feedback]);
 
-  const handleScan = async (rawBarcode: string) => {
+  // ใช้ได้ทั้งจากช่องสแกนแร็คในรายการ (master, ยังไม่ได้เลือกแร็ค) และช่องสแกนของในแร็คที่เลือกอยู่
+  // (detail) — clearInput ให้แต่ละฝั่งเคลียร์ค่า/โฟกัสอินพุตของตัวเอง ไม่ผูกกับ ref/state ตัวใดตัวหนึ่ง
+  const handleScan = async (rawBarcode: string, clearInput: () => void) => {
     const barcode = rawBarcode.trim();
     if (!barcode) return;
 
@@ -87,14 +91,14 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
     if (matchedRack) {
       setActiveRackId(matchedRack.id);
       setFeedback({ type: "switch", message: `เปลี่ยนไปแร็ค: ${matchedRack.name}` });
-      setValue("");
+      clearInput();
       return;
     }
 
     // 2. ต้องเลือก rack ก่อนจึงจะเพิ่ม unit ได้
     if (!activeRackId) {
       setFeedback({ type: "error", message: "เลือกแร็คก่อน แล้วค่อยสแกนของ" });
-      setValue("");
+      clearInput();
       return;
     }
 
@@ -124,10 +128,12 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
       });
     } finally {
       setScanning(false);
-      setValue("");
-      inputRef.current?.focus();
+      clearInput();
     }
   };
+
+  const clearDetailScan = () => { setValue(""); inputRef.current?.focus(); };
+  const clearRackScan = () => { setRackScanValue(""); rackScanRef.current?.focus(); };
 
   const handleRemoveUnit = async (unitId: string) => {
     if (!activeRackId) return;
@@ -178,6 +184,37 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
           detailTitle={activeRack?.name}
           master={
           <div className="h-full flex flex-col md:border-r border-fg/10">
+            {/* Scan barcode แร็ค — เข้าโหมดจัดของโดยไม่ต้องแตะรายการ (สำคัญบนมือถือ:
+                เป็นทางเดียวที่จะเข้าไปสแกนของได้ก่อนเลือกแร็คจากรายการ) */}
+            <div className="px-3 pt-3 pb-2 flex-shrink-0">
+              <div className="relative">
+                <ScanLine className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30 pointer-events-none" />
+                <input
+                  ref={rackScanRef}
+                  type="text"
+                  value={rackScanValue}
+                  onChange={(e) => setRackScanValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleScan(rackScanValue, clearRackScan); }}
+                  placeholder="สแกน barcode แร็ค…"
+                  className="w-full h-11 bg-fg/[0.06] border border-fg/10 rounded-lg pl-10 pr-3 text-sm
+                    text-fg placeholder-fg/30 outline-none focus:border-brand/50"
+                />
+              </div>
+              {feedback && !activeRackId && (
+                <div
+                  className={`mt-2 flex items-start gap-2 text-xs rounded-lg px-3 py-2
+                    ${feedback.type === "success" ? "bg-green-500/10 text-green-400" :
+                      feedback.type === "switch"  ? "bg-brand/10 text-brand" :
+                                                    "bg-red-500/10 text-red-400"}`}
+                >
+                  {feedback.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> :
+                   feedback.type === "switch"   ? <Boxes className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" /> :
+                                                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />}
+                  <span>{feedback.message}</span>
+                </div>
+              )}
+            </div>
+
             {/* Search */}
             <div className="px-3 py-2 border-b border-fg/[0.06]">
               <div className="flex items-center gap-2 bg-fg/[0.04] rounded-lg px-3 py-1.5">
@@ -255,27 +292,12 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
           detail={
           <div className="h-full flex flex-col min-w-0">
             {!activeRack ? (
-              /* ยังไม่เลือก rack */
-              <div className="flex-1 flex flex-col items-center justify-center gap-4 text-fg/30">
+              /* ยังไม่เลือก rack — สแกน barcode แร็คได้จากช่องด้านซ้าย (รายการแร็ค) */
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-fg/30 px-6 text-center">
                 <ScanLine className="w-16 h-16" />
-                <div className="text-center">
+                <div>
                   <p className="text-base font-medium text-fg/40">เลือกแร็คก่อน</p>
-                  <p className="text-sm mt-1">คลิกที่รายการซ้ายมือ หรือสแกน barcode แร็ค</p>
-                </div>
-                {/* Scan input สำหรับ switch rack ด้วย barcode */}
-                <div className="mt-4 w-80">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleScan(value);
-                    }}
-                    placeholder="สแกน barcode แร็ค..."
-                    className="w-full bg-fg/[0.06] border border-fg/10 rounded-lg px-4 py-2.5 text-sm
-                      text-fg placeholder-fg/30 outline-none focus:border-brand/50"
-                  />
+                  <p className="text-sm mt-1">คลิกที่รายการ หรือสแกน barcode แร็คทางซ้าย</p>
                 </div>
               </div>
             ) : (
@@ -313,7 +335,7 @@ export const RackBuildModal = ({ open, onClose, jobId, jobName }: Props): JSX.El
                         value={value}
                         onChange={(e) => setValue(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleScan(value);
+                          if (e.key === "Enter") handleScan(value, clearDetailScan);
                         }}
                         placeholder="สแกนหรือพิมพ์ barcode แล้วกด Enter..."
                         className="w-full h-11 md:h-auto bg-fg/[0.06] border border-fg/10 rounded-lg pl-10 pr-4 py-2.5 text-sm

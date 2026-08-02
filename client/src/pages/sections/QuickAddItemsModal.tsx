@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
 import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import type { Brand, Category, SubCategory } from "@shared/schema";
 
 type UnitDraft = { serial: string; barcode: string; purchasedAt: string; warrantyExpiresAt: string };
@@ -96,6 +97,7 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
+  const { isMobile } = useBreakpoint();
 
   const { data: brands = [] } = useQuery({ queryKey: ["catalog", "brands"], queryFn: catalogApi.getBrands, enabled: !!token });
   const { data: categories = [] } = useQuery({ queryKey: ["catalog", "categories"], queryFn: catalogApi.getCategories, enabled: !!token });
@@ -186,61 +188,8 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
 
   const labelCls = "text-[10px] text-fg/50 uppercase tracking-wider font-medium";
 
-  return (
-    <WorkspaceShell
-      icon={<Zap className="w-4 h-4 text-black" />}
-      title={t("quickAdd.title", { defaultValue: "เพิ่มสินค้า" })}
-      subtitle={t("quickAdd.subtitle", { defaultValue: "เพิ่มหลายรายการในหน้าเดียว — คนละแบรนด์/หมวดได้" })}
-      onClose={onClose}
-      sidebarTitle={t("quickAdd.defaults", { defaultValue: "ค่าเริ่มต้น (ปรับรายรุ่นได้)" })}
-      sidebar={
-        <div className="p-4 flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>{tc("brand")}</label>
-              <Combo value={defBrand} onChange={changeDefBrand} options={brandOptions} placeholder={tc("selectPlaceholder")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>{tc("category")}</label>
-              <Combo value={defCategory} onChange={changeDefCategory} options={categoryOptions} placeholder={tc("selectPlaceholder")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>{tc("subCategory")}</label>
-              <Combo value={defSub} onChange={changeDefSub} options={subsFor(defCategory)}
-                placeholder={tc("selectPlaceholder")} disabled={!defCategory}
-                disabledHint={t("addNewItem.selectCategoryFirst", { defaultValue: "เลือกหมวดหมู่ก่อน" })} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>{t("addNewItem.trackingModeLabel", { defaultValue: "โหมดการติดตาม" })}</label>
-              <div className="flex gap-1">
-                {([["unit", t("addNewItem.trackingModeUnit", { defaultValue: "รายชิ้น" })], ["bulk", t("addNewItem.trackingModeBulk", { defaultValue: "จำนวน (Bulk)" })]] as const).map(([m, label]) => (
-                  <button key={m} onClick={() => setMode(m)}
-                    className={`tap-target flex-1 h-8 rounded-lg text-xs font-bold transition-colors ${mode === m ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="h-px bg-fg/[0.06] my-1" />
-            <p className="text-[10px] text-fg/40">{t("quickAdd.sharedInfo", { defaultValue: "ข้อมูลร่วม (ใช้กับทุกรายการ)" })}</p>
-            <Field label={t("addNewItem.manufacturerLabel", { defaultValue: "ผู้ผลิต" })} value={manufacturer} onChange={setManufacturer} />
-            <Field label={t("addNewItem.manufacturerCountry", { defaultValue: "ประเทศผู้ผลิต" })} value={country} onChange={setCountry} />
-            <Field label={tc("location")} value={location} onChange={setLocation} />
-        </div>
-      }
-      footer={
-        <>
-          <div className="text-sm text-fg/70 font-medium">
-            {t("quickAdd.summary", { defaultValue: "รวม {{models}} รุ่น · {{units}} {{unit}}", models: totalModels, units: totalUnits, unit: unitLabel })}
-          </div>
-          <div className="flex items-center gap-2">
-            <WSButton variant="ghost" onClick={onClose}>{tc("cancel")}</WSButton>
-            <WSButton variant="primary" onClick={submit} disabled={!canSave} pending={isPending} icon={<Zap className="w-4 h-4" />}>
-              {t("quickAdd.saveAll", { defaultValue: "บันทึกทั้งหมด" })}
-            </WSButton>
-          </div>
-        </>
-      }
-    >
+  const mainContent = (
+    <>
       <div className="flex items-center gap-2 px-3 md:px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
         <span className="text-xs font-bold text-fg/50">{t("quickAdd.itemsList", { defaultValue: "รายการที่จะเพิ่ม" })}</span>
         <button onClick={addRow} className="tap-target ml-auto h-9 px-4 rounded-lg text-sm font-bold text-brand border border-brand/30 hover:bg-brand/10 flex items-center gap-1.5 transition-colors">
@@ -334,6 +283,71 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
               <Plus className="w-4 h-4" />{t("quickAdd.addModel", { defaultValue: "เพิ่มรายการ" })}
             </button>
           </div>
+    </>
+  );
+
+  return (
+    <WorkspaceShell
+      icon={<Zap className="w-4 h-4 text-black" />}
+      title={t("quickAdd.title", { defaultValue: "เพิ่มสินค้า" })}
+      subtitle={t("quickAdd.subtitle", { defaultValue: "เพิ่มหลายรายการในหน้าเดียว — คนละแบรนด์/หมวดได้" })}
+      onClose={onClose}
+      sidebarTitle={t("quickAdd.defaults", { defaultValue: "ค่าเริ่มต้น (ปรับรายรุ่นได้)" })}
+      sidebar={
+        <div className="p-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>{tc("brand")}</label>
+              <Combo value={defBrand} onChange={changeDefBrand} options={brandOptions} placeholder={tc("selectPlaceholder")} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>{tc("category")}</label>
+              <Combo value={defCategory} onChange={changeDefCategory} options={categoryOptions} placeholder={tc("selectPlaceholder")} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>{tc("subCategory")}</label>
+              <Combo value={defSub} onChange={changeDefSub} options={subsFor(defCategory)}
+                placeholder={tc("selectPlaceholder")} disabled={!defCategory}
+                disabledHint={t("addNewItem.selectCategoryFirst", { defaultValue: "เลือกหมวดหมู่ก่อน" })} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelCls}>{t("addNewItem.trackingModeLabel", { defaultValue: "โหมดการติดตาม" })}</label>
+              <div className="flex gap-1">
+                {([["unit", t("addNewItem.trackingModeUnit", { defaultValue: "รายชิ้น" })], ["bulk", t("addNewItem.trackingModeBulk", { defaultValue: "จำนวน (Bulk)" })]] as const).map(([m, label]) => (
+                  <button key={m} onClick={() => setMode(m)}
+                    className={`tap-target flex-1 h-8 rounded-lg text-xs font-bold transition-colors ${mode === m ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="h-px bg-fg/[0.06] my-1" />
+            <p className="text-[10px] text-fg/40">{t("quickAdd.sharedInfo", { defaultValue: "ข้อมูลร่วม (ใช้กับทุกรายการ)" })}</p>
+            <Field label={t("addNewItem.manufacturerLabel", { defaultValue: "ผู้ผลิต" })} value={manufacturer} onChange={setManufacturer} />
+            <Field label={t("addNewItem.manufacturerCountry", { defaultValue: "ประเทศผู้ผลิต" })} value={country} onChange={setCountry} />
+            <Field label={tc("location")} value={location} onChange={setLocation} />
+        </div>
+      }
+      footer={
+        <>
+          <div className="text-sm text-fg/70 font-medium">
+            {t("quickAdd.summary", { defaultValue: "รวม {{models}} รุ่น · {{units}} {{unit}}", models: totalModels, units: totalUnits, unit: unitLabel })}
+          </div>
+          <div className="flex items-center gap-2">
+            <WSButton variant="ghost" onClick={onClose}>{tc("cancel")}</WSButton>
+            <WSButton variant="primary" onClick={submit} disabled={!canSave} pending={isPending} icon={<Zap className="w-4 h-4" />}>
+              {t("quickAdd.saveAll", { defaultValue: "บันทึกทั้งหมด" })}
+            </WSButton>
+          </div>
+        </>
+      }
+      // Mobile has no way to reach `children` when only `sidebar` is set (no `tabs`) —
+      // expose the item-rows list as its own mobilePane tab; desktop keeps rendering
+      // it via `children` in the row next to the sidebar, unchanged.
+      mobilePanes={[
+        { key: "form", label: t("quickAdd.itemsList", { defaultValue: "รายการที่จะเพิ่ม" }), Icon: Zap, keepMounted: true, content: mainContent },
+      ]}
+    >
+      {!isMobile && mainContent}
     </WorkspaceShell>
   );
 };

@@ -7,6 +7,7 @@ import { stockApi, containersApi } from "@/api";
 import type { StockItemWithUnits, ContainerWithItems } from "@/api";
 import type { StockUnit } from "@shared/schema";
 import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
+import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { PaneTabs } from "@/components/PaneTabs";
 import { ManageContainerUnitsCatalogPane } from "./ManageContainerUnitsCatalogPane";
 import { ManageContainerUnitsCartPane } from "./ManageContainerUnitsCartPane";
@@ -27,6 +28,7 @@ export const ManageContainerUnitsModal = ({ containers, initialContainerId, onCl
   const { t } = useTranslation("modals");
   const { t: tc } = useTranslation("common");
   const { token } = useAppStore();
+  const { isMobile } = useBreakpoint();
   const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -131,6 +133,47 @@ export const ManageContainerUnitsModal = ({ containers, initialContainerId, onCl
 
   const activeContainer = containers.find((c) => c.id === activeId);
 
+  // Catalog + cart split — tabs on mobile, side-by-side on md+. search/expanded state
+  // lives here in the parent (not inside the catalog pane), so it survives a mobile
+  // tab switch regardless of keepMounted; kept true anyway per convention.
+  const mainContent = (
+    <PaneTabs
+      active={activePane}
+      onChange={(k) => setActivePane(k as "catalog" | "cart")}
+      panes={[
+        {
+          key: "catalog", label: "เลือกของ", Icon: Search, keepMounted: true,
+          node: (
+            <ManageContainerUnitsCatalogPane
+              stockGroups={stockGroups}
+              isLoading={isLoading}
+              search={search}
+              onSearchChange={setSearch}
+              categoryFilter={categoryFilter}
+              onCategoryFilterChange={setCategoryFilter}
+              expanded={expanded}
+              onToggleGroupExpand={toggleGroupExpand}
+              selectedIds={activeSet}
+              onToggleUnit={toggleUnit}
+              onToggleSelectAll={toggleSelectAll}
+            />
+          ),
+        },
+        {
+          key: "cart", label: "ในแร็คนี้", Icon: ShoppingCart,
+          badge: activeSet.size > 0 ? <span className="text-[10px] font-bold text-brand">{activeSet.size}</span> : undefined,
+          node: (
+            <ManageContainerUnitsCartPane
+              stockGroups={stockGroups}
+              selectedIds={activeSet}
+              onUnitRemove={toggleUnit}
+            />
+          ),
+        },
+      ]}
+    />
+  );
+
   return (
     <WorkspaceShell
       icon={<Layers className="w-4 h-4 text-black" />}
@@ -191,45 +234,14 @@ export const ManageContainerUnitsModal = ({ containers, initialContainerId, onCl
           </div>
         </>
       }
+      // Mobile has no way to reach `children` when only `sidebar` is set (no `tabs`) —
+      // expose the catalog/cart PaneTabs as its own mobilePane tab; desktop keeps
+      // rendering it via `children` in the row next to the sidebar, unchanged.
+      mobilePanes={[
+        { key: "picker", label: "เลือกของ", Icon: Search, keepMounted: true, content: mainContent },
+      ]}
     >
-      {/* Catalog + cart split — tabs on mobile, side-by-side on md+. search/expanded
-          state lives here in the parent (not inside the catalog pane), so it survives
-          a mobile tab switch regardless of keepMounted; kept true anyway per convention. */}
-      <PaneTabs
-        active={activePane}
-        onChange={(k) => setActivePane(k as "catalog" | "cart")}
-        panes={[
-          {
-            key: "catalog", label: "เลือกของ", Icon: Search, keepMounted: true,
-            node: (
-              <ManageContainerUnitsCatalogPane
-                stockGroups={stockGroups}
-                isLoading={isLoading}
-                search={search}
-                onSearchChange={setSearch}
-                categoryFilter={categoryFilter}
-                onCategoryFilterChange={setCategoryFilter}
-                expanded={expanded}
-                onToggleGroupExpand={toggleGroupExpand}
-                selectedIds={activeSet}
-                onToggleUnit={toggleUnit}
-                onToggleSelectAll={toggleSelectAll}
-              />
-            ),
-          },
-          {
-            key: "cart", label: "ในแร็คนี้", Icon: ShoppingCart,
-            badge: activeSet.size > 0 ? <span className="text-[10px] font-bold text-brand">{activeSet.size}</span> : undefined,
-            node: (
-              <ManageContainerUnitsCartPane
-                stockGroups={stockGroups}
-                selectedIds={activeSet}
-                onUnitRemove={toggleUnit}
-              />
-            ),
-          },
-        ]}
-      />
+      {!isMobile && mainContent}
     </WorkspaceShell>
   );
 };
