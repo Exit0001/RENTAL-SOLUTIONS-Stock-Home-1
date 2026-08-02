@@ -214,7 +214,7 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
               <div className="flex gap-1">
                 {([["unit", t("addNewItem.trackingModeUnit", { defaultValue: "รายชิ้น" })], ["bulk", t("addNewItem.trackingModeBulk", { defaultValue: "จำนวน (Bulk)" })]] as const).map(([m, label]) => (
                   <button key={m} onClick={() => setMode(m)}
-                    className={`flex-1 h-8 rounded-lg text-xs font-bold transition-colors ${mode === m ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}>
+                    className={`tap-target flex-1 h-8 rounded-lg text-xs font-bold transition-colors ${mode === m ? "bg-brand text-black" : "bg-fg/5 text-fg/60 hover:text-fg"}`}>
                     {label}
                   </button>
                 ))}
@@ -241,14 +241,14 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
         </>
       }
     >
-      <div className="flex items-center gap-2 px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 md:px-6 py-2.5 border-b border-fg/[0.06] flex-shrink-0">
         <span className="text-xs font-bold text-fg/50">{t("quickAdd.itemsList", { defaultValue: "รายการที่จะเพิ่ม" })}</span>
-        <button onClick={addRow} className="ml-auto h-9 px-4 rounded-lg text-sm font-bold text-brand border border-brand/30 hover:bg-brand/10 flex items-center gap-1.5 transition-colors">
+        <button onClick={addRow} className="tap-target ml-auto h-9 px-4 rounded-lg text-sm font-bold text-brand border border-brand/30 hover:bg-brand/10 flex items-center gap-1.5 transition-colors">
           <Plus className="w-4 h-4" />{t("quickAdd.addModel", { defaultValue: "เพิ่มรายการ" })}
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-2">
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 flex flex-col gap-2">
             {rows.map((r) => {
               const n = qtyOf(r);
               const canExpand = mode === "unit" && n > 0;
@@ -262,7 +262,7 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
                       <Combo compact value={r.subCategory} onChange={(v) => setField(r.id, "subCategory", v)} options={subsFor(r.category)}
                         placeholder={tc("subCategory")} disabled={!r.category} disabledHint={tc("subCategory")} />
                     </div>
-                    <button onClick={() => removeRow(r.id)} className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-fg/40 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                    <button onClick={() => removeRow(r.id)} className="tap-target w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-fg/40 hover:text-red-400 hover:bg-red-500/10 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -270,7 +270,7 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
                   <div className="grid grid-cols-[1.5rem_1fr_5rem] gap-1.5 items-center">
                     {canExpand ? (
                       <button onClick={() => toggleOpen(r.id)} title={t("quickAdd.unitDetails", { defaultValue: "รายละเอียดหน่วย" })}
-                        className="w-6 h-8 flex items-center justify-center text-fg/40 hover:text-brand transition-colors">
+                        className="tap-target w-6 h-8 flex items-center justify-center text-fg/40 hover:text-brand transition-colors">
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${r.open ? "" : "-rotate-90"}`} />
                       </button>
                     ) : <span />}
@@ -330,7 +330,7 @@ export const QuickAddItemsModal = ({ onClose, onSubmit, isPending }: Props): JSX
             })}
 
             <button onClick={addRow}
-              className="w-full h-10 rounded-xl border border-dashed border-fg/15 hover:border-brand/50 text-fg/60 hover:text-brand text-sm font-medium flex items-center justify-center gap-2 transition-all">
+              className="tap-target w-full h-11 md:h-10 rounded-xl border border-dashed border-fg/15 hover:border-brand/50 text-fg/60 hover:text-brand text-sm font-medium flex items-center justify-center gap-2 transition-all">
               <Plus className="w-4 h-4" />{t("quickAdd.addModel", { defaultValue: "เพิ่มรายการ" })}
             </button>
           </div>
