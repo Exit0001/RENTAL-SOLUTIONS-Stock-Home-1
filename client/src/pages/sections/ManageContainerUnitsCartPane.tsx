@@ -38,13 +38,13 @@ export const ManageContainerUnitsCartPane = ({ stockGroups, selectedIds, onUnitR
   }, [stockGroups, selectedIds]);
 
   return (
-    <div className="w-[38%] min-w-[260px] flex flex-col">
-      <div className="px-4 pt-4 pb-2 flex-shrink-0 flex items-center justify-between">
+    <div className="w-full md:w-[38%] md:min-w-[260px] flex flex-col">
+      <div className="px-3 md:px-4 pt-4 pb-2 flex-shrink-0 flex items-center justify-between">
         <span className="text-xs font-bold text-fg/80">{t("manageJobStock.cartTitle")}</span>
         <span className="text-[10px] text-fg/60">{t("manageContainerUnits.selectedCount", { count: selectedIds.size })}</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-3 md:px-4 pb-4 space-y-3">
         {groups.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <PackageOpen className="w-8 h-8 text-fg/30" />
@@ -73,7 +73,7 @@ export const ManageContainerUnitsCartPane = ({ stockGroups, selectedIds, onUnitR
                       </p>
                     )}
                   </div>
-                  <button onClick={() => onUnitRemove(unitId)} className="text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
+                  <button onClick={() => onUnitRemove(unitId)} className="tap-target text-fg/30 hover:text-red-400 transition-colors flex-shrink-0">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Layers, Save, Package } from "lucide-react";
+import { Layers, Save, Package, Search, ShoppingCart } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
@@ -7,6 +7,7 @@ import { stockApi, containersApi } from "@/api";
 import type { StockItemWithUnits, ContainerWithItems } from "@/api";
 import type { StockUnit } from "@shared/schema";
 import { WorkspaceShell, WSButton } from "@/components/WorkspaceShell";
+import { PaneTabs } from "@/components/PaneTabs";
 import { ManageContainerUnitsCatalogPane } from "./ManageContainerUnitsCatalogPane";
 import { ManageContainerUnitsCartPane } from "./ManageContainerUnitsCartPane";
 
@@ -33,6 +34,7 @@ export const ManageContainerUnitsModal = ({ containers, initialContainerId, onCl
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activePane, setActivePane] = useState<"catalog" | "cart">("catalog");
 
   // เลือกแร็คที่กำลังจัด
   const [activeId, setActiveId] = useState<string>(initialContainerId ?? containers[0]?.id ?? "");
@@ -190,26 +192,44 @@ export const ManageContainerUnitsModal = ({ containers, initialContainerId, onCl
         </>
       }
     >
-      <div className="flex-1 min-h-0 flex flex-row">
-        <ManageContainerUnitsCatalogPane
-          stockGroups={stockGroups}
-          isLoading={isLoading}
-          search={search}
-          onSearchChange={setSearch}
-          categoryFilter={categoryFilter}
-          onCategoryFilterChange={setCategoryFilter}
-          expanded={expanded}
-          onToggleGroupExpand={toggleGroupExpand}
-          selectedIds={activeSet}
-          onToggleUnit={toggleUnit}
-          onToggleSelectAll={toggleSelectAll}
-        />
-        <ManageContainerUnitsCartPane
-          stockGroups={stockGroups}
-          selectedIds={activeSet}
-          onUnitRemove={toggleUnit}
-        />
-      </div>
+      {/* Catalog + cart split — tabs on mobile, side-by-side on md+. search/expanded
+          state lives here in the parent (not inside the catalog pane), so it survives
+          a mobile tab switch regardless of keepMounted; kept true anyway per convention. */}
+      <PaneTabs
+        active={activePane}
+        onChange={(k) => setActivePane(k as "catalog" | "cart")}
+        panes={[
+          {
+            key: "catalog", label: "เลือกของ", Icon: Search, keepMounted: true,
+            node: (
+              <ManageContainerUnitsCatalogPane
+                stockGroups={stockGroups}
+                isLoading={isLoading}
+                search={search}
+                onSearchChange={setSearch}
+                categoryFilter={categoryFilter}
+                onCategoryFilterChange={setCategoryFilter}
+                expanded={expanded}
+                onToggleGroupExpand={toggleGroupExpand}
+                selectedIds={activeSet}
+                onToggleUnit={toggleUnit}
+                onToggleSelectAll={toggleSelectAll}
+              />
+            ),
+          },
+          {
+            key: "cart", label: "ในแร็คนี้", Icon: ShoppingCart,
+            badge: activeSet.size > 0 ? <span className="text-[10px] font-bold text-brand">{activeSet.size}</span> : undefined,
+            node: (
+              <ManageContainerUnitsCartPane
+                stockGroups={stockGroups}
+                selectedIds={activeSet}
+                onUnitRemove={toggleUnit}
+              />
+            ),
+          },
+        ]}
+      />
     </WorkspaceShell>
   );
 };
