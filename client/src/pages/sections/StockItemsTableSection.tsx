@@ -24,32 +24,48 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
 import { ResponsiveTable } from "@/components/ResponsiveTable";
+import { toDateInput } from "@/lib/dateUtils";
 import { stockApi } from "@/api";
 import type { StockUnitWithPlan, StockItemWithUnits } from "@/api";
 import type { StockItem, StockUnit } from "@shared/schema";
 
-type StockItemWithCount = StockItem & { unitCount: number; availableCount: number; plannedCount?: number; sets?: { id: string; name: string }[] };
+type PlannedJobRef = { id: string; name: string; startDate: string | Date; endDate: string | Date };
+type StockItemWithCount = StockItem & { unitCount: number; availableCount: number; plannedCount?: number; conflictCount?: number; plannedJobs?: PlannedJobRef[]; sets?: { id: string; name: string }[] };
 
-const AvailabilityBadge = ({ available, total, planned }: { available: number; total: number; planned?: number }) => {
+const AvailabilityBadge = ({ available, total, planned, conflicts, plannedJobs }: {
+  available: number; total: number; planned?: number; conflicts?: number;
+  plannedJobs?: { id: string; name: string; startDate: string | Date; endDate: string | Date }[];
+}) => {
   const { t } = useTranslation("stock");
-  const free          = available - (planned ?? 0);
-  const allFree       = free === total && total > 0;
-  const noneFree      = free === 0 && available === 0;
-  const hasPlanned    = (planned ?? 0) > 0;
+  // Availability = PHYSICAL stock only. Being reserved for an upcoming job does NOT make
+  // a unit unavailable — it's still on the shelf until someone scans it out. Only
+  // status 'out'/'maintenance' reduces this. (Sync Contract, CLAUDE.md.)
+  const allFree     = available === total && total > 0;
+  const noneFree    = available === 0;
+  const hasPlanned  = (planned ?? 0) > 0;
+  const hasConflict = (conflicts ?? 0) > 0;
 
-  const color = allFree && !hasPlanned
+  const color = allFree
     ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/40"
     : noneFree
     ? "bg-red-950/60 text-red-400 border-red-800/40"
     : "bg-amber-950/60 text-amber-400 border-amber-800/40";
 
-  const dot = allFree && !hasPlanned ? "bg-emerald-400" : noneFree ? "bg-red-400" : "bg-amber-400";
+  const dot = allFree ? "bg-emerald-400" : noneFree ? "bg-red-400" : "bg-amber-400";
 
-  const label = allFree && !hasPlanned
+  const label = allFree
     ? t("allAvailable")
     : noneFree
     ? t("unavailable")
-    : t("availableOfTotal", { available: free, total });
+    : t("availableOfTotal", { available, total });
+
+  const fmtRange = (j: { startDate: string | Date; endDate: string | Date }) => {
+    const opts = { day: "numeric", month: "short" } as const;
+    const s = new Date(j.startDate).toLocaleDateString("th-TH", opts);
+    const e = new Date(j.endDate).toLocaleDateString("th-TH", opts);
+    return s === e ? s : `${s}–${e}`;
+  };
+  const jobsTitle = (plannedJobs ?? []).map((j) => `${j.name} (${fmtRange(j)})`).join("\n");
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
@@ -57,10 +73,30 @@ const AvailabilityBadge = ({ available, total, planned }: { available: number; t
         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
         {label}
       </span>
+      {/* Informational only — "N of these are going out to job X". Does not affect
+          availability above; the gear is still in the warehouse. */}
       {hasPlanned && (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold border bg-blue-950/50 text-blue-300 border-blue-800/40 whitespace-nowrap">
+        <span
+          title={jobsTitle ? `จะไปออกงาน:\n${jobsTitle}` : undefined}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold border bg-blue-950/50 text-blue-300 border-blue-800/40 whitespace-nowrap"
+        >
           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-          {planned} จัดเตรียม
+          {planned} จองไว้
+          {plannedJobs && plannedJobs.length > 0 && (
+            <span className="text-blue-300/70 font-normal">
+              · {plannedJobs[0].name}{plannedJobs.length > 1 ? ` +${plannedJobs.length - 1}` : ""}
+            </span>
+          )}
+        </span>
+      )}
+      {/* Only raised when two bookings actually overlap in time. */}
+      {hasConflict && (
+        <span
+          title={`ยูนิตเดียวถูกจองไว้ในงานที่ช่วงวันทับกัน${jobsTitle ? `:\n${jobsTitle}` : ""}`}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold border bg-red-950/50 text-red-300 border-red-800/40 whitespace-nowrap"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+          {conflicts} วันชนกัน
         </span>
       )}
     </div>
@@ -130,12 +166,9 @@ const MobileActionRow = ({ onView, onEdit, onAccessories, onDelete }: { onView?:
   );
 };
 
-const toInputDate = (d: string | Date | null | undefined) => {
-  if (!d) return "";
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return "";
-  return dt.toISOString().split("T")[0];
-};
+// local-time, not UTC — see lib/dateUtils.ts (purchase/warranty dates were showing
+// one day early for UTC+7 users)
+const toInputDate = toDateInput;
 
 const fmtDate = (d: string | Date | null | undefined) => {
   if (!d) return null;
@@ -981,7 +1014,7 @@ export const StockItemsTableSection = ({
                             <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isBulk ? "bg-amber-400/15 text-amber-300" : "bg-fg/[0.08] text-fg/70"}`}>
                               {totalForBadge} {isBulk ? "ชิ้น" : t("unitsCount", { count: totalForBadge }).replace(String(totalForBadge), "").trim()}
                             </span>
-                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} />
+                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} conflicts={item.conflictCount} plannedJobs={item.plannedJobs} />
                           </div>
                           {item.sets && item.sets.length > 0 && (
                             <div className="mt-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-brand/10 text-brand/90 font-semibold max-w-full">
@@ -1187,7 +1220,7 @@ export const StockItemsTableSection = ({
                             )}
                           </TableCell>
                           <TableCell className="py-2.5 align-middle">
-                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} />
+                            <AvailabilityBadge available={item.availableCount} total={totalForBadge} planned={item.plannedCount} conflicts={item.conflictCount} plannedJobs={item.plannedJobs} />
                           </TableCell>
                           <TableCell className="py-2.5 pr-6 text-right align-middle">
                             <ActionIcons

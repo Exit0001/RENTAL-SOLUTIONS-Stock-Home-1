@@ -169,6 +169,12 @@ export type PullSheetRow = {
   job: string;
   assignee: string;
   items: number;
+  /** ลำดับเวอร์ชันภายในงาน (1, 2, 3...) */
+  version: number;
+  /** ชื่อที่ผู้ใช้ตั้งเอง — null = ใช้ "vN" */
+  name: string | null;
+  /** false = ใบเก่าที่สร้างก่อนมีระบบสแนปช็อต (PDF จะ fallback เป็นอุปกรณ์ปัจจุบัน) */
+  hasSnapshot: boolean;
 };
 
 export type CrewMember = {
@@ -257,7 +263,13 @@ export const jobsApi = {
   createPullSheet: (jobId: string, data: Omit<InsertPullSheet, "jobId">) =>
                    api.post<PullSheet>(`/jobs/${jobId}/pullsheets`, data),
   deletePullSheet: (id: string) => api.delete<void>(`/jobs/pullsheets/${id}`),
-  downloadPullSheetPdf: (jobId: string) => fetchBlob(`/jobs/${jobId}/pullsheet/pdf`),
+  updatePullSheet: (id: string, data: { name?: string | null; status?: string }) =>
+    api.put<PullSheetRow>(`/jobs/pullsheets/${id}`, data),
+  /** PDF ของเวอร์ชันนั้น ๆ (จากสแนปช็อต) — ต่างจาก downloadPullSheetPdf ที่สร้างสดจากงานปัจจุบัน */
+  downloadPullSheetVersionPdf: (sheetId: string) => fetchBlob(`/jobs/pullsheets/${sheetId}/pdf`),
+  /** title = หัวเอกสารที่ผู้ใช้ตั้งเอง (ว่าง = "PULL SHEET") — มีผลทั้งหัว PDF และชื่อไฟล์ */
+  downloadPullSheetPdf: (jobId: string, title?: string) =>
+    fetchBlob(`/jobs/${jobId}/pullsheet/pdf${title?.trim() ? `?title=${encodeURIComponent(title.trim())}` : ""}`),
   downloadContainersPackingSheet: (jobId: string) => fetchBlob(`/jobs/${jobId}/packing-sheet/pdf`),
   loadContainer: (jobId: string, containerId: string) =>
     api.post<{ loaded: number; skipped: number }>(`/jobs/${jobId}/containers/${containerId}/load`, {}),

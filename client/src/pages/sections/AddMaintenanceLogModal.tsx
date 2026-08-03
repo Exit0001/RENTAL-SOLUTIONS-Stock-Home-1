@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi, jobsApi, type CrewMember, type StockItemWithUnits } from "@/api";
 import { FileUploadField } from "@/components/FileUploadField";
+import { todayStr } from "@/lib/dateUtils";
 import type { StockUnit, InsertMaintenanceLogBatch } from "@shared/schema";
 
 const TYPES = ["repair", "preventive", "inspection"];
@@ -70,7 +71,7 @@ export const AddMaintenanceLogModal = ({ onClose, onSubmit }: AddMaintenanceLogM
   const [description, setDescription] = useState("");
   const [techId, setTechId] = useState("");
   const [cost, setCost] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr);
   const [status, setStatus] = useState("in_progress");
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 

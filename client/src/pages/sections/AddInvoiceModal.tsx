@@ -4,15 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { jobsApi } from "@/api";
+import { toDateStr, todayStr } from "@/lib/dateUtils";
 import type { InsertInvoice } from "@shared/schema";
 
 const STATUSES = ["pending", "paid", "overdue"];
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
 const plus30Str = () => {
   const d = new Date();
   d.setDate(d.getDate() + 30);
-  return d.toISOString().slice(0, 10);
+  return toDateStr(d);
 };
 
 const InputField = ({ label, value, onChange, type = "text", placeholder }: {

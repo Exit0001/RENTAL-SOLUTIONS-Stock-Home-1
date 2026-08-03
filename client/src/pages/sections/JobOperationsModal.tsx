@@ -552,7 +552,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Left: Scanner Station — full width & capped height on mobile
                 (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36dvh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Active rack display — big, scanner-visible */}
@@ -708,7 +708,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                     </span>
                   )}
                   <button onClick={() => markAllPrepared.mutate()} disabled={markAllPrepared.isPending || allPrepared}
-                    className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[10px] font-bold border border-fg/10 text-fg/50 hover:text-fg hover:border-fg/30 disabled:opacity-40 transition-colors flex-shrink-0">
+                    className="flex items-center gap-1 h-9 md:h-7 px-3 md:px-2.5 rounded-lg text-xs md:text-[10px] font-bold border border-fg/10 text-fg/60 md:text-fg/50 hover:text-fg hover:border-fg/30 disabled:opacity-40 transition-colors flex-shrink-0">
                     {markAllPrepared.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                     All Prepared
                   </button>
@@ -752,7 +752,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                             <span className="text-[10px] text-amber-300/90 font-mono whitespace-nowrap">มี {s.got} / ต้องการ {s.wanted}</span>
                             <button
                               onClick={() => setManageStockSearch(s.name)}
-                              className="flex items-center gap-1 h-6 px-2 rounded text-[10px] font-bold text-black flex-shrink-0 hover:opacity-80 transition-opacity"
+                              className="flex items-center gap-1 h-8 md:h-6 px-2.5 md:px-2 rounded-lg md:rounded text-xs md:text-[10px] font-bold text-black flex-shrink-0 hover:opacity-80 transition-opacity"
                               style={{ backgroundColor: "var(--brand)" }}
                             >
                               <Plus className="w-2.5 h-2.5" />เพิ่ม
@@ -933,7 +933,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Left: Scanner Station — full width & capped height on mobile
                 (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36dvh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => scanRef.current?.focus()}
             >
               {/* Mode context header */}
@@ -991,7 +991,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                   <span className="text-xs text-fg/60 flex-shrink-0 tabular-nums">{racksLoaded}/{rackStats.length} แร็คบนรถ</span>
                   {allDispatched && (
                     <button onClick={dispatchJob} disabled={dispatching || job.status === "active"}
-                      className="flex items-center gap-1 h-7 px-3 rounded-lg text-[10px] font-bold text-black hover:opacity-90 disabled:opacity-40 transition-opacity flex-shrink-0"
+                      className="flex items-center gap-1 h-9 md:h-7 px-3 rounded-lg text-xs md:text-[10px] font-bold text-black hover:opacity-90 disabled:opacity-40 transition-opacity flex-shrink-0"
                       style={{ backgroundColor: "var(--brand)" }}>
                       {dispatching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Truck className="w-3 h-3" />}
                       {job.status === "active" ? "Active แล้ว" : "Dispatch Job →"}
@@ -1037,7 +1037,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
                           qc.invalidateQueries({ queryKey: ["containers"] });
                           qc.invalidateQueries({ queryKey: ["stock"] });
                         }}
-                        className="tap-target flex items-center gap-1 h-7 px-3 rounded-lg text-xs font-bold border border-fg/10 text-fg/50 hover:text-fg hover:border-fg/30 transition-colors flex-shrink-0"
+                        className="tap-target flex items-center gap-1 h-9 md:h-7 px-3 rounded-lg text-xs font-bold border border-fg/10 text-fg/60 md:text-fg/50 hover:text-fg hover:border-fg/30 transition-colors flex-shrink-0"
                       >
                         <Truck className="w-3 h-3" /> โหลด
                       </button>
@@ -1082,7 +1082,7 @@ export const JobOperationsModal = ({ open, onClose, job }: Props): JSX.Element |
             {/* ── Left: Scanner Station — full width & capped height on mobile
                 (stacked above the list, thumb reach), fixed side column on md+ ── */}
             <div
-              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36vh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
+              className="w-full md:w-[400px] flex-shrink-0 flex flex-col max-h-[36dvh] md:max-h-none md:border-r border-b md:border-b-0 border-fg/[0.06] bg-surface-0"
               onClick={() => returnScanRef.current?.focus()}
             >
               {/* Mode context header */}

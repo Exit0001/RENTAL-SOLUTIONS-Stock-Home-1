@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { jobSubRentalsApi, maintenanceApi } from "@/api";
+import { todayStr } from "@/lib/dateUtils";
 import { uploadAttachment } from "@/components/FileUploadField";
 
 interface Props {
@@ -21,7 +22,7 @@ export const JobSubRentalsModal = ({ jobId, jobName, onClose }: Props): JSX.Elem
 
   const [itemName, setItemName]     = useState("");
   const [partner, setPartner]       = useState("");
-  const [dueBack, setDueBack]       = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueBack, setDueBack]       = useState(todayStr);
   const [dailyRate, setDailyRate]   = useState("");
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [uploading, setUploading]   = useState(false);

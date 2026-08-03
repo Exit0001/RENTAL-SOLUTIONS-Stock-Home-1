@@ -136,7 +136,7 @@ export const EquipmentCatalogPane = ({
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => handleCategoryClick(null)}
-            className={`tap-target h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border
+            className={`h-9 md:h-7 px-3 md:px-2.5 rounded-full text-xs md:text-[11px] font-semibold transition-colors border flex-shrink-0
               ${!categoryFilter ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
           >
             ทั้งหมด
@@ -209,7 +209,7 @@ export const EquipmentCatalogPane = ({
                         <Layers className="w-4 h-4 text-amber-400/70 flex-shrink-0" />
                       ) : (
                         <div
-                          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
+                          className={`tap-target w-6 h-6 md:w-5 md:h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
                             ${allSelected ? "border-brand bg-brand" : pinnedN > 0 ? "border-brand/60 bg-brand/20" : "border-fg/20"}`}
                           onClick={(e) => { e.stopPropagation(); if (availableUnits.length) onToggleSelectAll(availableUnits, group.id); }}
                         >
@@ -238,7 +238,7 @@ export const EquipmentCatalogPane = ({
                             type="button"
                             onClick={() => onAdjustAuto(group.id, -1, maxAvail)}
                             disabled={qty === 0}
-                            className="tap-target w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors disabled:opacity-30"
+                            className="w-10 h-10 md:w-7 md:h-7 rounded-xl md:rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] transition-colors disabled:opacity-30 flex-shrink-0"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
@@ -247,7 +247,7 @@ export const EquipmentCatalogPane = ({
                             type="button"
                             onClick={() => onAdjustAuto(group.id, 1, maxAvail)}
                             disabled={qty >= maxAvail}
-                            className="tap-target w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors disabled:opacity-30"
+                            className="w-10 h-10 md:w-7 md:h-7 rounded-xl md:rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] transition-colors disabled:opacity-30 flex-shrink-0"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
@@ -270,10 +270,10 @@ export const EquipmentCatalogPane = ({
                         <div
                           key={unit.id}
                           onClick={() => avail && onTogglePin(unit.id, group.id)}
-                          className={`flex items-center gap-3 pl-10 pr-3 py-1.5 border-t border-fg/[0.04] transition-colors
+                          className={`flex items-center gap-3 pl-4 md:pl-10 pr-3 py-3 md:py-1.5 min-h-[52px] md:min-h-0 border-t border-fg/[0.04] transition-colors
                             ${isPinned ? "bg-brand/[0.06]" : "hover:bg-fg/[0.02]"} ${avail ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
                         >
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
+                          <div className={`w-6 h-6 md:w-4 md:h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
                             ${isPinned ? "border-brand bg-brand" : "border-fg/20"}`}>
                             {isPinned && <Pin className="w-2.5 h-2.5 text-black" />}
                           </div>
@@ -339,7 +339,7 @@ export const EquipmentCartPane = ({
   const totalPieces = Array.from(autoQty.values()).reduce((s, q) => s + q, 0) + pinned.size;
 
   return (
-    <div className="w-full md:w-72 lg:w-80 flex-shrink-0 flex flex-col bg-surface-1">
+    <div className="w-full md:w-full md:w-72 lg:w-80 md:flex-shrink-0 flex flex-col bg-surface-1">
       <div className="px-3 md:px-4 py-3 border-b border-fg/[0.06] flex items-center gap-2 flex-shrink-0">
         <Boxes className="w-4 h-4 text-brand/70" />
         <span className="text-sm font-bold text-fg">ของในชุด</span>
@@ -372,12 +372,12 @@ export const EquipmentCartPane = ({
                 <div className="flex items-center gap-1.5 mt-2">
                   <span className="text-[10px] text-fg/50 flex-1">จำนวน (auto-pick)</span>
                   <button onClick={() => onAdjustAuto(item!.id, -1, max)}
-                    className="tap-target w-6 h-6 rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30">
+                    className="w-9 h-9 md:w-6 md:h-6 rounded-lg md:rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] flex-shrink-0">
                     <Minus className="w-3 h-3" />
                   </button>
                   <span className="w-6 text-center text-sm font-bold text-brand tabular-nums">{qty}</span>
                   <button onClick={() => onAdjustAuto(item!.id, 1, max)} disabled={qty + pinnedUnits.length >= max}
-                    className="tap-target w-6 h-6 rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 disabled:opacity-30">
+                    className="w-9 h-9 md:w-6 md:h-6 rounded-lg md:rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] disabled:opacity-30 flex-shrink-0">
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>

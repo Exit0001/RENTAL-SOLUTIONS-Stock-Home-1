@@ -265,7 +265,8 @@ export const ManageJobStockCartPane = ({
               key={line.unitId}
               onMouseDown={(e) => { if (e.shiftKey) e.preventDefault(); }}
               onClick={(e) => handleRowSelect(key, e.shiftKey)}
-              className={`select-none flex items-center gap-2 px-3 py-1.5 border-t border-fg/[0.04] cursor-pointer transition-colors ${selected.has(key) ? "bg-brand/[0.05]" : "hover:bg-fg/[0.02]"}`}
+              className={`select-none flex items-center gap-2 px-3 py-2.5 md:py-1.5 min-h-[48px] md:min-h-0 border-t border-fg/[0.04] cursor-pointer transition-colors ${selected.has(key) ? "bg-brand/[0.06]" : "hover:bg-fg/[0.02] active:bg-fg/[0.05]"}`}
+
             >
               {rowCheckbox(key)}
               <div className="flex-1 min-w-0">
@@ -347,7 +348,7 @@ export const ManageJobStockCartPane = ({
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`tap-target h-6 px-2.5 rounded-full text-[10px] font-semibold transition-colors border
+              className={`h-9 md:h-6 px-3 md:px-2.5 rounded-full text-xs md:text-[10px] font-semibold transition-colors border flex-shrink-0
                 ${activeTab === tab ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
             >
               {tabLabel(tab)} <span className="opacity-60">{tabCount(tab)}</span>
@@ -360,10 +361,10 @@ export const ManageJobStockCartPane = ({
         <div className="px-3 md:px-4 pb-2 flex-shrink-0 flex items-center gap-2">
           <button
             onClick={toggleSelectAllVisible}
-            className={`tap-target w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
+            className={`tap-target w-6 h-6 md:w-4 md:h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
               ${allVisibleSelected ? "border-brand bg-brand" : "border-fg/20 hover:border-fg/40"}`}
           >
-            {allVisibleSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
+            {allVisibleSelected && <Check className="w-4 h-4 md:w-2.5 md:h-2.5 text-black" strokeWidth={3} />}
           </button>
           <span className="text-[10px] text-fg/50 whitespace-nowrap">
             {selected.size > 0 ? t("manageJobStock.selectedForBulk", { count: selected.size }) : t("manageJobStock.selectAllHint")}

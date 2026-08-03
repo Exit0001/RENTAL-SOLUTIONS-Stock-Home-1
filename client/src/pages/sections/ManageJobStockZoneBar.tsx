@@ -20,44 +20,38 @@ export const ManageJobStockZoneBar = ({
   const [addingZone,  setAddingZone]  = useState(false);
   const [newZoneName, setNewZoneName] = useState("");
 
+  // มือถือ: ชิปสูง 36px เลื่อนแนวนอนแถวเดียว (เดิม h-6=24px + flex-wrap ทำให้กดยากและกินหลายบรรทัด)
+  const chip = (active: boolean) =>
+    `h-9 md:h-6 px-3 md:px-2 rounded-full text-xs md:text-[10px] font-semibold transition-colors border flex-shrink-0 ${
+      active ? "bg-brand text-black border-brand" : "text-fg/60 md:text-fg/50 border-fg/10 hover:border-fg/30"
+    }`;
+
   return (
-    <div className="px-4 py-2 flex-shrink-0 flex flex-wrap gap-1.5 items-center border-b border-fg/[0.06]">
-      <span className="text-[9px] uppercase tracking-wider text-fg/30 mr-0.5">{t("manageJobStock.addingToZone")}</span>
-      <button
-        onClick={() => onActiveZoneChange("auto")}
-        className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-          ${activeZone === "auto" ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
-      >
+    <div className="h-scroll md:flex-wrap px-3 md:px-4 py-2 flex-shrink-0 flex gap-1.5 items-center border-b border-fg/[0.06]">
+      <span className="text-[9px] uppercase tracking-wider text-fg/30 mr-0.5 flex-shrink-0">{t("manageJobStock.addingToZone")}</span>
+      <button onClick={() => onActiveZoneChange("auto")} className={chip(activeZone === "auto")}>
         {t("manageJobStock.zoneAuto")}
       </button>
       {zones.map((z) => (
-        <button
-          key={z.id}
-          onClick={() => onActiveZoneChange(z.name)}
-          className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-            ${activeZone === z.name ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
-        >
+        <button key={z.id} onClick={() => onActiveZoneChange(z.name)} className={chip(activeZone === z.name)}>
           {z.name}
         </button>
       ))}
-      <button
-        onClick={() => onActiveZoneChange(null)}
-        className={`h-6 px-2 rounded-full text-[10px] font-semibold transition-colors border
-          ${activeZone === null ? "bg-brand text-black border-brand" : "text-fg/50 border-fg/10 hover:border-fg/30"}`}
-      >
+      <button onClick={() => onActiveZoneChange(null)} className={chip(activeZone === null)}>
         {t("manageJobStock.zoneNone")}
       </button>
 
       {!addingZone ? (
         <button
           onClick={() => setAddingZone(true)}
-          className="h-6 w-6 rounded-full border border-fg/10 text-fg/40 hover:text-brand hover:border-brand/40 flex items-center justify-center transition-colors"
+          className="h-9 w-9 md:h-6 md:w-6 rounded-full border border-fg/10 text-fg/50 hover:text-brand hover:border-brand/40 flex items-center justify-center transition-colors flex-shrink-0"
+          aria-label={t("manageJobStock.addZone")}
           title={t("manageJobStock.addZone")}
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="w-4 h-4 md:w-3 md:h-3" aria-hidden="true" />
         </button>
       ) : (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <input
             autoFocus
             value={newZoneName}
@@ -68,13 +62,14 @@ export const ManageJobStockZoneBar = ({
             }}
             placeholder={t("manageJobStock.newZonePlaceholder")}
             disabled={creatingZone}
-            className="h-6 w-24 px-2 rounded-full bg-fg/[0.06] border border-fg/10 text-[10px] text-fg outline-none focus:border-brand/40"
+            className="h-9 md:h-6 w-32 md:w-24 px-3 md:px-2 rounded-full bg-fg/[0.06] border border-fg/10 text-xs md:text-[10px] text-fg outline-none focus:border-brand/40"
           />
           <button
             onClick={() => { setNewZoneName(""); setAddingZone(false); }}
-            className="text-fg/40 hover:text-fg transition-colors"
+            aria-label="ยกเลิก"
+            className="tap-target text-fg/40 hover:text-fg transition-colors p-1"
           >
-            <XIcon className="w-3 h-3" />
+            <XIcon className="w-4 h-4 md:w-3 md:h-3" aria-hidden="true" />
           </button>
         </div>
       )}

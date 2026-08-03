@@ -182,6 +182,10 @@ stockRouter.get("/", async (req, res) => {
     const totalCounts     = new Map<string, number>();
     const availableCounts = new Map<string, number>();
     const plannedCounts   = new Map<string, number>(); // available but reserved in a job plan
+    const conflictCounts  = new Map<string, number>(); // units booked by 2+ jobs whose dates overlap
+    const countedConflicts = new Set<string>();
+    // which jobs each model is going out to — informational, shown next to the item
+    const plannedJobsByItem = new Map<string, { id: string; name: string; startDate: Date; endDate: Date }[]>();
 
     if (unitItemIds.length > 0) {
       const units = await db
@@ -197,11 +201,26 @@ stockRouter.get("/", async (req, res) => {
         }
       }
 
-      // plannedCount = available units that are assigned to a non-cancelled job
+      // plannedCount = units sitting in the warehouse that a non-cancelled job has
+      // reserved. This is PURELY INFORMATIONAL ("these are going out to job X") and must
+      // NOT be subtracted from availableCount — the gear is still physically here and
+      // still usable. Only a real scan-out (status -> 'out') reduces availability.
+      // See the Stock Unit Status Sync Contract in CLAUDE.md.
+      //
+      // Counting must be per-UNIT, not per-row: job_units has one row per (job, unit),
+      // so a unit booked into two jobs previously counted twice, which pushed
+      // plannedCount past unitCount and rendered nonsense like "-8 / 16".
       const unitIds = units.filter((u) => u.status === "available").map((u) => u.id);
       if (unitIds.length > 0) {
         const planned = await db
-          .select({ stockUnitId: jobUnits.stockUnitId, stockItemId: stockUnits.stockItemId })
+          .select({
+            stockUnitId: jobUnits.stockUnitId,
+            stockItemId: stockUnits.stockItemId,
+            jobId:       jobs.id,
+            jobName:     jobs.name,
+            startDate:   jobs.startDate,
+            endDate:     jobs.endDate,
+          })
           .from(jobUnits)
           .innerJoin(jobs, eq(jobs.id, jobUnits.jobId))
           .innerJoin(stockUnits, eq(stockUnits.id, jobUnits.stockUnitId))
@@ -209,9 +228,40 @@ stockRouter.get("/", async (req, res) => {
             inArray(jobUnits.stockUnitId, unitIds),
             sql`${jobs.status} != 'cancelled'`,
           ));
+
+        const seenUnits = new Set<string>();
+        const bookingsByUnit = new Map<string, typeof planned>();
         for (const p of planned) {
-          plannedCounts.set(p.stockItemId, (plannedCounts.get(p.stockItemId) ?? 0) + 1);
+          if (!seenUnits.has(p.stockUnitId)) {
+            seenUnits.add(p.stockUnitId);
+            plannedCounts.set(p.stockItemId, (plannedCounts.get(p.stockItemId) ?? 0) + 1);
+          }
+          const arr = bookingsByUnit.get(p.stockUnitId) ?? [];
+          arr.push(p);
+          bookingsByUnit.set(p.stockUnitId, arr);
+
+          // which jobs is this model going out to? (distinct per item, for the UI)
+          const list = plannedJobsByItem.get(p.stockItemId) ?? [];
+          if (!list.some((j) => j.id === p.jobId)) {
+            list.push({ id: p.jobId, name: p.jobName, startDate: p.startDate, endDate: p.endDate });
+            plannedJobsByItem.set(p.stockItemId, list);
+          }
         }
+
+        // A unit in two jobs is only a PROBLEM when those jobs overlap in time.
+        // Same unit going to job A this week and job B next week is normal operation
+        // and must not be flagged.
+        const overlaps = (a: { startDate: Date; endDate: Date }, b: { startDate: Date; endDate: Date }) =>
+          new Date(a.startDate) <= new Date(b.endDate) && new Date(b.startDate) <= new Date(a.endDate);
+
+        bookingsByUnit.forEach((books, unitId) => {
+          if (books.length < 2 || countedConflicts.has(unitId)) return;
+          const clash = books.some((a, i) => books.some((b, j) => i < j && overlaps(a, b)));
+          if (clash) {
+            countedConflicts.add(unitId);
+            conflictCounts.set(books[0].stockItemId, (conflictCounts.get(books[0].stockItemId) ?? 0) + 1);
+          }
+        });
       }
     }
 
@@ -257,6 +307,10 @@ stockRouter.get("/", async (req, res) => {
       unitCount:      totalCounts.get(i.id)     ?? 0,
       availableCount: availableCounts.get(i.id) ?? 0,
       plannedCount:   plannedCounts.get(i.id)   ?? 0,
+      conflictCount:  conflictCounts.get(i.id)  ?? 0,
+      plannedJobs:    (plannedJobsByItem.get(i.id) ?? [])
+                        .slice()
+                        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()),
       sets:           setsByItem.get(i.id)      ?? [],
     })));
   } catch {

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "@/store/appStore";
 import { stockApi } from "@/api";
+import { todayStr } from "@/lib/dateUtils";
 import { FileUploadField } from "@/components/FileUploadField";
 import type { InsertIncident } from "@shared/schema";
 
@@ -58,7 +59,7 @@ export const AddIncidentModal = ({ jobName, onClose, onSubmit }: AddIncidentModa
   const [stockUnitId, setStockUnitId] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState("medium");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   const { data: stockItems = [] } = useQuery({

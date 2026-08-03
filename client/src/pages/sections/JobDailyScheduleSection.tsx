@@ -3,6 +3,7 @@ import { Clock, Users, ChevronDown, ChevronUp, StickyNote } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { jobsApi } from "@/api";
+import { toDateStr } from "@/lib/dateUtils";
 import type { JobCrewMember, JobDayCrewEntry } from "@/api";
 
 interface Props {
@@ -13,9 +14,10 @@ interface Props {
   canManage: boolean;
 }
 
-export function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+// Re-exported for the existing import sites. Must stay LOCAL-time: the previous
+// toISOString() version shifted every day back by one for UTC+7 users, so a job
+// entered as 6–8 Aug listed its days as 5, 6, 7.
+export { toDateStr };
 
 export function enumerateDays(start: Date, end: Date): string[] {
   const days: string[] = [];

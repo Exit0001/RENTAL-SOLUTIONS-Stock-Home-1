@@ -50,6 +50,7 @@ import { JobOperationsModal } from "./JobOperationsModal";
 import { JobDetailModal } from "./JobDetailModal";
 import { JobDetailPanel } from "./JobDetailPanel";
 import { MasterDetail } from "@/components/MasterDetail";
+import { jobColor } from "@/lib/jobColors";
 
 type JobTab = "jobs" | "pullsheets" | "incidents" | "schedule";
 
@@ -380,15 +381,19 @@ export const JobsPage = (): JSX.Element => {
                 const s = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                 const e = new Date(job.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
                 const active = selectedJobId === job.id;
-                const dot = job.status === "active" ? "bg-emerald-400" : job.status === "scheduled" ? "bg-blue-400" : job.status === "completed" ? "bg-fg/40" : job.status === "cancelled" ? "bg-red-400" : "bg-fg/25";
+                // same hue as the job's bars in the calendar, so the two views correspond
+                const color = jobColor(job.id, job.color);
                 return (
                   <button key={job.id} onClick={() => { setSelectedJobId(job.id); setMobileDetailOpen(true); }}
                     className={`w-full text-left px-3 py-2.5 min-h-[52px] rounded-lg border transition-colors ${active ? "border-brand/50 bg-brand/[0.06]" : "border-transparent hover:bg-fg/[0.03]"}`}>
                     <div className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: color.bg, opacity: job.status === "cancelled" ? 0.35 : 1 }}
+                      />
                       <p className={`text-sm font-medium truncate flex-1 ${active ? "text-brand" : "text-fg/85"}`}>{job.name}</p>
                     </div>
-                    <p className="text-[10px] text-fg/40 mt-0.5 pl-3.5 truncate">{job.client} · {s === e ? s : `${s}–${e}`}</p>
+                    <p className="text-[10px] text-fg/40 mt-0.5 pl-4.5 truncate">{job.client} · {s === e ? s : `${s}–${e}`}</p>
                   </button>
                 );
               })}

@@ -2,7 +2,7 @@ import { useState, useMemo, type ReactNode } from "react";
 import {
   Calendar, MapPin, Package, Layers, ScanLine, Plus, Loader2, Users, Wallet,
   UserPlus, ArrowRightLeft, Truck, ChevronRight, FileText, Camera, Copy, Trash2,
-  LayoutTemplate, X, Clock,
+  LayoutTemplate, X, Clock, Download, Pencil, Check,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAppStore } from "@/store/appStore";
 import { ScrollTabs } from "@/components/ScrollTabs";
+import { toDateInput, fromDateInput } from "@/lib/dateUtils";
+import { jobColor, PALETTE } from "@/lib/jobColors";
 import { useToast } from "@/hooks/use-toast";
 import { jobsApi, jobVehiclesApi, jobSubRentalsApi, stockApi, jobTemplatesApi } from "@/api";
 import { FileUploadField } from "@/components/FileUploadField";
@@ -63,6 +65,18 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [tplName, setTplName] = useState("");
+  // pull-sheet PDF download (the button that went missing when this page became a panel)
+  const [sheetTitle, setSheetTitle] = useState("");
+  const [downloadingSheet, setDownloadingSheet] = useState(false);
+  const [sheetError, setSheetError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [colorOpen, setColorOpen] = useState(false);
+  // inline job-info editing (name/client/location/dates)
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [infoError, setInfoError] = useState<string | null>(null);
+  const [infoForm, setInfoForm] = useState({ name: "", client: "", location: "", startDate: "", endDate: "", rehearsalDate: "" });
 
   // ── per-job data ───────────────────────────────────────
   const { data: assignedUnits = [], isLoading } = useQuery({ queryKey: ["job-units", job.id], queryFn: () => jobsApi.getUnits(job.id), enabled: !!token });
@@ -89,11 +103,95 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
   });
   const updateStatus = useMutation({ mutationFn: (status: string) => jobsApi.update(job.id, { status: status as any }), onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }) });
   const updateImage = useMutation({ mutationFn: (url: string | null) => jobsApi.update(job.id, { imageUrl: url } as any), onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }) });
+  // null = back to the automatic hash colour
+  const updateColor = useMutation({ mutationFn: (color: string | null) => jobsApi.update(job.id, { color } as any), onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }) });
   const duplicateJob = useMutation({ mutationFn: () => jobsApi.duplicate(job.id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["stock"] }); toast({ title: t("jobDuplicated") }); }, onError: (e: any) => toast({ title: t("jobDuplicateFailed"), description: e?.message, variant: "destructive" }) });
   const deleteJob = useMutation({ mutationFn: () => jobsApi.delete(job.id), onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["pull-sheets"] }); qc.invalidateQueries({ queryKey: ["stock"] }); qc.invalidateQueries({ queryKey: ["containers"] }); setDeleteOpen(false); onDeleted(); } });
   const saveTemplate = useMutation({ mutationFn: (name: string) => jobTemplatesApi.saveFromJob(job.id, { name }), onSuccess: (res) => { qc.invalidateQueries({ queryKey: ["job-templates"] }); setTplOpen(false); setTplName(""); toast({ title: t("templateSaved"), description: t("templateSavedDesc", { count: res.itemCount }) }); } });
   const createPullSheet = useMutation({ mutationFn: (data: any) => jobsApi.createPullSheet(job.id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ["pull-sheets"] }) });
   const createIncident = useMutation({ mutationFn: (data: any) => jobsApi.createIncident(job.id, data), onSuccess: () => qc.invalidateQueries({ queryKey: ["incidents"] }) });
+
+  const startEditInfo = () => {
+    setInfoError(null);
+    setInfoForm({
+      name: job.name ?? "",
+      client: job.client ?? "",
+      location: (job as any).location ?? "",
+      startDate: toDateInput(job.startDate),
+      endDate: toDateInput(job.endDate),
+      rehearsalDate: toDateInput((job as any).rehearsalDate),
+    });
+    setEditingInfo(true);
+  };
+
+  const updateInfo = useMutation({
+    mutationFn: () => {
+      if (!infoForm.name.trim()) throw new Error("ต้องระบุชื่องาน");
+      if (!infoForm.client.trim()) throw new Error("ต้องระบุลูกค้า");
+      if (!infoForm.startDate || !infoForm.endDate) throw new Error("ต้องระบุวันเริ่มและวันจบ");
+      const s = fromDateInput(infoForm.startDate);
+      const e = fromDateInput(infoForm.endDate);
+      if (!s || !e) throw new Error("วันที่ไม่ถูกต้อง");
+      if (e < s) throw new Error("วันจบต้องไม่มาก่อนวันเริ่ม");
+      const reh = fromDateInput(infoForm.rehearsalDate);
+      return jobsApi.update(job.id, {
+        name: infoForm.name.trim(),
+        client: infoForm.client.trim(),
+        location: infoForm.location.trim() || null,
+        // local midnight, matching how jobs are stored elsewhere
+        startDate: s.toISOString(),
+        endDate: e.toISOString(),
+        rehearsalDate: reh ? reh.toISOString() : null,
+      } as any);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); setEditingInfo(false); setInfoError(null); },
+    onError: (e: any) => setInfoError(e?.message ?? "บันทึกไม่สำเร็จ"),
+  });
+
+  // ชื่อไฟล์คงอักขระไทยไว้ ตัดเฉพาะตัวที่ใช้ในชื่อไฟล์ไม่ได้
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename.replace(/[\\/:*?"<>|]+/g, "_").trim()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // "ฉบับล่าสุด" — สร้างสดจากอุปกรณ์ปัจจุบันของงาน ไม่ผูกกับเวอร์ชันใด
+  const handleDownloadSheet = async () => {
+    setDownloadingSheet(true);
+    setSheetError(null);
+    try {
+      const blob = await jobsApi.downloadPullSheetPdf(job.id, sheetTitle);
+      saveBlob(blob, sheetTitle.trim() ? `${job.name} - ${sheetTitle.trim()}` : job.name);
+    } catch (e: any) {
+      setSheetError(e?.message ?? "ดาวน์โหลดไม่สำเร็จ");
+    } finally {
+      setDownloadingSheet(false);
+    }
+  };
+
+  // เวอร์ชันที่บันทึกไว้ — ใช้สแนปช็อตของใบนั้น
+  const handleDownloadVersion = async (sheetId: string, filename: string) => {
+    setDownloadingId(sheetId);
+    setSheetError(null);
+    try {
+      saveBlob(await jobsApi.downloadPullSheetVersionPdf(sheetId), filename);
+    } catch (e: any) {
+      setSheetError(e?.message ?? "ดาวน์โหลดไม่สำเร็จ");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const renameSheet = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => jobsApi.updatePullSheet(id, { name: name.trim() || null }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pull-sheets"] }); setRenamingId(null); },
+    onError: (e: any) => { setSheetError(e?.message ?? "เปลี่ยนชื่อไม่สำเร็จ"); setRenamingId(null); },
+  });
 
   const start = new Date(job.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const end = new Date(job.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -120,6 +218,46 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
       {/* Header */}
       <div className="px-3 md:px-5 py-3 border-b border-fg/[0.06] flex-shrink-0">
         <div className="flex items-start gap-3">
+          {/* Job colour — drives this job's bars in the calendar and both Gantts */}
+          {canManage && (
+            <div className="relative flex-shrink-0">
+              <button
+                onClick={() => setColorOpen((v) => !v)}
+                aria-label="เปลี่ยนสีงาน"
+                title="เปลี่ยนสีงาน"
+                className="w-7 h-7 rounded-lg border-2 border-fg/15 hover:border-fg/35 transition-colors"
+                style={{ backgroundColor: jobColor(job.id, (job as any).color).bg }}
+              />
+              {colorOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setColorOpen(false)} />
+                  <div className="absolute left-0 top-9 z-50 w-[212px] p-2.5 rounded-xl bg-surface-1 border border-fg/[0.12] shadow-2xl">
+                    <p className="text-[10px] text-fg/40 uppercase tracking-wider mb-2">สีของงาน</p>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {PALETTE.map((c) => {
+                        const picked = ((job as any).color ?? "").toLowerCase() === c.bg.toLowerCase();
+                        return (
+                          <button
+                            key={c.bg}
+                            onClick={() => { updateColor.mutate(c.bg); setColorOpen(false); }}
+                            aria-label={c.bg}
+                            className={`w-7 h-7 rounded-md transition-transform hover:scale-110 ${picked ? "ring-2 ring-fg/70 ring-offset-2 ring-offset-surface-1" : ""}`}
+                            style={{ backgroundColor: c.bg }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => { updateColor.mutate(null); setColorOpen(false); }}
+                      className="mt-2.5 w-full h-8 rounded-lg text-[11px] font-semibold text-fg/60 border border-fg/[0.12] hover:text-fg hover:border-fg/25"
+                    >
+                      อัตโนมัติ
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <h2 className="font-bold text-fg text-base truncate">{job.name}</h2>
             <div className="flex items-center gap-3 mt-1 text-xs text-fg/60 flex-wrap">
@@ -164,19 +302,68 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         {/* ── OVERVIEW ── */}
         {tab === "overview" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
-              {[
-                { label: "ลูกค้า", value: job.client },
-                { label: "วันงาน", value: `${start} → ${end}` },
-                { label: "สถานที่", value: job.location || "—" },
-                { label: "วันซ้อม", value: job.rehearsalDate ? new Date(job.rehearsalDate).toLocaleDateString("th-TH") : "—" },
-              ].map((f) => (
-                <div key={f.label} className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] px-3 py-2.5">
-                  <p className="text-[10px] text-fg/40 uppercase tracking-wider">{f.label}</p>
-                  <p className="text-sm text-fg/85 truncate mt-0.5">{f.value}</p>
+            {/* รายละเอียดงานแก้ไขได้ในที่ — ก่อนหน้านี้เป็นข้อความอ่านอย่างเดียว
+                ทำให้แก้สถานที่/ลูกค้า/วันงานหลังสร้างงานไปแล้วไม่ได้เลย */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-fg/40 uppercase tracking-wider">รายละเอียดงาน</span>
+              {canManage && (editingInfo ? (
+                <div className="ml-auto flex items-center gap-1.5">
+                  <button onClick={() => setEditingInfo(false)} disabled={updateInfo.isPending}
+                    className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold text-fg/60 border border-fg/[0.12] hover:text-fg disabled:opacity-40">
+                    <X className="w-3 h-3" aria-hidden="true" /> {tc("cancel")}
+                  </button>
+                  <button onClick={() => updateInfo.mutate()} disabled={updateInfo.isPending}
+                    className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-bold text-black hover:opacity-90 disabled:opacity-40"
+                    style={{ backgroundColor: "var(--brand)" }}>
+                    {updateInfo.isPending ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : <Check className="w-3 h-3" aria-hidden="true" />} {tc("save")}
+                  </button>
                 </div>
+              ) : (
+                <button onClick={startEditInfo}
+                  className="ml-auto flex items-center gap-1 h-8 px-2.5 rounded-lg text-[11px] font-semibold text-fg/60 border border-fg/[0.12] hover:text-fg hover:border-fg/25">
+                  <Pencil className="w-3 h-3" aria-hidden="true" /> {tc("edit")}
+                </button>
               ))}
             </div>
+            {infoError && <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{infoError}</p>}
+
+            {editingInfo ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
+                {([
+                  { key: "name", label: "ชื่องาน", type: "text", full: true },
+                  { key: "client", label: "ลูกค้า", type: "text" },
+                  { key: "location", label: "สถานที่", type: "text" },
+                  { key: "startDate", label: "วันเริ่ม", type: "date" },
+                  { key: "endDate", label: "วันจบ", type: "date" },
+                  { key: "rehearsalDate", label: "วันซ้อม", type: "date" },
+                ] as const).map((f) => (
+                  <div key={f.key} className={`rounded-xl border border-fg/[0.06] bg-fg/[0.02] px-3 py-2.5 ${"full" in f && f.full ? "sm:col-span-2" : ""}`}>
+                    <label htmlFor={`job-${f.key}`} className="text-[10px] text-fg/40 uppercase tracking-wider">{f.label}</label>
+                    <input
+                      id={`job-${f.key}`}
+                      type={f.type}
+                      value={infoForm[f.key]}
+                      onChange={(e) => setInfoForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      className="w-full mt-1 h-10 md:h-8 px-2 rounded-lg bg-fg/[0.04] border border-fg/[0.1] text-sm text-fg/90 focus:outline-none focus:border-brand/50"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 md:gap-3">
+                {[
+                  { label: "ลูกค้า", value: job.client },
+                  { label: "วันงาน", value: `${start} → ${end}` },
+                  { label: "สถานที่", value: job.location || "—" },
+                  { label: "วันซ้อม", value: job.rehearsalDate ? new Date(job.rehearsalDate).toLocaleDateString("th-TH") : "—" },
+                ].map((f) => (
+                  <div key={f.label} className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] px-3 py-2.5">
+                    <p className="text-[10px] text-fg/40 uppercase tracking-wider">{f.label}</p>
+                    <p className="text-sm text-fg/85 truncate mt-0.5">{f.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {[
                 { label: "อุปกรณ์", n: assignedUnits.length, icon: Package },
@@ -309,16 +496,91 @@ export const JobDetailPanel = ({ job, onDeleted }: Props): JSX.Element => {
         {/* ── PULL SHEETS ── */}
         {tab === "pullsheets" && (
           <div className="space-y-3">
-            <button onClick={() => setPullSheetOpen(true)} className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><Plus className="w-3.5 h-3.5" /> {t("createPullSheet")}</button>
+            {/* ใบเบิกเป็น PDF ไฟล์เดียวเสมอ — รวมอุปกรณ์ทั้งงาน แบ่งตามโซน ขึ้นหน้าใหม่เมื่อล้น
+                หัวเอกสาร/ชื่อไฟล์ตั้งเองได้จากช่องด้านล่าง (ไม่ได้เก็บลง DB) */}
+            <div className="rounded-xl border border-fg/[0.06] bg-fg/[0.02] p-3 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-brand/60 flex-shrink-0" aria-hidden="true" />
+                <span className="text-xs font-bold text-fg/70">ใบเบิกอุปกรณ์ (PDF)</span>
+                <span className="ml-auto text-[11px] text-fg/40">{assignedUnits.length} รายการ</span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={sheetTitle}
+                  onChange={(e) => setSheetTitle(e.target.value)}
+                  placeholder="ชื่อเอกสาร (เว้นว่าง = PULL SHEET)"
+                  maxLength={80}
+                  aria-label="ชื่อเอกสารใบเบิก"
+                  className="flex-1 min-w-0 h-11 md:h-9 px-3 rounded-xl md:rounded-lg bg-fg/[0.04] border border-fg/[0.08] text-sm text-fg/85 placeholder:text-fg/35 focus:outline-none focus:border-brand/40"
+                />
+                <button
+                  onClick={handleDownloadSheet}
+                  disabled={downloadingSheet}
+                  className="flex items-center justify-center gap-2 h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold text-black hover:opacity-90 disabled:opacity-40 flex-shrink-0"
+                  style={{ backgroundColor: "var(--brand)" }}
+                >
+                  {downloadingSheet ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Download className="w-4 h-4" aria-hidden="true" />}
+                  ดาวน์โหลด PDF
+                </button>
+              </div>
+              {sheetError && <p className="text-xs text-red-400">{sheetError}</p>}
+            </div>
+
+            <button onClick={() => setPullSheetOpen(true)} className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-semibold text-brand/80 border border-brand/25 hover:bg-brand/10"><Plus className="w-3.5 h-3.5" aria-hidden="true" /> {t("createPullSheet")}</button>
             {pullSheets.length === 0 ? <SectionHint>{t("noPullSheetsYet")}</SectionHint> : (
-              <div className="space-y-1.5">{pullSheets.map((ps) => (
-                <div key={ps.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-fg/[0.06] bg-fg/[0.02]">
-                  <FileText className="w-4 h-4 text-brand/50 flex-shrink-0" />
-                  <span className="font-mono text-brand/70 text-xs flex-shrink-0">{ps.id.slice(0, 8)}</span>
-                  <span className="text-sm text-fg/80 flex-1 min-w-0 truncate">{ps.items} รายการ</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusStyles[ps.status] ?? "bg-fg/5 text-fg/60"}`}>{tc(`statusEnum.${ps.status}`, { defaultValue: ps.status })}</span>
+              <div className="space-y-1.5">{pullSheets.map((ps: any) => {
+                const label = ps.name?.trim() || `v${ps.version}`;
+                const isEditing = renamingId === ps.id;
+                return (
+                <div key={ps.id} className="flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-lg border border-fg/[0.06] bg-fg/[0.02]">
+                  <FileText className="w-4 h-4 text-brand/50 flex-shrink-0" aria-hidden="true" />
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") renameSheet.mutate({ id: ps.id, name: renameValue });
+                        if (e.key === "Escape") setRenamingId(null);
+                      }}
+                      onBlur={() => renameSheet.mutate({ id: ps.id, name: renameValue })}
+                      placeholder={`v${ps.version}`}
+                      maxLength={80}
+                      className="flex-1 min-w-[120px] h-8 px-2 rounded-lg bg-fg/[0.06] border border-brand/40 text-sm text-fg focus:outline-none"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => { setRenamingId(ps.id); setRenameValue(ps.name ?? ""); }}
+                      title="แก้ชื่อเวอร์ชัน"
+                      className="flex items-center gap-1.5 text-sm font-semibold text-fg/85 hover:text-brand transition-colors min-w-0"
+                    >
+                      <span className="truncate">{label}</span>
+                      <Pencil className="w-3 h-3 opacity-40 flex-shrink-0" aria-hidden="true" />
+                    </button>
+                  )}
+                  <span className="text-xs text-fg/50 flex-shrink-0">{ps.items} รายการ</span>
+                  <span className="text-[10px] text-fg/35 flex-shrink-0">
+                    {new Date(ps.createdAt).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
+                  </span>
+                  {!ps.hasSnapshot && (
+                    <span title="ใบนี้สร้างก่อนมีระบบเก็บเวอร์ชัน — PDF จะใช้อุปกรณ์ปัจจุบันของงาน"
+                      className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/15 text-amber-400 flex-shrink-0">
+                      ไม่มีสแนปช็อต
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${statusStyles[ps.status] ?? "bg-fg/5 text-fg/60"}`}>{tc(`statusEnum.${ps.status}`, { defaultValue: ps.status })}</span>
+                  <button
+                    onClick={() => handleDownloadVersion(ps.id, `${job.name} - ${label}`)}
+                    disabled={downloadingId === ps.id}
+                    className="ml-auto flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-bold text-black hover:opacity-90 disabled:opacity-40 flex-shrink-0"
+                    style={{ backgroundColor: "var(--brand)" }}
+                  >
+                    {downloadingId === ps.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Download className="w-3.5 h-3.5" aria-hidden="true" />}
+                    PDF
+                  </button>
                 </div>
-              ))}</div>
+                );
+              })}</div>
             )}
           </div>
         )}

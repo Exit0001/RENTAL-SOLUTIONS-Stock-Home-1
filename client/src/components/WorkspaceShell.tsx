@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, ChevronLeft } from "lucide-react";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { ScrollTabs } from "./ScrollTabs";
 
@@ -89,16 +89,24 @@ export const WorkspaceShell = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-surface-0 flex flex-col animate-fade-in h-[100dvh]">
-      {/* หัว */}
-      <header className="flex items-center gap-3 px-4 md:px-6 py-2.5 md:py-3 border-b border-fg/[0.06] flex-shrink-0">
+      {/* หัว — มือถือเป็น app bar (ย้อนกลับซ้าย), เดสก์ท็อปเป็นแถบเดิม (ไอคอน+ชื่อ+แท็บ+X) */}
+      <header className="flex items-center gap-2 md:gap-3 px-2 md:px-6 py-1.5 md:py-3 border-b border-fg/[0.06] flex-shrink-0">
+        {/* ปุ่มย้อนกลับ — เฉพาะมือถือ ตำแหน่งซ้ายตามที่ผู้ใช้มือถือคาดหวัง */}
+        <button
+          onClick={onClose}
+          aria-label="ย้อนกลับ"
+          className="md:hidden w-11 h-11 -ml-1 rounded-xl flex items-center justify-center text-fg/80 hover:bg-fg/[0.08] active:bg-fg/[0.12] transition-colors flex-shrink-0"
+        >
+          <ChevronLeft className="w-6 h-6" aria-hidden="true" />
+        </button>
         {icon && (
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
+          <div className="hidden md:flex w-8 h-8 rounded-lg items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand)" }}>
             {icon}
           </div>
         )}
-        <div className="min-w-0">
-          <h1 className="text-base md:text-lg font-bold text-fg truncate leading-tight">{title}</h1>
-          {subtitle && <p className="text-[10px] text-fg/50 truncate">{subtitle}</p>}
+        <div className="min-w-0 flex-1 md:flex-none">
+          <h1 className="text-[15px] md:text-lg font-bold text-fg truncate leading-tight">{title}</h1>
+          {subtitle && <p className="text-[11px] md:text-[10px] text-fg/50 truncate leading-tight">{subtitle}</p>}
         </div>
         {/* แท็บเดสก์ท็อป/แท็บเล็ต — มือถือย้ายไปแถวใต้หัวแทน */}
         {tabs && tabs.length > 0 && (
@@ -120,12 +128,13 @@ export const WorkspaceShell = ({
             ))}
           </nav>
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1 md:gap-2 flex-shrink-0">
           {headerActions}
+          {/* X เฉพาะเดสก์ท็อป — มือถือใช้ปุ่มย้อนกลับซ้ายแทน ไม่ให้มีปุ่มปิด 2 ที่ */}
           <button
             onClick={onClose}
             aria-label="Close"
-            className="w-11 h-11 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors tap-target"
+            className="hidden md:flex w-9 h-9 rounded-lg items-center justify-center text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-colors"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -190,9 +199,11 @@ export const WorkspaceShell = ({
         )}
       </div>
 
-      {/* ท้าย */}
+      {/* ท้าย — มือถือ: แถบสรุป + ปุ่มหลักเต็มความกว้าง ติดขอบล่างเหนือ gesture bar
+          (ใช้ md: ไม่ใช่ sm: เพื่อให้ขอบตรงกับ shell ทั้งตัว — เดิมใช้ sm: ทำให้ช่วง
+          640–767px footer เป็นแถวขณะที่ส่วนอื่นยังเป็นโหมดมือถือ) */}
       {footer && (
-        <footer className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4 px-4 md:px-6 py-3 md:py-4 border-t border-fg/[0.06] flex-shrink-0 safe-b">
+        <footer className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-2 md:gap-4 px-3 md:px-6 py-2.5 md:py-4 border-t border-fg/[0.06] flex-shrink-0 safe-b bg-surface-1 md:bg-transparent">
           {footer}
         </footer>
       )}
@@ -208,7 +219,8 @@ export const WSButton = ({
   icon?: React.ReactNode;
   pending?: boolean;
 }): JSX.Element => {
-  const base = "h-9 px-4 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:pointer-events-none tap-target";
+  // มือถือ: สูง 44px + มุมโค้งกว่า (ปุ่มใน footer จะถูกยืดเต็มความกว้างโดย flex ของ footer เอง)
+  const base = "h-11 md:h-9 px-4 rounded-xl md:rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:pointer-events-none tap-target";
   const style =
     variant === "primary" ? "text-black hover:opacity-90"
     : variant === "danger" ? "text-red-400 border border-red-500/30 hover:bg-red-500/10"

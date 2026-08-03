@@ -9,15 +9,14 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useAppStore } from "@/store/appStore";
 import { catalogApi } from "@/api";
+import { toDateInput } from "@/lib/dateUtils";
 import { FileUploadField } from "@/components/FileUploadField";
 import type { InsertStockItem, StockItem } from "@shared/schema";
 
 // ─── helpers for pre-populating edit state ────────────────────────────────────
 
-const dateToInput = (v: any): string => {
-  if (!v) return "";
-  try { return new Date(v).toISOString().split("T")[0]; } catch { return ""; }
-};
+// local-time, not UTC — see lib/dateUtils.ts
+const dateToInput = toDateInput;
 
 const initGeneral = (item?: StockItem): GeneralData => item ? {
   itemName: item.name,

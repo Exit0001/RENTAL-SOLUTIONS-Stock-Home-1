@@ -15,7 +15,7 @@ import type { InsertJob } from "@shared/schema";
 // ทีมงาน/รถ/ตารางรายวัน ตั้งได้ตอนสร้างเลย (ไม่บังคับ) — เก็บเป็น draft ต่อแถว แล้วยิง API ตามหลังการสร้างงานจริง
 
 type JobRow = {
-  id: number; name: string; client: string; startDate: string; endDate: string; rehearsalDate: string;
+  id: number; name: string; client: string; location: string; startDate: string; endDate: string; rehearsalDate: string;
   crewMemberIds: string[];
   vehicleIds: string[];
   daySchedules: Record<string, DraftDaySchedule>;
@@ -53,7 +53,7 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
   const activeVehicles = useMemo(() => vehicleRoster.filter((v) => v.active), [vehicleRoster]);
 
   const mkRow = (id: number): JobRow => ({
-    id, name: "", client: "", startDate: "", endDate: "", rehearsalDate: "",
+    id, name: "", client: "", location: "", startDate: "", endDate: "", rehearsalDate: "",
     crewMemberIds: [], vehicleIds: [], daySchedules: {}, dayCrew: {}, detailsOpen: false,
   });
   const [rows, setRows] = useState<JobRow[]>([mkRow(1)]);
@@ -82,6 +82,8 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
 
   // งานถูกต้อง = มีชื่อ + ลูกค้า (ของแถวหรือค่าร่วม) + วันที่เริ่ม + วันที่สิ้นสุด
   const clientOf = (r: JobRow) => (r.client.trim() || defClient.trim());
+  // per-job location wins; the sidebar value is only a default for rows that leave it blank
+  const locationOf = (r: JobRow) => (r.location.trim() || location.trim());
   const validRows = rows.filter((r) => r.name.trim() && clientOf(r) && r.startDate && r.endDate);
   const canSave = validRows.length > 0 && !saving;
 
@@ -97,7 +99,7 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
         const data: Omit<InsertJob, "companyId"> = {
           name: r.name.trim(),
           client: clientOf(r),
-          location: location.trim() || undefined,
+          location: locationOf(r) || undefined,
           rehearsalDate: r.rehearsalDate ? new Date(r.rehearsalDate) : null,
           startDate: new Date(r.startDate),
           endDate: new Date(r.endDate),
@@ -177,6 +179,14 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input value={r.name} onChange={(e) => setRow(r.id, { name: e.target.value })} placeholder="ชื่องาน *" className={inputCls} />
               <input value={r.client} onChange={(e) => setRow(r.id, { client: e.target.value })} placeholder={defClient.trim() ? `ลูกค้า (${defClient.trim()})` : "ลูกค้า *"} className={inputCls} />
+              {/* สถานที่ต่องาน — เว้นว่างจะใช้ค่าร่วมจากแถบซ้าย (งานหลายงานในชุดเดียวมักคนละสถานที่) */}
+              <input
+                value={r.location}
+                onChange={(e) => setRow(r.id, { location: e.target.value })}
+                placeholder={location.trim() ? `สถานที่ (${location.trim()})` : "สถานที่"}
+                aria-label="สถานที่"
+                className={`${inputCls} sm:col-span-2`}
+              />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="flex flex-col gap-0.5">
@@ -277,8 +287,9 @@ export const AddJobsModal = ({ onClose, onCreated }: Props): JSX.Element => {
             <p className="text-[9px] text-fg/30">ใส่ต่อแถวได้ถ้าลูกค้าต่างกัน</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>สถานที่</label>
+            <label className={labelCls}>สถานที่ (ค่าเริ่มต้น)</label>
             <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="เช่น BITEC Bangkok" className={inputCls} />
+            <p className="text-[9px] text-fg/30">ใส่ต่อแถวได้ถ้าสถานที่ต่างกัน</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className={labelCls}>สถานะ</label>

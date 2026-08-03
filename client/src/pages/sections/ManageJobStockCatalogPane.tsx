@@ -136,7 +136,7 @@ export const ManageJobStockCatalogPane = ({
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => handleCategoryClick(null)}
-            className={`tap-target h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors border
+            className={`h-9 md:h-7 px-3 md:px-2.5 rounded-full text-xs md:text-[11px] font-semibold transition-colors border flex-shrink-0
               ${!categoryFilter ? "bg-brand text-black border-brand" : "text-fg/60 border-fg/10 hover:border-fg/30"}`}
           >
             {t("manageJobStock.allCategories")}
@@ -220,7 +220,7 @@ export const ManageJobStockCatalogPane = ({
                             <button
                               type="button"
                               onClick={() => onAdjustBulkQty(group.id, -1)}
-                              className="w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
+                              className="w-10 h-10 md:w-7 md:h-7 rounded-xl md:rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] transition-colors flex-shrink-0"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
@@ -230,7 +230,7 @@ export const ManageJobStockCatalogPane = ({
                             <button
                               type="button"
                               onClick={() => onAdjustBulkQty(group.id, 1)}
-                              className="w-7 h-7 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 transition-colors"
+                              className="w-10 h-10 md:w-7 md:h-7 rounded-xl md:rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] transition-colors flex-shrink-0"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
@@ -249,7 +249,7 @@ export const ManageJobStockCatalogPane = ({
                       onClick={() => onToggleGroupExpand(group.id)}
                     >
                       <div
-                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
+                        className={`tap-target w-6 h-6 md:w-5 md:h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all
                           ${allSelected ? "border-brand bg-brand" :
                             selectedInGroup > 0 ? "border-brand/60 bg-brand/20" :
                             "border-fg/20"}`}
@@ -290,16 +290,16 @@ export const ManageJobStockCatalogPane = ({
                         <div
                           key={unit.id}
                           onClick={() => onToggleUnit(unit.id)}
-                          className={`flex items-center gap-3 pl-10 pr-3 py-1.5 cursor-pointer border-t border-fg/[0.04] transition-colors
-                            ${isSelected ? "bg-brand/[0.04]" : "hover:bg-fg/[0.02]"}`}
+                          className={`flex items-center gap-3 pl-4 md:pl-10 pr-3 py-3 md:py-1.5 min-h-[52px] md:min-h-0 cursor-pointer border-t border-fg/[0.04] transition-colors
+                            ${isSelected ? "bg-brand/[0.06]" : "hover:bg-fg/[0.02] active:bg-fg/[0.05]"}`}
                         >
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                            ${isSelected ? "border-brand bg-brand" : "border-fg/20"}`}>
-                            {isSelected && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}
+                          <div className={`w-6 h-6 md:w-4 md:h-4 rounded md:rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
+                            ${isSelected ? "border-brand bg-brand" : "border-fg/25"}`}>
+                            {isSelected && <Check className="w-4 h-4 md:w-2.5 md:h-2.5 text-black" strokeWidth={3} />}
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs truncate ${isSelected ? "text-fg/90" : "text-fg/50"}`}>
+                            <p className={`text-sm md:text-xs truncate ${isSelected ? "text-fg/90" : "text-fg/60"}`}>
                               {unit.name}
                             </p>
                             <p className="text-[10px] text-fg/60 font-mono">

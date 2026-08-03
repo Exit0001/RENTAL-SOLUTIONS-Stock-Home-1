@@ -10,14 +10,6 @@ const MAX_CHIPS = 3;
 
 type ViewMode = "timeline" | "month";
 
-const JOB_BAR: Record<string, string> = {
-  draft:     "bg-fg/[0.12] text-fg/50",
-  scheduled: "bg-blue-500/70 text-fg",
-  active:    "bg-amber-500/70 text-black",
-  completed: "bg-emerald-600/60 text-fg",
-  cancelled: "bg-red-500/25 text-fg/40",
-};
-
 const WEEKDAY_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
 function getMonthGrid(month: Date): Date[] {
@@ -39,9 +31,9 @@ function isSameDay(a: Date, b: Date) {
   );
 }
 
-function toDateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
+// local-time day key — UTC would bucket bars into the wrong column for UTC+7
+import { toDateStr } from "@/lib/dateUtils";
+import { jobChipStyle } from "@/lib/jobColors";
 
 interface Props {
   jobs: any[];
@@ -228,10 +220,14 @@ export function JobScheduleView({ jobs }: Props) {
                         style={{ left: di * DAY_W, width: DAY_W }}
                       />
                     ))}
-                    {/* job bar */}
+                    {/* job bar — hue identifies the JOB, not its status */}
                     <div
-                      className={`absolute top-2.5 bottom-2.5 rounded flex items-center px-2 text-[10px] font-semibold truncate select-none ${JOB_BAR[job.status] ?? "bg-fg/10 text-fg/50"}`}
-                      style={{ left: startOff * DAY_W + 2, width: Math.max(8, spanDays * DAY_W - 4) }}
+                      className="absolute top-2.5 bottom-2.5 rounded border flex items-center px-2 text-[10px] font-semibold truncate select-none"
+                      style={{
+                        left: startOff * DAY_W + 2,
+                        width: Math.max(8, spanDays * DAY_W - 4),
+                        ...jobChipStyle(job.id, job.status, job.color),
+                      }}
                       title={`${job.name} · ${job.status}`}
                     >
                       {spanDays >= 3 ? job.name : ""}
@@ -289,8 +285,9 @@ export function JobScheduleView({ jobs }: Props) {
                     {visible.map((job) => (
                       <div
                         key={job.id}
-                        title={job.name}
-                        className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${JOB_BAR[job.status] ?? "bg-fg/10 text-fg/50"}`}
+                        title={`${job.name} · ${job.status}`}
+                        className="truncate rounded border px-1 py-0.5 text-[10px] font-medium leading-tight"
+                        style={jobChipStyle(job.id, job.status, job.color)}
                       >
                         {job.name}
                       </div>

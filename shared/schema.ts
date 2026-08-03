@@ -14,6 +14,7 @@ import {
   decimal,
   jsonb,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -237,6 +238,7 @@ export const jobs = pgTable("jobs", {
   endDate:       timestamp("end_date").notNull(),
   status:        jobStatusEnum("status").default("draft").notNull(),
   imageUrl:      text("image_url"),   // รูปงาน/หน้างาน (Supabase Storage)
+  color:         text("color"),       // สีของงานในปฏิทิน/Gantt (hex) — null = เลือกอัตโนมัติจาก id
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("jobs_company_id_idx").on(t.companyId),
@@ -403,6 +405,8 @@ export const jobUnits = pgTable("job_units", {
 }, (t) => [
   index("job_units_job_id_idx").on(t.jobId),
   index("job_units_stock_unit_id_idx").on(t.stockUnitId),
+  // ยูนิตเดียวห้ามซ้ำในงานเดียวกัน (ข้ามงานได้ = การจองซ้ำ ซึ่งตั้งใจให้เกิดได้แล้วเตือนแทน)
+  uniqueIndex("job_units_job_unit_unique").on(t.jobId, t.stockUnitId),
 ]);
 
 // job_unit_events — ประวัติการเปลี่ยนแปลงอุปกรณ์ต่องาน (เพิ่ม/เอาออกจากแผน, ดิสแพตช์, คืน)
@@ -496,8 +500,29 @@ export const pullSheets = pgTable("pull_sheets", {
   createdById: uuid("created_by").references(() => users.id).notNull(),
   assigneeId:  uuid("assignee_id").references(() => users.id),
   status:      pullSheetStatusEnum("status").default("draft").notNull(),
+  // ลำดับเวอร์ชันในงานเดียวกัน (1, 2, 3...) + ชื่อที่ผู้ใช้ตั้งเอง เช่น "ก่อนออกงาน"
+  version:     integer("version").default(1).notNull(),
+  name:        text("name"),
   createdAt:   timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("pull_sheets_job_id_idx").on(t.jobId),
+]);
+
+// pull_sheet_items — สแนปช็อตรายการอุปกรณ์ ณ เวลาที่สร้างใบเบิก
+//
+// ก่อนหน้านี้ pull_sheets เก็บแค่ metadata แล้ว PDF สร้างสดจากอุปกรณ์ปัจจุบันของงานทุกครั้ง
+// ทำให้ใบเบิกทุกใบของงานเดียวกันได้ไฟล์เหมือนกันหมด ย้อนดูของเดิมไม่ได้เลย
+// ตารางนี้ตรึงรายการไว้ เพื่อให้แต่ละเวอร์ชันเป็นเอกสารจริงที่เทียบกันได้
+export const pullSheetItems = pgTable("pull_sheet_items", {
+  id:           uuid("id").primaryKey().defaultRandom(),
+  pullSheetId:  uuid("pull_sheet_id").references(() => pullSheets.id, { onDelete: "cascade" }).notNull(),
+  category:     text("category").notNull(),
+  itemName:     text("item_name").notNull(),
+  quantity:     integer("quantity").default(1).notNull(),
+  zone:         text("zone"),
+}, (t) => [
+  index("pull_sheet_items_sheet_id_idx").on(t.pullSheetId),
+]);
 
 // ─────────────────────────────────────────────
 // 11. MAINTENANCE LOGS — ประวัติการซ่อมบำรุง

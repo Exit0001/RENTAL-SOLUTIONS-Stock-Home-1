@@ -142,10 +142,11 @@ export const ScanModal = ({ jobName, jobId, onClose }: Props): JSX.Element => {
       subtitle={jobName}
       onClose={onClose}
       headerActions={
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-fg/[0.04] border border-fg/[0.06]">
-          <span className="text-lg font-bold text-brand">{scannedCount}</span>
-          <span className="text-sm text-fg/60">/ {totalCount}</span>
-          <span className="text-[10px] text-fg/60 ml-0.5">{t("scan.scannedSuffix")}</span>
+        // มือถือ: ย่อเหลือ "12/40" อย่างเดียว ไม่งั้นเบียด app bar ที่มีปุ่มย้อนกลับ+ชื่อแล้ว
+        <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-xl bg-fg/[0.04] border border-fg/[0.06] flex-shrink-0">
+          <span className="text-base md:text-lg font-bold text-brand tabular-nums">{scannedCount}</span>
+          <span className="text-xs md:text-sm text-fg/60 tabular-nums">/ {totalCount}</span>
+          <span className="hidden md:inline text-[10px] text-fg/60 ml-0.5">{t("scan.scannedSuffix")}</span>
         </div>
       }
     >

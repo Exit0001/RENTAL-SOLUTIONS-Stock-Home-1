@@ -33,8 +33,17 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 function splitStatements(sql) {
   return sql
     .split(/;\s*\r?\n/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"))
+    // Strip leading `--` comment lines per chunk. Dropping any chunk that merely STARTS
+    // with `--` silently discarded whole statements that were preceded by a comment
+    // block, and the runner then reported "0 statements" as if the file were empty.
+    .map((s) =>
+      s
+        .split(/\r?\n/)
+        .filter((line) => !/^\s*--/.test(line))
+        .join("\n")
+        .trim()
+    )
+    .filter((s) => s.length > 0)
     .map((s) => (s.endsWith(";") ? s : s + ";"));
 }
 

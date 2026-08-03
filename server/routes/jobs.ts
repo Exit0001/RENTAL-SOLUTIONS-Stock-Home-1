@@ -3,7 +3,7 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db";
 import {
-  jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, incidents, insertJobSchema,
+  jobs, jobStock, jobCrew, jobUnits, jobContainers, pullSheets, pullSheetItems, incidents, insertJobSchema,
   insertPullSheetSchema, insertJobCrewSchema, users, activityLog, stockUnits, stockItems, containers, containerUnits, companies,
   jobExpenses, insertJobExpenseSchema, jobVehicles, insertJobVehicleSchema,
   subRentals, insertSubRentalSchema,
@@ -21,11 +21,52 @@ import { logJobUnitEvents } from "../lib/jobUnitEvents";
 
 export const jobsRouter = Router();
 
+// สร้าง pull sheet พร้อม "แช่แข็ง" รายการอุปกรณ์ ณ เวลานั้นลง pull_sheet_items
+// เวอร์ชันเดินต่อจากใบล่าสุดของงานนั้น
+async function createPullSheetSnapshot(
+  jobId: string,
+  companyId: string,
+  createdById: string,
+  extra: { assigneeId?: string | null; status?: any; name?: string | null } = {},
+) {
+  const prev = await db
+    .select({ version: pullSheets.version })
+    .from(pullSheets)
+    .where(eq(pullSheets.jobId, jobId))
+    .orderBy(desc(pullSheets.version))
+    .limit(1);
+  const version = (prev[0]?.version ?? 0) + 1;
+
+  const [sheet] = await db.insert(pullSheets).values({
+    jobId,
+    companyId,
+    createdById,
+    assigneeId: extra.assigneeId ?? null,
+    status: extra.status ?? "draft",
+    name: extra.name?.trim() || null,
+    version,
+  }).returning();
+
+  const equipment = await getJobEquipment(jobId);
+  if (equipment.length > 0) {
+    await db.insert(pullSheetItems).values(
+      equipment.map(({ category, itemName, quantity, zone }) => ({
+        pullSheetId: sheet.id,
+        category,
+        itemName,
+        quantity,
+        zone: zone ?? null,
+      })),
+    );
+  }
+  return sheet;
+}
+
 // สร้าง pull sheet draft อัตโนมัติให้งานที่เพิ่งเข้าสถานะ "scheduled" — ถ้ายังไม่มีอยู่แล้ว
 async function ensurePullSheetForJob(jobId: string, companyId: string, createdById: string) {
   const [existing] = await db.select({ id: pullSheets.id }).from(pullSheets).where(eq(pullSheets.jobId, jobId));
   if (existing) return;
-  await db.insert(pullSheets).values({ jobId, companyId, createdById, status: "draft" });
+  await createPullSheetSnapshot(jobId, companyId, createdById);
 }
 
 // รวมอุปกรณ์ของ job จากทั้ง job_stock (กำหนด quantity ตรง) และ job_units (unit ที่ assign จริง ผ่าน Edit Units / scan)
@@ -118,11 +159,19 @@ jobsRouter.get("/pullsheets", async (req, res) => {
       : [];
     const userNameMap: Record<string, string> = Object.fromEntries(userRows.map((u) => [u.id, u.name]));
 
-    // 4. นับ items จาก job_stock + job_units
-    const stockCounts: Record<string, number> = {};
+    // 4. นับ items จากสแนปช็อตของใบนั้นเอง (ไม่ใช่อุปกรณ์ปัจจุบันของงาน)
+    //    ใบเก่าที่สร้างก่อนมี pull_sheet_items จะไม่มีสแนปช็อต — fallback เป็นของงานปัจจุบัน
+    const snapRows = await db
+      .select({ pullSheetId: pullSheetItems.pullSheetId, quantity: pullSheetItems.quantity })
+      .from(pullSheetItems)
+      .where(inArray(pullSheetItems.pullSheetId, sheets.map((s) => s.id)));
+    const snapCounts: Record<string, number> = {};
+    for (const r of snapRows) snapCounts[r.pullSheetId] = (snapCounts[r.pullSheetId] ?? 0) + r.quantity;
+
+    const liveCounts: Record<string, number> = {};
     for (const jid of jobIds) {
       const equipment = await getJobEquipment(jid);
-      stockCounts[jid] = equipment.reduce((s, e) => s + e.quantity, 0);
+      liveCounts[jid] = equipment.reduce((s, e) => s + e.quantity, 0);
     }
 
     res.json(sheets.map((s) => ({
@@ -132,10 +181,90 @@ jobsRouter.get("/pullsheets", async (req, res) => {
       jobId:     s.jobId,
       job:       s.jobId ? (jobNameMap[s.jobId] ?? "—") : "—",
       assignee:  s.assigneeId ? (userNameMap[s.assigneeId] ?? "—") : "—",
-      items:     s.jobId ? (stockCounts[s.jobId] ?? 0) : 0,
+      version:   s.version,
+      name:      s.name,
+      hasSnapshot: snapCounts[s.id] !== undefined,
+      items:     snapCounts[s.id] ?? (s.jobId ? (liveCounts[s.jobId] ?? 0) : 0),
     })));
   } catch (err: any) {
     res.status(500).json({ message: err?.message ?? "Failed to fetch pull sheets" });
+  }
+});
+
+// GET /api/jobs/pullsheets/:id/pdf — PDF ของใบเบิก "เวอร์ชันนั้น" จากสแนปช็อต
+// ต้องอยู่ก่อน /:id
+jobsRouter.get("/pullsheets/:id/pdf", async (req, res) => {
+  try {
+    const [sheet] = await db
+      .select()
+      .from(pullSheets)
+      .where(and(eq(pullSheets.id, req.params.id), eq(pullSheets.companyId, req.companyId)));
+    if (!sheet) return res.status(404).json({ message: "Pull sheet not found" });
+
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, sheet.jobId));
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    const [company] = await db
+      .select({ name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, req.companyId));
+
+    const snap = await db
+      .select({
+        category: pullSheetItems.category,
+        itemName: pullSheetItems.itemName,
+        quantity: pullSheetItems.quantity,
+        zone:     pullSheetItems.zone,
+      })
+      .from(pullSheetItems)
+      .where(eq(pullSheetItems.pullSheetId, sheet.id));
+
+    // ใบที่สร้างก่อนมีระบบสแนปช็อตไม่มีรายการเก็บไว้ — ใช้อุปกรณ์ปัจจุบันแทนดีกว่าออกไฟล์เปล่า
+    const items = snap.length > 0
+      ? snap
+      : (await getJobEquipment(job.id)).map(({ category, itemName, quantity, zone }) => ({ category, itemName, quantity, zone }));
+
+    const label = sheet.name?.trim() || `v${sheet.version}`;
+    const doc = generatePullSheetPdf({
+      companyName: company?.name ?? "Company",
+      job,
+      items,
+      title: label,
+    });
+
+    // ชื่อไฟล์ = ชื่องาน + เวอร์ชัน
+    const safe = (s: string) => s.replace(/[\\/:*?"<>|]+/g, "_").trim();
+    const filename = `${safe(job.name)} - ${safe(label)}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${filename.replace(/[^\x20-\x7e]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+    doc.pipe(res);
+    doc.end();
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to generate pull sheet PDF" });
+  }
+});
+
+// PUT /api/jobs/pullsheets/:id — เปลี่ยนชื่อเวอร์ชัน / สถานะ
+jobsRouter.put("/pullsheets/:id", async (req, res) => {
+  try {
+    const patch: Record<string, any> = {};
+    if (req.body.name !== undefined) patch.name = String(req.body.name).trim().slice(0, 80) || null;
+    if (req.body.status !== undefined) patch.status = req.body.status;
+    if (Object.keys(patch).length === 0) return res.status(400).json({ message: "Nothing to update" });
+
+    const [updated] = await db
+      .update(pullSheets)
+      .set(patch)
+      .where(and(eq(pullSheets.id, req.params.id), eq(pullSheets.companyId, req.companyId)))
+      .returning();
+
+    if (!updated) return res.status(404).json({ message: "Pull sheet not found" });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ message: err?.message ?? "Failed to update pull sheet" });
   }
 });
 
@@ -1138,20 +1267,11 @@ jobsRouter.post("/:id/pullsheets", async (req, res) => {
 
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-    const data = insertPullSheetSchema.parse({
-      jobId: req.params.id,
+    // แช่แข็งรายการอุปกรณ์ ณ ตอนนี้ → ใบนี้เป็นเวอร์ชันที่ย้อนดูได้จริง
+    const sheet = await createPullSheetSnapshot(req.params.id, req.companyId, req.userId, {
       assigneeId: req.body.assigneeId || null,
+      name: req.body.name ?? null,
     });
-
-    const [sheet] = await db
-      .insert(pullSheets)
-      .values({
-        ...data,
-        companyId: req.companyId,
-        createdById: req.userId,
-        status: "draft",
-      })
-      .returning();
 
     if (sheet.assigneeId) {
       await notify({
@@ -1188,9 +1308,13 @@ jobsRouter.get("/:id/pullsheet/pdf", async (req, res) => {
     const equipment = await getJobEquipment(job.id);
     const items = equipment.map(({ category, itemName, quantity, zone }) => ({ category, itemName, quantity, zone }));
 
-    const doc = generatePullSheetPdf({ companyName: company?.name ?? "Company", job, items });
+    // ?title= — ผู้ใช้ตั้งชื่อเอกสารเองได้ตอนกดดาวน์โหลด (ไม่เก็บลง DB, ไม่ต้อง migrate)
+    const rawTitle = typeof req.query.title === "string" ? req.query.title.slice(0, 80) : "";
+    const title = rawTitle.trim();
 
-    const safeName = job.name.replace(/[^a-z0-9-_]+/gi, "_");
+    const doc = generatePullSheetPdf({ companyName: company?.name ?? "Company", job, items, title });
+
+    const safeName = (title || job.name).replace(/[^a-z0-9-_ก-๙]+/gi, "_");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="pullsheet-${safeName}.pdf"`);
     doc.pipe(res);
@@ -1283,9 +1407,25 @@ jobsRouter.put("/:id", async (req, res) => {
 
     if (!before) return res.status(404).json({ message: "Job not found" });
 
+    // date columns are drizzle `timestamp` (mode: date) — a JSON body always delivers
+    // strings, which blow up inside the driver. POST already coerces; PUT did not, so
+    // editing a job's dates from the client was impossible until this was added.
+    const patch: Record<string, any> = { ...req.body };
+    delete patch.id;
+    delete patch.companyId;
+    delete patch.createdAt;
+    for (const key of ["startDate", "endDate", "rehearsalDate"]) {
+      if (patch[key] !== undefined) {
+        patch[key] = patch[key] ? new Date(patch[key]) : null;
+        if (patch[key] && isNaN(patch[key].getTime())) {
+          return res.status(400).json({ message: `Invalid ${key}` });
+        }
+      }
+    }
+
     const [job] = await db
       .update(jobs)
-      .set(req.body)
+      .set(patch)
       .where(and(
         eq(jobs.id, req.params.id),
         eq(jobs.companyId, req.companyId)

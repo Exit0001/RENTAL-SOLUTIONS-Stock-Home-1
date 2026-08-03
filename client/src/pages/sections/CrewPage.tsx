@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  Users, Truck, Plus, Pencil, Trash2, Check, Minus, BadgeCheck, CalendarClock, ClipboardList,
+  Users, Truck, Plus, Pencil, Trash2, Check, Minus, BadgeCheck, CalendarClock, ClipboardList, X,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -10,6 +10,7 @@ import {
 import { useAppStore } from "@/store/appStore";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { ScrollTabs } from "@/components/ScrollTabs";
+import { jobColor } from "@/lib/jobColors";
 import { crewApi, vehiclesApi, jobsApi, jobVehiclesApi } from "@/api";
 import type { CrewMemberRow, VehicleRow, JobCrewMember, JobVehicleRow, CrewType } from "@/api";
 import { AddCrewMemberModal } from "./AddCrewMemberModal";
@@ -142,21 +143,21 @@ export const CrewPage = (): JSX.Element => {
   const CrewRosterRow = ({ m }: { m: CrewMemberRow }) => {
     const on = assignedCrew.has(m.id);
     return (
-      <div className={`group/row flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${on ? "bg-brand/[0.08]" : "hover:bg-fg/[0.03]"}`}>
+      <div className={`group/row flex items-center gap-2 px-2 py-2 min-h-[48px] rounded-lg transition-colors ${on ? "bg-brand/[0.08]" : "hover:bg-fg/[0.03]"}`}>
         <button onClick={() => toggleCrew(m.id)} disabled={!sid} className="flex items-center gap-2 flex-1 min-w-0 text-left disabled:cursor-default">
           {m.imageUrl
-            ? <img src={m.imageUrl} alt={m.name} className="w-6 h-6 rounded-full object-cover border border-fg/10 flex-shrink-0" />
-            : <div className="w-6 h-6 rounded-full bg-brand/10 flex items-center justify-center text-[9px] font-bold text-brand/70 flex-shrink-0">{initialsOf(m.name)}</div>}
+            ? <img src={m.imageUrl} alt={m.name} className="w-8 h-8 rounded-full object-cover border border-fg/10 flex-shrink-0" />
+            : <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center text-[11px] font-bold text-brand/70 flex-shrink-0">{initialsOf(m.name)}</div>}
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-fg/85 truncate flex items-center gap-1">{m.name}{m.userId && <BadgeCheck className="w-3 h-3 text-emerald-400/70 flex-shrink-0" />}</p>
-            {m.role && <p className="text-[9px] text-fg/40 truncate">{m.role}</p>}
+            <p className="text-sm text-fg/90 truncate flex items-center gap-1">{m.name}{m.userId && <BadgeCheck className="w-3 h-3 text-emerald-400/70 flex-shrink-0" />}</p>
+            {m.role && <p className="text-[11px] text-fg/50 truncate">{m.role}</p>}
           </div>
-          {sid && <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${on ? "bg-brand" : "border border-fg/20"}`}>{on && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}</div>}
+          {sid && <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${on ? "bg-brand" : "border-2 border-fg/25"}`}>{on && <Check className="w-3.5 h-3.5 text-black" strokeWidth={3} />}</div>}
         </button>
         {canManage && (
-          <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity flex-shrink-0">
-            <button onClick={() => { setEditCrew(m); setCrewModalOpen(true); }} className="p-1 rounded text-fg/40 hover:text-fg"><Pencil className="w-3 h-3" /></button>
-            <button onClick={() => setDeleteCrewTarget(m)} className="p-1 rounded text-fg/40 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+          <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity flex-shrink-0">
+            <button onClick={() => { setEditCrew(m); setCrewModalOpen(true); }} className="tap-target p-1.5 rounded text-fg/50 hover:text-fg"><Pencil className="w-4 h-4" /></button>
+            <button onClick={() => setDeleteCrewTarget(m)} className="tap-target p-1.5 rounded text-fg/50 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
           </div>
         )}
       </div>
@@ -173,11 +174,18 @@ export const CrewPage = (): JSX.Element => {
         const cnt = perJobCount.get(j.id) ?? 0;
         const active = sid === j.id;
         return (
-          <button key={j.id} onClick={() => setSelectedJob(j)}
-            className={`flex items-center gap-2 h-9 px-3 rounded-lg border transition-colors flex-shrink-0 ${active ? "border-brand bg-brand/10" : "border-fg/10 bg-fg/[0.02] hover:border-brand/40"}`}>
-            <span className={`text-xs font-semibold whitespace-nowrap ${active ? "text-brand" : "text-fg/80"}`}>{j.name}</span>
-            <span className="text-[10px] text-fg/40 whitespace-nowrap">{new Date(j.startDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
-            {cnt > 0 && <span className="text-[10px] font-bold text-brand bg-brand/10 px-1.5 rounded-full">{cnt}</span>}
+          // กดชิปงานที่เลือกอยู่ซ้ำ = ยกเลิกการเลือก (เดิมเลือกแล้วเลิกไม่ได้เลย)
+          <button key={j.id} onClick={() => setSelectedJob(active ? null : j)}
+            title={active ? "กดอีกครั้งเพื่อยกเลิกการเลือก" : j.name}
+            className={`flex items-center gap-2 h-10 px-3.5 rounded-lg border transition-colors flex-shrink-0 ${active ? "border-brand bg-brand/10" : "border-fg/10 bg-fg/[0.02] hover:border-brand/40"}`}>
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: jobColor(j.id, j.color).bg }}
+            />
+            <span className={`text-sm font-semibold whitespace-nowrap ${active ? "text-brand" : "text-fg/85"}`}>{j.name}</span>
+            <span className="text-xs text-fg/45 whitespace-nowrap">{new Date(j.startDate).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
+            {cnt > 0 && <span className="text-xs font-bold text-brand bg-brand/10 px-1.5 rounded-full">{cnt}</span>}
+            {active && <X className="w-3.5 h-3.5 text-brand/70 flex-shrink-0" aria-hidden="true" />}
           </button>
         );
       })}
@@ -217,46 +225,46 @@ export const CrewPage = (): JSX.Element => {
             <span className="text-xs font-bold text-fg/50">คลังคน/รถ</span>
             {canManage && (
               <div className="ml-auto flex items-center gap-1">
-                <button onClick={() => setAddResourceTab("crew")} className="flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-bold text-black hover:opacity-90" style={{ backgroundColor: "var(--brand)" }}><Plus className="w-3 h-3" />คน</button>
-                <button onClick={() => setAddResourceTab("vehicle")} className="flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-bold text-brand border border-brand/30 hover:bg-brand/10"><Plus className="w-3 h-3" />รถ</button>
+                <button onClick={() => setAddResourceTab("crew")} className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-bold text-black hover:opacity-90" style={{ backgroundColor: "var(--brand)" }}><Plus className="w-3 h-3" />คน</button>
+                <button onClick={() => setAddResourceTab("vehicle")} className="flex items-center gap-1 h-8 px-2.5 rounded-lg text-xs font-bold text-brand border border-brand/30 hover:bg-brand/10"><Plus className="w-3 h-3" />รถ</button>
               </div>
             )}
           </div>
           {sid ? (
-            <p className="px-3 py-1.5 text-[10px] text-fg/40 border-b border-fg/[0.04] flex-shrink-0">คลิกชื่อ/รถเพื่อจัดเข้า <span className="text-brand/70 font-semibold">{selectedJob.name}</span></p>
+            <p className="px-3 py-1.5 text-[11px] text-fg/50 border-b border-fg/[0.04] flex-shrink-0">คลิกชื่อ/รถเพื่อจัดเข้า <span className="text-brand/70 font-semibold">{selectedJob.name}</span></p>
           ) : (
-            <p className="px-3 py-1.5 text-[10px] text-fg/30 border-b border-fg/[0.04] flex-shrink-0">เลือกงานจากตารางกลางเพื่อจัดทีม</p>
+            <p className="px-3 py-1.5 text-[11px] text-fg/40 border-b border-fg/[0.04] flex-shrink-0">เลือกงานจากตารางกลางเพื่อจัดทีม</p>
           )}
           <div className="flex-1 overflow-y-auto px-2 py-2 space-y-3">
             {NAMED_TYPES.map((ty) => {
               const members = rosterByType.get(ty) ?? [];
               return (
                 <div key={ty}>
-                  <div className="px-2 py-1 text-[9px] font-bold text-brand/50 uppercase tracking-wider">{CREW_TYPE_LABEL[ty]} · {members.length}</div>
+                  <div className="px-2 py-1 text-[11px] font-bold text-brand/60 uppercase tracking-wider">{CREW_TYPE_LABEL[ty]} · {members.length}</div>
                   {members.length === 0 ? <p className="px-2 text-[10px] text-fg/25">—</p> : members.map((m) => <CrewRosterRow key={m.id} m={m} />)}
                 </div>
               );
             })}
             <div>
-              <div className="px-2 py-1 text-[9px] font-bold text-brand/50 uppercase tracking-wider">รถ · {vehicles.length}</div>
+              <div className="px-2 py-1 text-[11px] font-bold text-brand/60 uppercase tracking-wider">รถ · {vehicles.length}</div>
               {vehicles.length === 0 ? <p className="px-2 text-[10px] text-fg/25">—</p> : vehicles.filter((v) => v.active).map((v) => {
                 const on = assignedVehicle.has(v.id);
                 return (
-                  <div key={v.id} className={`group/row flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${on ? "bg-brand/[0.08]" : "hover:bg-fg/[0.03]"}`}>
+                  <div key={v.id} className={`group/row flex items-center gap-2 px-2 py-2 min-h-[48px] rounded-lg transition-colors ${on ? "bg-brand/[0.08]" : "hover:bg-fg/[0.03]"}`}>
                     <button onClick={() => toggleVeh(v)} disabled={!sid} className="flex items-center gap-2 flex-1 min-w-0 text-left disabled:cursor-default">
                       {v.imageUrl
-                        ? <img src={v.imageUrl} alt={v.name} className="w-6 h-6 rounded-lg object-cover border border-fg/10 flex-shrink-0" />
-                        : <div className="w-6 h-6 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0"><Truck className="w-3 h-3 text-brand/60" /></div>}
+                        ? <img src={v.imageUrl} alt={v.name} className="w-8 h-8 rounded-lg object-cover border border-fg/10 flex-shrink-0" />
+                        : <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0"><Truck className="w-4 h-4 text-brand/60" /></div>}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-fg/85 truncate">{v.name}</p>
-                        {(v.plate || v.type) && <p className="text-[9px] text-fg/40 truncate">{[v.type, v.plate].filter(Boolean).join(" · ")}</p>}
+                        <p className="text-sm text-fg/90 truncate">{v.name}</p>
+                        {(v.plate || v.type) && <p className="text-[11px] text-fg/50 truncate">{[v.type, v.plate].filter(Boolean).join(" · ")}</p>}
                       </div>
-                      {sid && <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${on ? "bg-brand" : "border border-fg/20"}`}>{on && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />}</div>}
+                      {sid && <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${on ? "bg-brand" : "border-2 border-fg/25"}`}>{on && <Check className="w-3.5 h-3.5 text-black" strokeWidth={3} />}</div>}
                     </button>
                     {canManage && (
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity flex-shrink-0">
-                        <button onClick={() => { setEditVehicle(v); setVehicleModalOpen(true); }} className="p-1 rounded text-fg/40 hover:text-fg"><Pencil className="w-3 h-3" /></button>
-                        <button onClick={() => setDeleteVehicleTarget(v)} className="p-1 rounded text-fg/40 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                      <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity flex-shrink-0">
+                        <button onClick={() => { setEditVehicle(v); setVehicleModalOpen(true); }} className="tap-target p-1.5 rounded text-fg/50 hover:text-fg"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteVehicleTarget(v)} className="tap-target p-1.5 rounded text-fg/50 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     )}
                   </div>
@@ -291,8 +299,8 @@ export const CrewPage = (): JSX.Element => {
                   <span className="text-brand/70 font-semibold">{jobCrew.length + totalCount} คน · {jobVehicles.length} รถ</span>
                 </p>
                 <div className="flex items-center gap-1 mt-2 bg-fg/[0.04] rounded-lg p-0.5 w-fit">
-                  <button onClick={() => setGroupMode("role")} className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold ${groupMode === "role" ? "bg-brand text-black" : "text-fg/50"}`}>ตามตำแหน่ง</button>
-                  <button onClick={() => setGroupMode("type")} className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold ${groupMode === "type" ? "bg-brand text-black" : "text-fg/50"}`}>ตามประเภท</button>
+                  <button onClick={() => setGroupMode("role")} className={`px-3 py-1.5 rounded-md text-xs font-bold ${groupMode === "role" ? "bg-brand text-black" : "text-fg/60 hover:text-fg"}`}>ตามตำแหน่ง</button>
+                  <button onClick={() => setGroupMode("type")} className={`px-3 py-1.5 rounded-md text-xs font-bold ${groupMode === "type" ? "bg-brand text-black" : "text-fg/60 hover:text-fg"}`}>ตามประเภท</button>
                 </div>
               </div>
 
@@ -300,15 +308,15 @@ export const CrewPage = (): JSX.Element => {
                 {/* named crew */}
                 {crewGroups.map(([gname, members]) => (
                   <div key={gname}>
-                    <div className="text-[10px] font-bold text-brand/70 uppercase tracking-wider mb-1.5">{gname} · {members.length}</div>
+                    <div className="text-xs font-bold text-brand/70 uppercase tracking-wider mb-2">{gname} · {members.length}</div>
                     <div className="space-y-1.5">
                       {members.map((c) => (
                         <div key={c.crewMemberId} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-fg/[0.07] bg-fg/[0.02]">
-                          <div className="w-7 h-7 rounded-full bg-brand/10 flex items-center justify-center text-[9px] font-bold text-brand/70 flex-shrink-0">{c.initials}</div>
-                          <div className="flex-1 min-w-0"><p className="text-xs text-fg/90 truncate">{c.name}</p><span className="text-[9px] text-fg/40">{CREW_TYPE_LABEL[c.type]}</span></div>
+                          <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center text-[11px] font-bold text-brand/70 flex-shrink-0">{c.initials}</div>
+                          <div className="flex-1 min-w-0"><p className="text-sm text-fg/90 truncate">{c.name}</p><span className="text-[11px] text-fg/50">{CREW_TYPE_LABEL[c.type]}</span></div>
                           <select value={ROLE_PRESETS.includes(c.role ?? "") ? (c.role ?? "") : (c.role ? "__custom" : "")}
                             onChange={(e) => { const v = e.target.value; if (v !== "__custom") setRole.mutate({ id: c.crewMemberId, role: v || null }); }}
-                            className="h-6 max-w-[80px] px-1 rounded-md bg-fg/[0.04] border border-fg/10 text-[10px] text-fg/80 focus:outline-none focus:border-brand/40">
+                            className="h-8 min-w-[110px] max-w-[150px] px-2 rounded-md bg-fg/[0.04] border border-fg/10 text-xs text-fg/85 focus:outline-none focus:border-brand/40 cursor-pointer">
                             <option value="">ตำแหน่ง</option>
                             {ROLE_PRESETS.map((r) => <option key={r} value={r}>{r}</option>)}
                             {c.role && !ROLE_PRESETS.includes(c.role) && <option value="__custom">{c.role}</option>}
@@ -322,16 +330,16 @@ export const CrewPage = (): JSX.Element => {
 
                 {/* outsource / loader headcount */}
                 <div>
-                  <div className="text-[10px] font-bold text-brand/70 uppercase tracking-wider mb-1.5">แรงงานเหมา (จำนวนคน)</div>
+                  <div className="text-xs font-bold text-brand/70 uppercase tracking-wider mb-2">แรงงานเหมา (จำนวนคน)</div>
                   <div className="space-y-1.5">
                     {COUNT_TYPES.map((ty) => {
                       const n = countByType.get(ty) ?? 0;
                       return (
                         <div key={ty} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${n > 0 ? "border-brand/25 bg-brand/[0.04]" : "border-fg/[0.07] bg-fg/[0.02]"}`}>
                           <span className="flex-1 text-sm text-fg/85">{CREW_TYPE_LABEL[ty]}</span>
-                          <button onClick={() => bumpCount(ty, -1)} disabled={n === 0} className="w-6 h-6 rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
+                          <button onClick={() => bumpCount(ty, -1)} disabled={n === 0} className="w-8 h-8 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] disabled:opacity-30 flex-shrink-0"><Minus className="w-3 h-3" /></button>
                           <span className={`w-6 text-center text-sm font-bold tabular-nums ${n > 0 ? "text-brand" : "text-fg/50"}`}>{n}</span>
-                          <button onClick={() => bumpCount(ty, 1)} className="w-6 h-6 rounded-md border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30"><Plus className="w-3 h-3" /></button>
+                          <button onClick={() => bumpCount(ty, 1)} className="w-8 h-8 rounded-lg border border-fg/10 flex items-center justify-center text-fg/60 hover:text-fg hover:border-fg/30 active:bg-fg/[0.08] flex-shrink-0"><Plus className="w-3 h-3" /></button>
                         </div>
                       );
                     })}
@@ -341,14 +349,14 @@ export const CrewPage = (): JSX.Element => {
                 {/* vehicles */}
                 {jobVehicles.length > 0 && (
                   <div>
-                    <div className="text-[10px] font-bold text-brand/70 uppercase tracking-wider mb-1.5">รถ · {jobVehicles.length}</div>
+                    <div className="text-xs font-bold text-brand/70 uppercase tracking-wider mb-2">รถ · {jobVehicles.length}</div>
                     <div className="space-y-1.5">
                       {jobVehicles.map((v) => (
                         <div key={v.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-fg/[0.07] bg-fg/[0.02]">
                           <div className="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0"><Truck className="w-3.5 h-3.5 text-brand/60" /></div>
-                          <div className="flex-1 min-w-0"><p className="text-xs text-fg/90 truncate">{v.vehicleType}</p>{v.plate && <span className="text-[9px] text-fg/40">{v.plate}</span>}</div>
+                          <div className="flex-1 min-w-0"><p className="text-sm text-fg/90 truncate">{v.vehicleType}</p>{v.plate && <span className="text-[11px] text-fg/50">{v.plate}</span>}</div>
                           <select value={v.driverCrewMemberId ?? ""} onChange={(e) => setDriver.mutate({ id: v.id, driverCrewMemberId: e.target.value || null })}
-                            className="h-6 max-w-[88px] px-1 rounded-md bg-fg/[0.04] border border-fg/10 text-[10px] text-fg/80 focus:outline-none focus:border-brand/40">
+                            className="h-8 min-w-[110px] max-w-[150px] px-2 rounded-md bg-fg/[0.04] border border-fg/10 text-xs text-fg/85 focus:outline-none focus:border-brand/40 cursor-pointer">
                             <option value="">คนขับ</option>
                             {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                           </select>
@@ -361,7 +369,7 @@ export const CrewPage = (): JSX.Element => {
 
                 {/* daily schedule */}
                 <div>
-                  <div className="text-[10px] font-bold text-brand/70 uppercase tracking-wider mb-1.5">ตารางรายวัน</div>
+                  <div className="text-xs font-bold text-brand/70 uppercase tracking-wider mb-2">ตารางรายวัน</div>
                   <JobDailyScheduleSection jobId={sid!} startDate={selectedJob.startDate} endDate={selectedJob.endDate} jobCrew={jobCrew} canManage={canManage} />
                 </div>
               </div>

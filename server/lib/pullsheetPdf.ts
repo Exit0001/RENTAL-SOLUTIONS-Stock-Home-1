@@ -12,6 +12,8 @@ export type GeneratePullSheetPdfArgs = {
   companyName: string;
   job: Job;
   items: PullSheetItem[];
+  /** หัวเอกสาร — ผู้ใช้ตั้งเองได้ตอนดาวน์โหลด (ว่าง = "PULL SHEET") */
+  title?: string | null;
 };
 
 const PAGE_MARGIN = 50;
@@ -30,12 +32,14 @@ const fmtDate = (d: Date | string | null): string => {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-export function generatePullSheetPdf({ companyName, job, items }: GeneratePullSheetPdfArgs): PDFKit.PDFDocument {
+export function generatePullSheetPdf({ companyName, job, items, title }: GeneratePullSheetPdfArgs): PDFKit.PDFDocument {
   const doc = new PDFDocument({ size: "A4", margin: PAGE_MARGIN });
+  const heading = (title ?? "").trim() || "PULL SHEET";
 
   // ── Header ──────────────────────────────────────────────
   doc.font("Helvetica-Bold").fontSize(18).fillColor("#000000").text(companyName, { align: "left" });
-  doc.font("Helvetica-Bold").fontSize(22).fillColor("#000000").text("PULL SHEET", { align: "right" });
+  // ยาวกว่านี้ให้ตัวเล็กลงแทนที่จะตกบรรทัดทับ Generated:
+  doc.font("Helvetica-Bold").fontSize(heading.length > 24 ? 15 : 22).fillColor("#000000").text(heading, { align: "right" });
   doc.moveDown(0.2);
   doc.font("Helvetica").fontSize(9).fillColor("#666666")
     .text(`Generated: ${new Date().toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}`, { align: "right" });

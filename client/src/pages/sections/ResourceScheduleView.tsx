@@ -1,19 +1,16 @@
 import { useState, useMemo, useRef, Fragment } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useResponsiveDayCount } from "@/hooks/use-responsive-day-count";
+import { jobChipStyle } from "@/lib/jobColors";
 
 // Gantt กลาง (resource-agnostic) — ใช้ได้ทั้งทีมงานและรถ
 // rows = แถวทรัพยากร (มี group ไว้ขึ้น header คั่น), assignments = flat { resourceId, jobId }
 
-const COL_W = 38, ROW_H = 54, LEFT_W = 200, MIN_DAYS = 14, FALLBACK_DAYS = 35;
+const COL_W = 46, ROW_H = 56, LEFT_W = 216, MIN_DAYS = 10, FALLBACK_DAYS = 28;
 
-const STATUS_BAR: Record<string, { bg: string; border: string; text: string }> = {
-  draft:     { bg: "rgba(255,255,255,0.07)", border: "rgba(255,255,255,0.12)", text: "rgba(255,255,255,0.45)" },
-  scheduled: { bg: "rgba(59,130,246,0.28)",  border: "rgba(99,160,255,0.35)",  text: "rgba(147,197,253,0.9)" },
-  active:    { bg: "rgba(245,158,11,0.30)",  border: "rgba(251,191,36,0.40)",  text: "rgba(253,230,138,0.9)" },
-  completed: { bg: "rgba(16,185,129,0.25)",  border: "rgba(52,211,153,0.35)",  text: "rgba(167,243,208,0.9)" },
-  cancelled: { bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.12)",   text: "rgba(239,68,68,0.3)"  },
-};
+// Bars are coloured per JOB (lib/jobColors) so the same job is recognisable here, on the
+// Jobs calendar and in the job list. The old status-based rgba() table also hard-coded
+// white-on-dark values that were unreadable in the light theme.
 
 const DOW_TH = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
@@ -85,8 +82,8 @@ export function ResourceScheduleView({ rows, jobs, assignments, onBarClick, empt
               const isToday = i === todayOffset;
               return (
                 <div key={i} className={`shrink-0 border-r border-fg/[0.04] text-center py-2 ${isToday ? "bg-brand/[0.06]" : ""}`} style={{ width: COL_W }}>
-                  <div className={`text-[9px] uppercase tracking-wide ${isToday ? "text-brand/70" : "text-fg/25"}`}>{DOW_TH[d.getDay()]}</div>
-                  <div className={`text-[11px] font-semibold mt-0.5 ${isToday ? "text-brand" : "text-fg/40"}`}>{d.getDate()}</div>
+                  <div className={`text-[10px] uppercase tracking-wide ${isToday ? "text-brand/70" : "text-fg/40"}`}>{DOW_TH[d.getDay()]}</div>
+                  <div className={`text-[13px] font-semibold mt-0.5 ${isToday ? "text-brand" : "text-fg/60"}`}>{d.getDate()}</div>
                 </div>
               );
             })}
@@ -102,17 +99,17 @@ export function ResourceScheduleView({ rows, jobs, assignments, onBarClick, empt
               <Fragment key={c.id}>
                 {showGroup && (
                   <div className="flex sticky left-0 z-20" style={{ width: totalW }}>
-                    <div className="px-3 py-1 bg-surface-1 border-b border-fg/[0.06] w-full">
-                      <span className="text-[10px] font-bold text-brand/60 uppercase tracking-wider">{c.group}</span>
+                    <div className="px-3 py-1.5 bg-surface-1 border-b border-fg/[0.06] w-full">
+                      <span className="text-xs font-bold text-brand/70 uppercase tracking-wider">{c.group}</span>
                     </div>
                   </div>
                 )}
                 <div className="flex" style={{ height: ROW_H }}>
                   <div className={`flex-shrink-0 sticky left-0 z-10 flex items-center gap-2.5 px-3 border-b border-r border-fg/[0.04] ${ri % 2 === 1 ? "bg-surface-1" : "bg-surface-0"}`} style={{ width: LEFT_W }}>
-                    <div className="w-7 h-7 rounded-full bg-fg/[0.08] flex items-center justify-center text-[10px] font-bold text-fg/50 flex-shrink-0">{c.initials}</div>
+                    <div className="w-8 h-8 rounded-full bg-fg/[0.08] flex items-center justify-center text-[11px] font-bold text-fg/60 flex-shrink-0">{c.initials}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-fg/75 truncate leading-tight">{c.name}</p>
-                      {c.sub && <p className="text-[10px] text-fg/25 truncate leading-tight mt-0.5">{c.sub}</p>}
+                      <p className="text-sm font-medium text-fg/90 truncate leading-tight">{c.name}</p>
+                      {c.sub && <p className="text-[11px] text-fg/45 truncate leading-tight mt-0.5">{c.sub}</p>}
                     </div>
                   </div>
 
@@ -133,17 +130,17 @@ export function ResourceScheduleView({ rows, jobs, assignments, onBarClick, empt
                       const cs = Math.max(0, s), ce = Math.min(VIEW_DAYS, e);
                       const left = cs * COL_W + 3, width = (ce - cs) * COL_W - 6;
                       if (width < 1) return null;
-                      const style = STATUS_BAR[job.status] ?? STATUS_BAR.draft;
+                      const chip = jobChipStyle(job.id, job.status, job.color);
                       const clippedL = s < 0, clippedR = e > VIEW_DAYS;
                       const radius = clippedL && clippedR ? "0" : clippedL ? "0 6px 6px 0" : clippedR ? "6px 0 0 6px" : "6px";
-                      const BAR_H = 26, BAR_Y = (ROW_H - BAR_H) / 2;
+                      const BAR_H = 30, BAR_Y = (ROW_H - BAR_H) / 2;
                       return (
                         <button key={job.id} type="button" onClick={() => onBarClick?.(job)}
                           title={`${job.name}  •  ${new Date(job.startDate).toLocaleDateString("th-TH")} – ${new Date(job.endDate ?? job.startDate).toLocaleDateString("th-TH")}`}
                           className="absolute flex items-center gap-1.5 px-2 overflow-hidden hover:brightness-125 active:brightness-90 transition-all cursor-pointer z-20"
-                          style={{ left, width, top: BAR_Y, height: BAR_H, background: style.bg, border: `1px solid ${style.border}`, borderRadius: radius }}>
-                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: style.border }} />
-                          <span className="text-[10px] font-semibold truncate leading-none" style={{ color: style.text }}>{job.name}</span>
+                          style={{ left, width, top: BAR_Y, height: BAR_H, background: chip.backgroundColor, border: `1px solid ${chip.borderColor}`, borderRadius: radius }}>
+                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: chip.borderColor }} />
+                          <span className="text-xs font-semibold truncate leading-none" style={{ color: chip.color, textDecoration: chip.textDecoration }}>{job.name}</span>
                         </button>
                       );
                     })}
